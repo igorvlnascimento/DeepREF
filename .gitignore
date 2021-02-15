@@ -116,7 +116,6 @@ ckpt
 benchmark/tacred
 *.swp
 
-<<<<<<< HEAD
 # data and pretrain
 pretrain
 benchmark
@@ -128,8 +127,19 @@ benchmark
 
 # package
 opennre-egg.info
-=======
+
 # debug
 benchmark/nyt10-ori
 train_nyt10_pcnn_att_ori.py
->>>>>>> ebf8370... fix pcnn bug
+
+/wiki80
+Results OpenNRE.txt
+AblationStudies.txt
+/otimization
+/gpt2
+/semeval
+/example/train_supervised_gpt2.py
+opennre/encoder/gpt2_encoder.py
+roberta-base/
+bert-base-uncased/
+distilbert-base-uncased/

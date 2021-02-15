@@ -49,7 +49,7 @@ sys.path.append(root_path)
 if not os.path.exists('ckpt'):
     os.mkdir('ckpt')
 if len(args.ckpt) == 0:
-    args.ckpt = '{}_{}'.format(args.dataset, 'cnn')
+    args.ckpt = '{}_{}'.format(args.dataset, 'pcnn')
 ckpt = 'ckpt/{}.pth.tar'.format(args.ckpt)
 
 if args.dataset != 'none':
@@ -78,7 +78,7 @@ word2id = json.load(open(os.path.join(root_path, 'pretrain/glove/glove.6B.50d_wo
 word2vec = np.load(os.path.join(root_path, 'pretrain/glove/glove.6B.50d_mat.npy'))
 
 # Define the sentence encoder
-sentence_encoder = opennre.encoder.CNNEncoder(
+sentence_encoder = opennre.encoder.PCNNEncoder(
     token2id=word2id,
     max_length=args.max_length,
     word_size=50,
@@ -117,7 +117,7 @@ if not args.only_test:
 framework.load_state_dict(torch.load(ckpt)['state_dict'])
 result, pred, ground_truth = framework.eval_model(framework.test_loader)
 
-framework.get_confusion_matrix(ground_truth, pred, 'confusion_matrix_cnn')
+framework.get_confusion_matrix(ground_truth, pred, 'confusion_matrix_pcnn')
 
 # Print the result
 logging.info('Test set results:')

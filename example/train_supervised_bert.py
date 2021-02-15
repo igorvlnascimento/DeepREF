@@ -117,7 +117,9 @@ if not args.only_test:
 
 # Test
 framework.load_state_dict(torch.load(ckpt)['state_dict'])
-result = framework.eval_model(framework.test_loader)
+result, pred, ground_truth = framework.eval_model(framework.test_loader)
+
+framework.get_confusion_matrix(ground_truth, pred, 'confusion_matrix_bert', only_test=args.only_test)
 
 # Print the result
 logging.info('Test set results:')

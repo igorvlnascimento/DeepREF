@@ -5,6 +5,29 @@ from torch import nn, optim
 from .data_loader import SentenceRELoader
 from .utils import AverageMeter
 
+from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
+import matplotlib.pyplot as plt
+
+CLASSES = ['Component-Whole(e2,e1)',
+            'Other',
+            'Instrument-Agency(e2,e1)',
+            'Member-Collection(e1,e2)',
+            'Cause-Effect(e2,e1)',
+            'Entity-Destination(e1,e2)',
+            'Content-Container(e1,e2)',
+            'Message-Topic(e1,e2)',
+            'Product-Producer(e2,e1)',
+            'Member-Collection(e2,e1)',
+            'Entity-Origin(e1,e2)',
+            'Cause-Effect(e1,e2)',
+            'Component-Whole(e1,e2)',
+            'Message-Topic(e2,e1)',
+            'Product-Producer(e1,e2)',
+            'Entity-Origin(e2,e1)',
+            'Content-Container(e2,e1)',
+            'Instrument-Agency(e1,e2)',
+            'Entity-Destination(e2,e1)']
+
 class SentenceRE(nn.Module):
 
     def __init__(self, 
@@ -128,7 +151,7 @@ class SentenceRE(nn.Module):
                 global_step += 1
             # Val 
             logging.info("=== Epoch %d val ===" % epoch)
-            result = self.eval_model(self.val_loader) 
+            result, _, _ = self.eval_model(self.val_loader) 
             logging.info('Metric {} current / best: {} / {}'.format(metric, result[metric], best_metric))
             if result[metric] > best_metric:
                 logging.info("Best ckpt and saved.")
@@ -143,6 +166,7 @@ class SentenceRE(nn.Module):
         self.eval()
         avg_acc = AverageMeter()
         pred_result = []
+        ground_truth = []
         with torch.no_grad():
             t = tqdm(eval_loader)
             for iter, data in enumerate(t):
@@ -159,12 +183,29 @@ class SentenceRE(nn.Module):
                 # Save result
                 for i in range(pred.size(0)):
                     pred_result.append(pred[i].item())
+                for i in range(label.size(0)):
+                    ground_truth.append(label[i].item())
                 # Log
                 acc = float((pred == label).long().sum()) / label.size(0)
                 avg_acc.update(acc, pred.size(0))
                 t.set_postfix(acc=avg_acc.avg)
         result = eval_loader.dataset.eval(pred_result)
-        return result
+        return result, pred_result, ground_truth
+
+    def get_confusion_matrix(self, ground_truth, pred_result, image_output_name, only_test=False, output_format='png'):
+        c_matrix = confusion_matrix(ground_truth, pred_result)
+
+        disp = ConfusionMatrixDisplay(confusion_matrix=c_matrix,
+                                        display_labels=CLASSES)
+
+        disp.plot(include_values=True, xticks_rotation='vertical')
+
+        if only_test:
+            image_output_name = "{}_only_test.{}".format(image_output_name, output_format)
+
+        save_path = os.path.join('results', image_output_name)
+        plt.savefig(save_path, bbox_inches="tight")
+        plt.clf()
 
     def load_state_dict(self, state_dict):
         self.model.load_state_dict(state_dict)
