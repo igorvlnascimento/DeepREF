@@ -89,7 +89,7 @@ if args.pooler == 'entity':
         mask_entity=args.mask_entity
     )
 elif args.pooler == 'cls':
-    sentence_encoder = opennre.encoder.BERTEncoder(
+    sentence_encoder = opennre.encoder.BERTHiddenStateEncoder(
         max_length=args.max_length, 
         pretrain_path=args.pretrain_path,
         mask_entity=args.mask_entity
