@@ -220,7 +220,7 @@ class BERTHiddenStateEncoder(nn.Module):
         self.hidden_size = 768
         self.mask_entity = mask_entity
         logging.info('Loading BERT pre-trained checkpoint.')
-        self.bert = BertModel.from_pretrained(pretrain_path,output_hidden_states=True,output_attentions=True, return_dict=False)
+        self.bert = BertModel.from_pretrained(pretrain_path,output_hidden_states=True,output_attentions=True)
         self.tokenizer = BertTokenizer.from_pretrained(pretrain_path)
 
     def forward(self, token, att_mask):
