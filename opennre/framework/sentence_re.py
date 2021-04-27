@@ -1,3 +1,5 @@
+from opennre.framework.f1_metric import F1Metric
+from opennre.model.para_loss_softmax import PARALossSoftmax
 import os, logging, json
 from tqdm import tqdm
 import torch
@@ -41,10 +43,19 @@ class SentenceRE(nn.Module):
                  lr=0.1, 
                  weight_decay=1e-5, 
                  warmup_step=300,
-                 opt='sgd'):
+                 opt='sgd',
+                 own_loss=False,
+                 add_subject_loss=False,
+                 loss_func=PARALossSoftmax(),
+                 metric=F1Metric()
+                 ):
     
         super().__init__()
         self.max_epoch = max_epoch
+        self.own_loss = own_loss
+        self.metric = metric
+        self.add_subject_loss = add_subject_loss
+        self.loss_func = loss_func
         # Load data
         if train_path != None:
             self.train_loader = SentenceRELoader(
@@ -116,7 +127,7 @@ class SentenceRE(nn.Module):
         # Ckpt
         self.ckpt = ckpt
 
-    def train_model(self, metric='acc'):
+    def train_model(self, warmup=True, metric='acc'):
         best_metric = 0
         global_step = 0
         for epoch in range(self.max_epoch):
@@ -125,6 +136,7 @@ class SentenceRE(nn.Module):
             avg_loss = AverageMeter()
             avg_acc = AverageMeter()
             t = tqdm(self.train_loader)
+            data_idx = 0
             for iter, data in enumerate(t):
                 if torch.cuda.is_available():
                     for i in range(len(data)):
@@ -132,17 +144,40 @@ class SentenceRE(nn.Module):
                             data[i] = data[i].cuda()
                         except:
                             pass
-                label = data[0]
-                args = data[1:]
-                logits = self.parallel_model(*args)
+                subject_label = data[-1]
+                if self.own_loss:
+                    label = data[-2]
+                    args = data[0:2]
+                else:
+                    label = data[0]
+                    args = data[1:]
+                logits, subject_label_logits, attx = self.parallel_model(*args)
                 loss = self.criterion(logits, label)
                 score, pred = logits.max(-1) # (B)
                 acc = float((pred == label).long().sum()) / label.size(0)
                 # Log
-                avg_loss.update(loss.item(), 1)
-                avg_acc.update(acc, 1)
-                t.set_postfix(loss=avg_loss.avg, acc=avg_acc.avg)
+                if self.own_loss:
+                    loss = self.loss_func(logits, label)
+
+                    if self.add_subject_loss:
+                        subject_loss = self.subject_loss(subject_label_logits.transpose(1, 2), subject_label)
+                        loss += subject_loss
+
+                    l = list(logits.detach().cpu().numpy())
+                    data_idx += len(l)
+                else:
+                    avg_loss.update(loss.item(), 1)
+                    avg_acc.update(acc, 1)
+                    t.set_postfix(loss=avg_loss.avg, acc=avg_acc.avg)
                 # Optimize
+                if warmup == True:
+                    warmup_step = 300
+                    if global_step < warmup_step:
+                        warmup_rate = float(global_step) / warmup_step
+                    else:
+                        warmup_rate = 1.0
+                    for param_group in self.optimizer.param_groups:
+                        param_group['lr'] = self.lr * warmup_rate
                 loss.backward()
                 self.optimizer.step()
                 if self.scheduler is not None:
@@ -165,6 +200,8 @@ class SentenceRE(nn.Module):
     def eval_model(self, eval_loader):
         self.eval()
         avg_acc = AverageMeter()
+        self.metric.reset()
+        data_idx = 0
         pred_result = []
         ground_truth = []
         with torch.no_grad():

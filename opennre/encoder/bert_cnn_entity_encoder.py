@@ -35,12 +35,13 @@ class BERTCNNEntityEncoder(nn.Module):
         """
         seq = 0
         hidden, _ = self.bert(token, attention_mask=att_mask)
-        h1 = self.conv(hidden[:pos1])
-        fc1 = self.linear(h1)
-        h2 = self.conv(hidden[pos1:pos2])
-        fc2 = self.linear(h1)
-        h3 = self.conv(hidden[pos2:])
-        fc3 = self.linear(h1)
+        for i in range(len(pos1)):
+            h1 = self.conv(hidden[i,:pos1[i],:])
+            fc1 = self.linear(h1)
+            h2 = self.conv(hidden[i,pos1[i]:pos2[i],:])
+            fc2 = self.linear(h1)
+            h3 = self.conv(hidden[i,pos2[i]:,:])
+            fc3 = self.linear(h1)
         # Get entity start hidden state
         onehot_head = torch.zeros(hidden.size()[:2]).float().to(hidden.device)  # (B, L)
         onehot_tail = torch.zeros(hidden.size()[:2]).float().to(hidden.device)  # (B, L)
