@@ -145,13 +145,15 @@ class SentenceRE(nn.Module):
                         except:
                             pass
                 subject_label = data[-1]
+                logits = None
                 if self.own_loss:
                     label = data[-2]
                     args = data[0:2]
+                    logits, subject_label_logits, attx = self.parallel_model(*args)
                 else:
                     label = data[0]
                     args = data[1:]
-                logits, subject_label_logits, attx = self.parallel_model(*args)
+                    logits = self.parallel_model(*args)
                 print(logits.size())
                 loss = self.criterion(logits, label)
                 score, pred = logits.max(-1) # (B)
