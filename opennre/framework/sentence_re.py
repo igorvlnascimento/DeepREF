@@ -152,6 +152,7 @@ class SentenceRE(nn.Module):
                     label = data[0]
                     args = data[1:]
                 logits, subject_label_logits, attx = self.parallel_model(*args)
+                print(logits.size())
                 loss = self.criterion(logits, label)
                 score, pred = logits.max(-1) # (B)
                 acc = float((pred == label).long().sum()) / label.size(0)
