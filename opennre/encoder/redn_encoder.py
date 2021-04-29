@@ -37,11 +37,11 @@ class BERTCNNEntityEncoder(nn.Module):
         hidden, _ = self.bert(token, attention_mask=att_mask)
         for i in range(len(pos1)):
             h1 = self.conv(hidden[i,:pos1[i],:])
-            fc1 = self.linear(h1)
             h2 = self.conv(hidden[i,pos1[i]:pos2[i],:])
-            fc2 = self.linear(h1)
             h3 = self.conv(hidden[i,pos2[i]:,:])
-            fc3 = self.linear(h1)
+            #fc1 = self.linear(h1)
+            #fc2 = self.linear(h2)
+            #fc3 = self.linear(h3)
         # Get entity start hidden state
         onehot_head = torch.zeros(hidden.size()[:2]).float().to(hidden.device)  # (B, L)
         onehot_tail = torch.zeros(hidden.size()[:2]).float().to(hidden.device)  # (B, L)
@@ -49,9 +49,7 @@ class BERTCNNEntityEncoder(nn.Module):
         onehot_tail = onehot_tail.scatter_(1, pos2, 1)
         head_hidden = (onehot_head.unsqueeze(2) * hidden).sum(1)  # (B, H)
         tail_hidden = (onehot_tail.unsqueeze(2) * hidden).sum(1)  # (B, H)
-        x = torch.cat([head_hidden, tail_hidden], 1)  # (B, 2H)
-        x = self.linear(x)
-        x = torch.cat([x, fc1, fc2, fc3])
+        x = torch.cat([head_hidden, tail_hidden, h1, h2, h3], 1)  # (B, 2H)
         x = self.linear(x)
         return x
 
