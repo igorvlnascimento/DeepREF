@@ -92,8 +92,7 @@ elif args.pooler == 'cls':
     sentence_encoder = opennre.encoder.BERTHiddenStateEncoder(
         max_length=args.max_length, 
         pretrain_path=args.pretrain_path,
-        mask_entity=args.mask_entity,
-        own_loss=True
+        mask_entity=args.mask_entity
     )
 else:
     raise NotImplementedError
@@ -114,7 +113,8 @@ framework = opennre.framework.SentenceRE(
     lr=args.lr,
     opt='adamw',
     loss_func=PARALossSoftmax(),
-    metric=F1Metric()
+    metric=F1Metric(),
+    own_loss=True
 )
 
 # Train the model
