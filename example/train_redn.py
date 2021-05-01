@@ -83,16 +83,12 @@ rel2id = json.load(open(args.rel2id_file))
 
 # Define the sentence encoder
 if args.pooler == 'entity':
-    sentence_encoder = opennre.encoder.BERTEntityEncoder(
-        max_length=args.max_length, 
-        pretrain_path=args.pretrain_path,
-        mask_entity=args.mask_entity
+    sentence_encoder = opennre.encoder.BERTHiddenStateEncoder(
+        pretrain_path=args.pretrain_path
     )
 elif args.pooler == 'cls':
     sentence_encoder = opennre.encoder.BERTHiddenStateEncoder(
-        max_length=args.max_length, 
-        pretrain_path=args.pretrain_path,
-        mask_entity=args.mask_entity
+        pretrain_path=args.pretrain_path
     )
 else:
     raise NotImplementedError
