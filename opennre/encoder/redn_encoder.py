@@ -9,7 +9,7 @@ from ..module.nn import CNN
 class BERTHiddenStateEncoder(BERTEncoder):
     def __init__(self, pretrain_path, blank_padding=True):
         super().__init__(80, pretrain_path, blank_padding)
-        self.bert = BertModel.from_pretrained(pretrain_path, output_hidden_states=True,output_attentions=True)
+        self.bert = BertModel.from_pretrained(pretrain_path, output_hidden_states=True,output_attentions=True,return_dict=False)
 
     def forward(self, token, att_mask):
         """

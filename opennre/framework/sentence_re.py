@@ -150,16 +150,6 @@ class SentenceRE(nn.Module):
                     label = data[-2]
                     args = data[0:2]
                     logits, subject_label_logits, attx = self.parallel_model(*args)
-                else:
-                    label = data[0]
-                    args = data[1:]
-                    logits = self.parallel_model(*args)
-                    print(logits.size())
-                    loss = self.criterion(logits, label)
-                score, pred = logits.max(-1) # (B)
-                acc = float((pred == label).long().sum()) / label.size(0)
-                # Log
-                if self.own_loss:
                     loss = self.loss_func(logits, label)
 
                     if self.add_subject_loss:
@@ -169,6 +159,13 @@ class SentenceRE(nn.Module):
                     l = list(logits.detach().cpu().numpy())
                     data_idx += len(l)
                 else:
+                    label = data[0]
+                    args = data[1:]
+                    logits = self.parallel_model(*args)
+                    print(logits.size())
+                    loss = self.criterion(logits, label)
+                    score, pred = logits.max(-1) # (B)
+                    acc = float((pred == label).long().sum()) / label.size(0)
                     avg_loss.update(loss.item(), 1)
                     avg_acc.update(acc, 1)
                     t.set_postfix(loss=avg_loss.avg, acc=avg_acc.avg)
