@@ -2,13 +2,14 @@ import logging
 import torch
 import torch.nn as nn
 from transformers import BertModel, BertTokenizer
-from .base_encoder import BaseEncoder, BERTEncoder
+from .base_encoder import BaseEncoder
+from .bert_encoder import BERTEncoder
 from ..module.nn import CNN
 
 class BERTHiddenStateEncoder(BERTEncoder):
     def __init__(self, pretrain_path, blank_padding=True):
         super().__init__(80, pretrain_path, blank_padding)
-        self.bert = BertModel.from_pretrained(pretrain_path, output_hidden_states=True,output_attentions=True, return_dict=False)
+        self.bert = BertModel.from_pretrained(pretrain_path, output_hidden_states=True,output_attentions=True)
 
     def forward(self, token, att_mask):
         """
