@@ -213,21 +213,33 @@ class SentenceRE(nn.Module):
                             data[i] = data[i].cuda()
                         except:
                             pass
-                label = data[0]
-                args = data[1:]        
-                logits = self.parallel_model(*args)
-                score, pred = logits.max(-1) # (B)
-                # Save result
-                for i in range(pred.size(0)):
-                    pred_result.append(pred[i].item())
-                for i in range(label.size(0)):
-                    ground_truth.append(label[i].item())
-                # Log
-                acc = float((pred == label).long().sum()) / label.size(0)
-                avg_acc.update(acc, pred.size(0))
-                t.set_postfix(acc=avg_acc.avg)
-        result = eval_loader.dataset.eval(pred_result)
-        return result, pred_result, ground_truth
+                if self.own_loss:
+                    label = data[-1]
+                    args = data[0:2]
+                    logits, _, attx = self.parallel_model(*args)
+                    l = list(logits.cpu().numpy())
+                    self.metric.eval(l, eval_loader.dataset.data[data_idx:data_idx + len(l)])
+                    data_idx += len(l)
+                else:
+                    label = data[0]
+                    args = data[1:]        
+                    logits = self.parallel_model(*args)
+                    score, pred = logits.max(-1) # (B)
+                    # Save result
+                    for i in range(pred.size(0)):
+                        pred_result.append(pred[i].item())
+                    for i in range(label.size(0)):
+                        ground_truth.append(label[i].item())
+                    # Log
+                    acc = float((pred == label).long().sum()) / label.size(0)
+                    avg_acc.update(acc, pred.size(0))
+                    t.set_postfix(acc=avg_acc.avg)
+        if self.own_loss:
+            print(self.metric.get_result())
+            return self.metric.get_result()
+        else:
+            result = eval_loader.dataset.eval(pred_result)
+            return result, pred_result, ground_truth
 
     def get_confusion_matrix(self, ground_truth, pred_result, image_output_name, only_test=False, output_format='png'):
         c_matrix = confusion_matrix(ground_truth, pred_result)

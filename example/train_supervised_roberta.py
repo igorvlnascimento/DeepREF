@@ -24,8 +24,10 @@ parser.add_argument('--mask_entity', action='store_true',
 # Data
 parser.add_argument('--metric', default='micro_f1', choices=['micro_f1', 'acc'],
         help='Metric for picking up best checkpoint')
-parser.add_argument('--dataset', default='none', choices=['none', 'semeval', 'wiki80', 'tacred'], 
+parser.add_argument('--dataset', default='none', choices=['none', 'semeval2010', 'wiki80', 'tacred'], 
         help='Dataset. If not none, the following args can be ignored')
+parser.add_argument('--preprocessing', default='none', choices=['none', 'punct_digit', 'punct_stop_digit', 'entity_blinding'], 
+        help='Preprocessing. If not none, the original dataset is used')
 parser.add_argument('--train_file', default='', type=str,
         help='Training data file')
 parser.add_argument('--val_file', default='', type=str,
@@ -56,11 +58,14 @@ if len(args.ckpt) == 0:
     args.ckpt = '{}_{}_{}'.format(args.dataset, args.pretrain_path, args.pooler)
 ckpt = 'ckpt/{}.pth.tar'.format(args.ckpt)
 
+if args.preprocessing == 'none':
+        args.preprocessing = 'original'
+
 if args.dataset != 'none':
-    opennre.download(args.dataset, root_path=root_path)
-    args.train_file = os.path.join(root_path, 'benchmark', args.dataset, '{}_train.txt'.format(args.dataset))
-    args.val_file = os.path.join(root_path, 'benchmark', args.dataset, '{}_val.txt'.format(args.dataset))
-    args.test_file = os.path.join(root_path, 'benchmark', args.dataset, '{}_test.txt'.format(args.dataset))
+    #opennre.download(args.dataset, root_path=root_path)
+    args.train_file = os.path.join(root_path, 'benchmark', args.dataset, args.preprocessing, '{}_train.txt'.format(args.dataset))
+    args.val_file = os.path.join(root_path, 'benchmark', args.dataset, args.preprocessing, '{}_val.txt'.format(args.dataset))
+    args.test_file = os.path.join(root_path, 'benchmark', args.dataset, args.preprocessing, '{}_test.txt'.format(args.dataset))
     if not os.path.exists(args.test_file):
         logging.warn("Test file {} does not exist! Use val file instead".format(args.test_file))
         args.test_file = args.val_file
