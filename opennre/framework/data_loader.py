@@ -2,7 +2,7 @@ import torch
 import torch.utils.data as data
 import os, random, json, logging
 import numpy as np
-import sklearn.metrics
+from sklearn import metrics
 from torch.nn.utils.rnn import pad_sequence
 from opennre.dataset.utils import is_normal, is_multi_label, is_over_lapping
 
@@ -290,6 +290,7 @@ class SentenceREDataset(data.Dataset):
             {'acc': xx}
         """
         correct = 0
+        goldens = []
         total = len(self.data)
         correct_positive = 0
         pred_positive = 0
@@ -305,8 +306,10 @@ class SentenceREDataset(data.Dataset):
         for i in range(total):
             if use_name:
                 golden = self.data[i]['relation']
+                goldens.append(golden)
             else:
                 golden = self.rel2id[self.data[i]['relation']]
+                goldens.append(golden)
             if golden == pred_result[i]:
                 correct += 1
                 if golden != neg:
@@ -316,6 +319,9 @@ class SentenceREDataset(data.Dataset):
             if pred_result[i] != neg:
                 pred_positive += 1
         acc = float(correct) / float(total)
+
+        labels = list(set(goldens))
+        #Micro
         try:
             micro_p = float(correct_positive) / float(pred_positive)
         except:
@@ -328,8 +334,23 @@ class SentenceREDataset(data.Dataset):
             micro_f1 = 2 * micro_p * micro_r / (micro_p + micro_r)
         except:
             micro_f1 = 0
-        result = {'acc': acc, 'micro_p': micro_p, 'micro_r': micro_r, 'micro_f1': micro_f1}
-        logging.info('Evaluation result: {}.'.format(result))
+
+        # Macro
+        try:
+            macro_p = float(correct_positive) / float(pred_positive)
+        except:
+            macro_p = 0
+        try:
+            macro_r = float(correct_positive) / float(gold_positive)
+        except:
+            macro_r = 0
+        try:
+            macro_f1 = 2 * micro_p * micro_r / (micro_p + micro_r)
+        except:
+            macro_f1 = 0
+        #result = {'acc': acc, 'micro_p': micro_p, 'micro_r': micro_r, 'micro_f1': micro_f1, 'macro_p': macro_p, 'macro_r': macro_r, 'macro_f1': macro_f1}
+        result = metrics.classification_report(goldens, pred_result, labels=labels)
+        logging.info('Evaluation result: \n {}.'.format(result))
         return result
     
 def SentenceRELoader(path, rel2id, tokenizer, batch_size, 
