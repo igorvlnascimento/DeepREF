@@ -10,7 +10,7 @@ import argparse
 import logging
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--pretrain_path', default='bert-base-uncased', 
+parser.add_argument('--pretrain_path', default='bert-base-uncased', choices=constants.pretrain_choices,
         help='Pre-trained ckpt path / model name (hugginface)')
 parser.add_argument('--ckpt', default='', 
         help='Checkpoint name')
