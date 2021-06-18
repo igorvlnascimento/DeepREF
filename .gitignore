@@ -117,7 +117,12 @@ benchmark/tacred
 *.swp
 
 # data and pretrain
-benchmark
+benchmark/raw_ddi
+benchmark/raw_semeval
+benchmark/semeval
+benchmark/semeval2010
+benchmark/wiki_distant
+benchmark/wiki80
 !benchmark/*.sh
 !pretrain/*.sh
 
