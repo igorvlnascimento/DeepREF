@@ -117,7 +117,6 @@ benchmark/tacred
 *.swp
 
 # data and pretrain
-pretrain
 benchmark
 !benchmark/*.sh
 !pretrain/*.sh
@@ -135,7 +134,7 @@ train_nyt10_pcnn_att_ori.py
 /wiki80
 Results OpenNRE.txt
 AblationStudies.txt
-/otimization
+/optimization
 /gpt2
 /semeval
 /example/train_supervised_gpt2.py

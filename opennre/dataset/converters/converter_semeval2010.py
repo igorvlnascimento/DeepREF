@@ -5,7 +5,9 @@
 
     This accompanies the notebook: notebook/Semeval_preprocess/Semeval_preprocess_original
 """
-import spacy
+#import spacy
+from tqdm import tqdm
+import json
 import stanza
 from ast import literal_eval
 import pandas as pd
@@ -20,6 +22,10 @@ relation_dict = {0:'Component-Whole(e2,e1)', 1:'Instrument-Agency(e2,e1)', 2:'Me
 15:'Content-Container(e2,e1)', 16:'Instrument-Agency(e1,e2)', 17:'Entity-Destination(e2,e1)',
 18:'Other'}
 rev_relation_dict = {val: key for key, val in relation_dict.items()}
+
+def write_relations_json(path):
+    json_file = open(path+'/semeval2010_rel2id.json', 'w')
+    json.dump(rev_relation_dict, json_file)
 
 def tokenize(nlp, sentence, model="spacy"):
     tokenized = []
@@ -65,11 +71,13 @@ def get_original_sentence(sent):
 def get_dataset_dataframe(nlp, directory):
     data = []
     with open(directory, 'r') as file:
-        for line in file:
+        lines = list(file.readlines())
+        for i in tqdm(range(0, len(lines), 4)):
+            line = lines[i]
             id, sent = line.split('\t')
-            rel = next(file).strip()
-            next(file) # comment
-            next(file) # blankline
+            rel = lines[i+1].strip()
+            #next(file) # comment
+            #next(file) # blankline
 
             sent = sent.strip()
             if sent[0] == '"':
@@ -82,8 +90,6 @@ def get_dataset_dataframe(nlp, directory):
             sent = sent.replace('</e2>', ' ENTITYOTHEREND ')
             sent = remove_whitespace(sent) # to get rid of additional white space
 
-            print(sent)
-
             tokens = tokenize(nlp, sent, "stanza")
             start_with_e1 = True
             for token in tokens:
@@ -93,8 +99,6 @@ def get_dataset_dataframe(nlp, directory):
                     start_with_e1 = False
                     print("In sentence with ID %d sentence starts with e2"%id)
                     break
-
-            print(tokens)
             
             if start_with_e1:
                 e1_idx, tokens = get_entity_start_and_end('ENTITYSTART', 'ENTITYEND', tokens)
@@ -157,14 +161,14 @@ def check_equality_of_written_and_read_df(df, df_copy):
 
 # write the dataframe into the text format accepted by the cnn model
 def write_into_txt(df, directory):
-    print("Unique relations: \t", df['relation_type'].unique())
+    #print("Unique relations: \t", df['relation_type'].unique())
     null_row = df[df["relation_type"].isnull()]
     if null_row.empty:
         idx_null_row = None
     else:
         idx_null_row = null_row.index.values[0]
     with open(directory, 'w') as outfile:
-        for i in range(0, len(df)):
+        for i in tqdm(range(0, len(df))):
             dict = {}
             head = {}
             tail = {}
@@ -173,8 +177,6 @@ def write_into_txt(df, directory):
             row = df.iloc[i]
             relation = rev_relation_dict[row.relation_type]
             metadata = row.metadata
-            print("row:",row)
-            print("e1:",metadata['e1'])
             e1_idx = [metadata['e1']['word_index'][0][0], metadata['e1']['word_index'][0][1]+1]
             e2_idx = [metadata['e2']['word_index'][0][0], metadata['e2']['word_index'][0][1]+1]
             head['name'] = metadata['e1']['word']
@@ -185,12 +187,13 @@ def write_into_txt(df, directory):
                 tokenized_sentence = row.tokenized_sentence
             except AttributeError:
                 tokenized_sentence = row.preprocessed_sentence
+            if type(tokenized_sentence) is not str:
+                continue
             tokenized_sentence = tokenized_sentence.split(" ")
             dict["token"] = tokenized_sentence
             dict['h'] = head
             dict['t'] = tail
             dict["relation"] = row.relation_type
-            print("dict:",dict)
             outfile.write(str(dict)+"\n")
             #outfile.write(str(relation) + " " + str(e1[0]) + " " + str(e1[-1]) + " " + 
             #              str(e2[0]) + " " + str(e2[-1]) + " " + tokenized_sentence + "\n")

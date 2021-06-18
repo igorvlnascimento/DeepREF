@@ -3,7 +3,7 @@ import torch
 import numpy as np
 import json
 import opennre
-from opennre import encoder, model, framework
+from opennre import encoder, model, framework, constants
 import sys
 import os
 import argparse
@@ -24,9 +24,9 @@ parser.add_argument('--mask_entity', action='store_true',
 # Data
 parser.add_argument('--metric', default='micro_f1', choices=['micro_f1', 'acc'],
         help='Metric for picking up best checkpoint')
-parser.add_argument('--dataset', default='none', choices=['none', 'semeval2010', 'wiki80', 'tacred'], 
+parser.add_argument('--dataset', default='none', choices=constants.datasets_choices, 
         help='Dataset. If not none, the following args can be ignored')
-parser.add_argument('--preprocessing', default='none', choices=['none', 'punct_digit', 'punct_stop_digit', 'entity_blinding'], 
+parser.add_argument('--preprocessing', default='none', choices=constants.preprocessing_choices, 
         help='Preprocessing. If not none, the original dataset is used')
 parser.add_argument('--train_file', default='', type=str,
         help='Training data file')
@@ -63,9 +63,9 @@ if args.preprocessing == 'none':
 
 if args.dataset != 'none':
     #opennre.download(args.dataset, root_path=root_path)
-    args.train_file = os.path.join(root_path, 'benchmark', args.dataset, args.preprocessing, '{}_train.txt'.format(args.dataset))
-    args.val_file = os.path.join(root_path, 'benchmark', args.dataset, args.preprocessing, '{}_val.txt'.format(args.dataset))
-    args.test_file = os.path.join(root_path, 'benchmark', args.dataset, args.preprocessing, '{}_test.txt'.format(args.dataset))
+    args.train_file = os.path.join(root_path, 'benchmark', args.dataset, args.preprocessing, '{}_train_{}.txt'.format(args.dataset, args.preprocessing))
+    args.val_file = os.path.join(root_path, 'benchmark', args.dataset, args.preprocessing, '{}_val_{}.txt'.format(args.dataset, args.preprocessing))
+    args.test_file = os.path.join(root_path, 'benchmark', args.dataset, args.preprocessing, '{}_test_{}.txt'.format(args.dataset, args.preprocessing))
     if not os.path.exists(args.test_file):
         logging.warn("Test file {} does not exist! Use val file instead".format(args.test_file))
         args.test_file = args.val_file

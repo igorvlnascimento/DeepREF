@@ -5,17 +5,12 @@ Refer to notebooks/Data-Preprocessing for more details. The methods are specific
 _original notebooks for all datasets.
 '''
 
-import os, pandas as pd, numpy as np
 import nltk
-import stanza
-import spacy
-from spacy.tokens import Doc
+from tqdm import tqdm
 
 import nltk
 nltk.download('stopwords')
 from nltk.corpus import stopwords
-
-stanza.download("en")
 
 # important global variables for identifying the location of entities
 entity1 = 'E'
@@ -99,7 +94,7 @@ def replace_with_concept(row):
                                                                                common_indexes)
     repl_dict = new_entity_replacement_dict # just using proxy because names are long
     sorted_positions = sort_position_keys(new_entity_replacement_dict)
-    for i in range(len(sorted_positions)):
+    for i in tqdm(range(len(sorted_positions))):
         curr_pos = sorted_positions[i]
         curr_start_pos, curr_end_pos = parse_position(curr_pos)
         start_replace = '' if repl_dict[curr_pos]['start'] is None else repl_dict[curr_pos]['start'].upper()
@@ -404,8 +399,9 @@ def replace_ner(row, nlp, check_ner_overlap=False): # similar to concept_replace
         curr_pos = sorted_positions[i]
         curr_start_pos, curr_end_pos = parse_position(curr_pos)
         curr_dict = ner_repl_dict[curr_pos]
+        print("curr_dict:",curr_dict)
         start_insert = '' if curr_dict['insert'] is None else curr_dict['insert'].upper()
-        between_replace = '' if curr_dict['replace_by'] is None or curr_dict['replace_by'] == 'O' else curr_dict['replace_by']
+        between_replace = '' if curr_dict['replace_by'] is None else curr_dict['replace_by']
         if i == 0:
             new_sentence += list_to_string(sentence[:curr_start_pos]) + ' ' + start_insert + ' ' + \
             between_replace + ' '
