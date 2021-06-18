@@ -62,7 +62,7 @@ if args.preprocessing == 'none':
         args.preprocessing = 'original'
 
 if args.dataset != 'none':
-    #opennre.download(args.dataset, root_path=root_path)
+    opennre.download(args.dataset, root_path=root_path)
     args.train_file = os.path.join(root_path, 'benchmark', args.dataset, args.preprocessing, '{}_train_{}.txt'.format(args.dataset, args.preprocessing))
     args.val_file = os.path.join(root_path, 'benchmark', args.dataset, args.preprocessing, '{}_val_{}.txt'.format(args.dataset, args.preprocessing))
     args.test_file = os.path.join(root_path, 'benchmark', args.dataset, args.preprocessing, '{}_test_{}.txt'.format(args.dataset, args.preprocessing))

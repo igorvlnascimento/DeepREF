@@ -149,7 +149,6 @@ class RoBERTaEntityEncoder(nn.Module):
         else:
             sentence = item['token']
             is_token = True
-        print("item:",item)
         pos_head = item['h']['pos']
         pos_tail = item['t']['pos']
 
