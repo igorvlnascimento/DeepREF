@@ -147,3 +147,5 @@ opennre/encoder/gpt2_encoder.py
 roberta-base/
 bert-base-uncased/
 distilbert-base-uncased/
+biobert/
+scibert_scivocab_uncased/
