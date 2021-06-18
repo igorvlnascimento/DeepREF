@@ -3,7 +3,7 @@ import torch
 import numpy as np
 import json
 import opennre
-from opennre import encoder, model, framework
+from opennre import encoder, model, framework, constants
 import sys
 import os
 import argparse
@@ -26,8 +26,10 @@ parser.add_argument('--mask_entity', action='store_true',
 # Data
 parser.add_argument('--metric', default='micro_f1', choices=['micro_f1', 'acc'],
         help='Metric for picking up best checkpoint')
-parser.add_argument('--dataset', default='none', choices=['none', 'semeval', 'wiki80', 'tacred'], 
+parser.add_argument('--dataset', default='none', choices=constants.datasets_choices, 
         help='Dataset. If not none, the following args can be ignored')
+parser.add_argument('--preprocessing', default='none', choices=constants.preprocessing_choices, 
+        help='Preprocessing. If not none, the original dataset is used')
 parser.add_argument('--train_file', default='', type=str,
         help='Training data file')
 parser.add_argument('--val_file', default='', type=str,

@@ -3,7 +3,7 @@ import torch
 import numpy as np
 import json
 import opennre
-from opennre import encoder, model, framework
+from opennre import encoder, model, framework, constants
 import sys
 import os
 import argparse
@@ -18,8 +18,10 @@ parser.add_argument('--only_test', action='store_true',
 # Data
 parser.add_argument('--metric', default='micro_f1', choices=['micro_f1', 'acc'],
         help='Metric for picking up best checkpoint')
-parser.add_argument('--dataset', default='none', choices=['none', 'semeval', 'wiki80', 'tacred'], 
+parser.add_argument('--dataset', default='none', choices=constants.datasets_choices, 
         help='Dataset. If not none, the following args can be ignored')
+parser.add_argument('--preprocessing', default='none', choices=constants.preprocessing_choices, 
+        help='Preprocessing. If not none, the original dataset is used')
 parser.add_argument('--train_file', default='', type=str,
         help='Training data file')
 parser.add_argument('--val_file', default='', type=str,
@@ -54,9 +56,9 @@ ckpt = 'ckpt/{}.pth.tar'.format(args.ckpt)
 
 if args.dataset != 'none':
     opennre.download(args.dataset, root_path=root_path)
-    args.train_file = os.path.join(root_path, 'benchmark', args.dataset, '{}_train.txt'.format(args.dataset))
-    args.val_file = os.path.join(root_path, 'benchmark', args.dataset, '{}_val.txt'.format(args.dataset))
-    args.test_file = os.path.join(root_path, 'benchmark', args.dataset, '{}_test.txt'.format(args.dataset))
+    args.train_file = os.path.join(root_path, 'benchmark', args.dataset, args.preprocessing, '{}_train_{}.txt'.format(args.dataset, args.preprocessing))
+    args.val_file = os.path.join(root_path, 'benchmark', args.dataset, args.preprocessing, '{}_val_{}.txt'.format(args.dataset, args.preprocessing))
+    args.test_file = os.path.join(root_path, 'benchmark', args.dataset, args.preprocessing, '{}_test_{}.txt'.format(args.dataset, args.preprocessing))
     args.rel2id_file = os.path.join(root_path, 'benchmark', args.dataset, '{}_rel2id.json'.format(args.dataset))
     if args.dataset == 'wiki80':
         args.metric = 'acc'
