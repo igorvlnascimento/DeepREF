@@ -1,6 +1,8 @@
-import os
+import os, sys
 import pandas as pd
 import stanza
+
+sys.append('../')
 
 RESOURCE_PATH = "benchmark/raw_semeval"
 OUTPUT_PATH = "benchmark/semeval2010"

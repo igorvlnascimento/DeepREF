@@ -308,7 +308,6 @@ def get_ner_replacement_dictionary(only_e1_index, only_e2_index, common_indexes,
     ner_repl_dict = update_dict_with_entity(only_e1_index, ner_repl_dict, entity1)
     ner_repl_dict = update_dict_with_entity(only_e2_index, ner_repl_dict, entity2)
     ner_repl_dict = update_dict_with_entity(common_indexes, ner_repl_dict, entity_either)
-    print("ner_repl_dict:",ner_repl_dict)
     return ner_repl_dict
 
 # this function is different from the sort_position_keys because
@@ -358,7 +357,6 @@ def convert_indexes_to_int(e_idx):
 
 def replace_ner(row, nlp, check_ner_overlap=False): # similar to concept_replace, with some caveats
     sentence = row.tokenized_sentence.split()
-    print(sentence)
     e1_indexes = row.metadata['e1']['word_index']
     e2_indexes = row.metadata['e2']['word_index']
     e1_indexes = convert_indexes_to_int(e1_indexes)
@@ -393,13 +391,11 @@ def replace_ner(row, nlp, check_ner_overlap=False): # similar to concept_replace
     ner_repl_dict = get_ner_replacement_dictionary(only_e1_indexes, only_e2_indexes, common_indexes,
                                                   ner_dict)
     sorted_positions = ner_sort_position_keys(ner_repl_dict)
-    print("sorted_positions:",sorted_positions)
     new_sentence = '' # this below part is buggy, shouldn't be too bad to fix 
-    for i in range(len(sorted_positions)):
+    for i in tqdm(range(len(sorted_positions))):
         curr_pos = sorted_positions[i]
         curr_start_pos, curr_end_pos = parse_position(curr_pos)
         curr_dict = ner_repl_dict[curr_pos]
-        print("curr_dict:",curr_dict)
         start_insert = '' if curr_dict['insert'] is None else curr_dict['insert'].upper()
         between_replace = '' if curr_dict['replace_by'] is None else curr_dict['replace_by']
         if i == 0:
