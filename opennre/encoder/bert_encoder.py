@@ -2,6 +2,9 @@ import logging
 import torch
 import torch.nn as nn
 from transformers import BertModel, BertTokenizer
+from transformers import DistilBertTokenizer, DistilBertModel
+from transformers import RobertaModel, RobertaTokenizer
+from transformers import AutoTokenizer, AutoModel
 from .base_encoder import BaseEncoder
 
 class BERTEncoder(nn.Module):
