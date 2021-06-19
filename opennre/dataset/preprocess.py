@@ -80,7 +80,7 @@ def list_to_string(sentence):
 # adapted from tag_sentence method in converter_ddi
 # note that white spaces are added in the new sentence on purpose
 def replace_with_concept(row):
-    sentence = row.tokenized_sentence.split()
+    sentence = row.tokenized_sentence.split(" ")
     e1_indexes = row.metadata['e1']['word_index']
     e2_indexes = row.metadata['e2']['word_index'] # assuming that within the same entity indexes, no overlap
     new_sentence = ''
@@ -94,7 +94,7 @@ def replace_with_concept(row):
                                                                                common_indexes)
     repl_dict = new_entity_replacement_dict # just using proxy because names are long
     sorted_positions = sort_position_keys(new_entity_replacement_dict)
-    for i in tqdm(range(len(sorted_positions))):
+    for i in range(len(sorted_positions)):
         curr_pos = sorted_positions[i]
         curr_start_pos, curr_end_pos = parse_position(curr_pos)
         start_replace = '' if repl_dict[curr_pos]['start'] is None else repl_dict[curr_pos]['start'].upper()
@@ -171,7 +171,7 @@ def get_new_sentence_with_entity_replacement(sentence, e1_indexes, e2_indexes):
 # TODO: might be nice to give an option to specify whether to remove the stop words or not 
 # this is a low priority part though
 def replace_digit_punctuation_stop_word(row, nlp, stop_word_removal=False):
-    sentence = row.tokenized_sentence.split()
+    sentence = row.tokenized_sentence.split(" ")
     e1_indexes = row.metadata['e1']['word_index']
     e2_indexes = row.metadata['e2']['word_index']
     sentence = get_new_sentence_with_entity_replacement(sentence, e1_indexes, e2_indexes)
@@ -199,8 +199,9 @@ def replace_digit_punctuation_stop_word(row, nlp, stop_word_removal=False):
                 index_to_keep_dict[word_index] = {'keep': True, 'replace_with': None}
     
     # generation of the new sentence based on the above findings
-    sentence = sentence.split()
+    #sentence = sentence.split(" ")
     new_sentence = []
+    sentence = sentence.split(" ")
     for i in range(len(sentence)):
         word = sentence[i]
         if word.endswith('END') or word.endswith('START'):
@@ -392,7 +393,7 @@ def replace_ner(row, nlp, check_ner_overlap=False): # similar to concept_replace
                                                   ner_dict)
     sorted_positions = ner_sort_position_keys(ner_repl_dict)
     new_sentence = '' # this below part is buggy, shouldn't be too bad to fix 
-    for i in tqdm(range(len(sorted_positions))):
+    for i in range(len(sorted_positions)):
         curr_pos = sorted_positions[i]
         curr_start_pos, curr_end_pos = parse_position(curr_pos)
         curr_dict = ner_repl_dict[curr_pos]
@@ -498,6 +499,7 @@ def update_metadata_sentence(row):
 # 1: replace with all concepts in the sentence, 2: replace the stop words, punctuations and digits
 # 3: replace only punctuations and digits
 def preprocess(read_dataframe, df_directory, nlp, type_to_do=1):
+    tqdm.pandas()
     df = read_dataframe(df_directory)
     if type_to_do == 1:
         df['tagged_sentence'] = df.apply(replace_with_concept, axis=1) # along the column axis

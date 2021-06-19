@@ -57,6 +57,7 @@ def output_file_length(out, filename):
     return len(open(out(filename)).readlines())
 
 def preprocess_semeval():
+    stanza.download('en')
     nlp = stanza.Pipeline(lang='en', processors="tokenize,ner", tokenize_no_ssplit=True)
 
     df_train = get_dataset_dataframe(nlp, res('TRAIN_FILE.TXT'))

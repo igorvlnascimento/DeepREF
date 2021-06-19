@@ -8,11 +8,7 @@
 #import spacy
 from tqdm import tqdm
 import json
-import stanza
-from ast import literal_eval
 import pandas as pd
-
-stanza.download("en")
 
 relation_dict = {0:'Component-Whole(e2,e1)', 1:'Instrument-Agency(e2,e1)', 2:'Member-Collection(e1,e2)',
 3:'Cause-Effect(e2,e1)', 4:'Entity-Destination(e1,e2)', 5:'Content-Container(e1,e2)',

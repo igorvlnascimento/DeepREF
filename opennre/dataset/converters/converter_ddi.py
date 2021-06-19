@@ -5,24 +5,21 @@
 import glob
 from pyexpat import ExpatError
 from xml.dom import minidom
-import re
+import json
 from ast import literal_eval
 
 import pandas as pd
 from tqdm import tqdm
 
-import scispacy
-import spacy
-
-import stanza
-stanza.download('en', package='craft')
-
 relation_dict = {0: 'advise', 1: 'effect', 2: 'mechanism', 3: 'int', 4: 'none'}
 rev_relation_dict = {val: key for key, val in relation_dict.items()}
 
+def write_relations_json(path):
+    json_file = open(path+'/ddi_rel2id.json', 'w')
+    json.dump(rev_relation_dict, json_file)
+
 def tokenize(nlp, sentence, model="spacy"):
     if model == "spacy":
-        nlp = spacy.load('en_core_sci_md')
         doc = nlp(sentence)
         tokenized = []
         for token in doc:
@@ -200,7 +197,7 @@ def get_dataset_dataframe(nlp, directory=None, relation_extraction=True):
                     e2_data = entity_dict[e2_id]
                     
                     tagged_sentence = tag_sentence(sentence_text, e1_data, e2_data, other_entities)
-                    tokens = tokenize(nlp, tagged_sentence, nlp, model="stanza")
+                    tokens = tokenize(nlp, tagged_sentence, model="stanza")
 
                     e1_idx, e2_idx, entity_replacement, tokens_for_indexing = \
                             get_entity_positions_and_replacement_dictionary(tokens)
@@ -274,7 +271,10 @@ def write_into_txt(df, directory):
     else:
         idx_null_row = null_row.index.values[0]
     with open(directory, 'w') as outfile:
-        for i in range(0, len(df)):
+        for i in tqdm(range(0, len(df))):
+            dict = {}
+            head = {}
+            tail = {}
             if idx_null_row is not None and i == idx_null_row:
                 continue
             row = df.iloc[i]
@@ -286,9 +286,24 @@ def write_into_txt(df, directory):
             e2 = flatten_list_of_tuples(metadata['e2']['word_index'])
             e1 = sorted(e1)
             e2 = sorted(e2)
-            tokenized_sentence = row.tokenized_sentence
-            outfile.write(str(relation) + " " + str(e1[0]) + " " + str(e1[-1]) + " " + 
-                          str(e2[0]) + " " + str(e2[-1]) + " " + tokenized_sentence + "\n")
+            head["name"] = metadata['e1']['word']
+            head["pos"] = [e1[0], e1[1]+1]
+            tail["name"] = metadata['e2']['word']
+            tail["pos"] = [e2[0], e2[1]+1]
+            try:
+                tokenized_sentence = row.tokenized_sentence
+            except AttributeError:
+                tokenized_sentence = row.preprocessed_sentence
+            if type(tokenized_sentence) is not str:
+                continue
+            tokenized_sentence = tokenized_sentence.split(" ")
+            dict["token"] = tokenized_sentence
+            dict["h"] = head
+            dict["t"] = tail
+            dict["relation"] = row.relation_type
+            outfile.write(str(dict)+"\n")
+            #outfile.write(str(relation) + " " + str(e1[0]) + " " + str(e1[-1]) + " " + 
+            #              str(e2[0]) + " " + str(e2[-1]) + " " + tokenized_sentence + "\n")
         outfile.close()
 
 # combine txt files of drugbank and medline
