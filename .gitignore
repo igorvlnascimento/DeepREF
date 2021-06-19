@@ -118,12 +118,19 @@ benchmark/tacred
 
 # data and pretrain
 benchmark/raw_ddi
+benchmark/ddi
 benchmark/raw_semeval
 benchmark/semeval
 benchmark/semeval2010
 benchmark/wiki_distant
 benchmark/wiki80
 !benchmark/*.sh
+pretrain/glove/
+pretrain/roberta-base/
+pretrain/bert-base-uncased/
+pretrain/distilbert-base-uncased/
+pretrain/biobert/
+pretrain/scibert_scivocab_uncased/
 !pretrain/*.sh
 
 # test env
@@ -136,16 +143,6 @@ opennre-egg.info
 benchmark/nyt10-ori
 train_nyt10_pcnn_att_ori.py
 
-/wiki80
+optimization/
 Results OpenNRE.txt
 AblationStudies.txt
-/optimization
-/gpt2
-/semeval
-/example/train_supervised_gpt2.py
-opennre/encoder/gpt2_encoder.py
-roberta-base/
-bert-base-uncased/
-distilbert-base-uncased/
-biobert/
-scibert_scivocab_uncased/
