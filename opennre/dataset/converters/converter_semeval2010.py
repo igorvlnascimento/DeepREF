@@ -8,6 +8,7 @@
 #import spacy
 from tqdm import tqdm
 import json
+from ast import literal_eval
 import pandas as pd
 
 relation_dict = {0:'Component-Whole(e2,e1)', 1:'Instrument-Agency(e2,e1)', 2:'Member-Collection(e1,e2)',
