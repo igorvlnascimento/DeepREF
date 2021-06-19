@@ -11,6 +11,6 @@ if __name__ == '__main__':
             for pretrain in pretrain_choices:
                 for preprocessing in constants.preprocessing_choices:
                     if model == 'bert':
-                        subprocess.call(['python', 'example/train_supervised_{}.py'.format(model), '--dataset', dataset, '--preprocessing', preprocessing, '--pretrain_path', pretrain])
+                        subprocess.call(['python', 'example/train_supervised_{}.py'.format(model), '--dataset', dataset, '--preprocessing', preprocessing, '--pretrain_path', 'pretrain/'+pretrain])
                     else:
                         subprocess.call(['python', 'example/train_supervised_{}.py'.format(model), '--dataset', dataset, '--preprocessing', preprocessing])

@@ -4,7 +4,7 @@ import torch.nn as nn
 from transformers import BertModel, BertTokenizer
 from transformers import DistilBertTokenizer, DistilBertModel
 from transformers import RobertaModel, RobertaTokenizer
-from transformers import AutoTokenizer, AutoModel
+from transformers import AutoTokenizer, AutoModel, AutoModelWithLMHead
 from .base_encoder import BaseEncoder
 
 class BERTEncoder(nn.Module):
@@ -19,9 +19,23 @@ class BERTEncoder(nn.Module):
         self.blank_padding = blank_padding
         self.hidden_size = 768
         self.mask_entity = mask_entity
-        logging.info('Loading BERT pre-trained checkpoint.')
-        self.bert = BertModel.from_pretrained(pretrain_path)
-        self.tokenizer = BertTokenizer.from_pretrained(pretrain_path)
+        model_type = pretrain_path[pretrain_path.find('/'):pretrain_path.find('-')]
+        logging.info('Loading {} pre-trained checkpoint.'.format(model_type.upper()))
+        if model_type == 'bert':
+            self.bert = BertModel.from_pretrained(pretrain_path)
+            self.tokenizer = BertTokenizer.from_pretrained(pretrain_path)
+        elif model_type == 'distilbert':
+            self.bert = DistilBertModel.from_pretrained(pretrain_path)
+            self.tokenizer = DistilBertTokenizer.from_pretrained(pretrain_path)
+        elif model_type == 'roberta':
+            self.bert = RobertaModel.from_pretrained(pretrain_path)
+            self.tokenizer = RobertaTokenizer.from_pretrained(pretrain_path)
+        elif model_type == 'biobert':
+            self.bert = AutoModel.from_pretrained(pretrain_path)
+            self.tokenizer = AutoTokenizer.from_pretrained(pretrain_path)
+        elif model_type == 'scibert':
+            self.bert = AutoModel.from_pretrained(pretrain_path)
+            self.tokenizer = AutoTokenizer.from_pretrained(pretrain_path)
 
     def forward(self, token, att_mask):
         """
