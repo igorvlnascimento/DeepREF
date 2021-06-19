@@ -218,6 +218,7 @@ class SentenceRE(nn.Module):
 
     def test_set_results(self, ground_truth, pred, result):
         logging.info('Test set results:')
+        file_path = 'results/AblationStudiesOpenNRE+.txt'
         report = metrics.classification_report(ground_truth, pred, labels=[i for i in range(19)])
         confusion_matrix = metrics.confusion_matrix(ground_truth, pred)
         logging.info(report)
@@ -225,10 +226,17 @@ class SentenceRE(nn.Module):
         logging.info('Micro precision: {}'.format(result['micro_p']))
         logging.info('Micro recall: {}'.format(result['micro_r']))
         logging.info('Micro F1: {}'.format(result['micro_f1']))
-        with open('AblationStudiesOpenNRE+.txt', 'w') as ablation_file:
-            for i in CLASSES:
-                ablation_file.write("{}\t\t{}\n\n".format(CLASSES[i], confusion_matrix[i]))
-            ablation_file.write(report)
+        if os.path.isfile(file_path):
+            with open(file_path, 'a') as ablation_file:
+                for i in CLASSES:
+                    ablation_file.write("{}\t\t{}\n\n".format(CLASSES[i], confusion_matrix[i]))
+                ablation_file.write(report+"\n\n")
+        else:
+            with open(file_path, 'w') as ablation_file:
+                for i in CLASSES:
+                    ablation_file.write("{}\t\t{}\n\n".format(CLASSES[i], confusion_matrix[i]))
+                ablation_file.write(report+"\n\n")
+
 
     def load_state_dict(self, state_dict):
         self.model.load_state_dict(state_dict)
