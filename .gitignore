@@ -144,6 +144,6 @@ benchmark/nyt10-ori
 train_nyt10_pcnn_att_ori.py
 
 optimization/
-results/*.png
+results/
 Results OpenNRE.txt
 AblationStudies.txt
