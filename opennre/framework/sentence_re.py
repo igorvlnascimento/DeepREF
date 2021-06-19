@@ -5,6 +5,7 @@ from torch import nn, optim
 from .data_loader import SentenceRELoader
 from .utils import AverageMeter
 
+from sklearn import metrics
 from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
 import matplotlib.pyplot as plt
 
@@ -214,6 +215,20 @@ class SentenceRE(nn.Module):
         save_path = os.path.join('results', image_output_name)
         plt.savefig(save_path, bbox_inches="tight")
         plt.clf()
+
+    def test_set_results(self, ground_truth, pred, result):
+        logging.info('Test set results:')
+        report = metrics.classification_report(ground_truth, pred, labels=[i for i in range(19)])
+        confusion_matrix = metrics.confusion_matrix(ground_truth, pred)
+        logging.info(report)
+        #logging.info('Accuracy: {}'.format(result['acc']))
+        logging.info('Micro precision: {}'.format(result['micro_p']))
+        logging.info('Micro recall: {}'.format(result['micro_r']))
+        logging.info('Micro F1: {}'.format(result['micro_f1']))
+        with open('AblationStudiesOpenNRE+.txt', 'w') as ablation_file:
+            for i in CLASSES:
+                ablation_file.write("{}\t\t{}\n\n".format(CLASSES[i], confusion_matrix[i]))
+            ablation_file.write(report)
 
     def load_state_dict(self, state_dict):
         self.model.load_state_dict(state_dict)
