@@ -1,5 +1,6 @@
 import os
 import stanza
+import pandas as pd
 
 from opennre.dataset.converters.converter_ddi import get_dataset_dataframe, write_dataframe, \
 read_dataframe, check_equality_of_written_and_read_df, write_into_txt, combine, write_relations_json
