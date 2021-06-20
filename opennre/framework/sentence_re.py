@@ -8,26 +8,9 @@ from .utils import AverageMeter
 from sklearn import metrics
 from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
 import matplotlib.pyplot as plt
+import numpy as np
 
-CLASSES = ['Component-Whole(e2,e1)',
-            'Other',
-            'Instrument-Agency(e2,e1)',
-            'Member-Collection(e1,e2)',
-            'Cause-Effect(e2,e1)',
-            'Entity-Destination(e1,e2)',
-            'Content-Container(e1,e2)',
-            'Message-Topic(e1,e2)',
-            'Product-Producer(e2,e1)',
-            'Member-Collection(e2,e1)',
-            'Entity-Origin(e1,e2)',
-            'Cause-Effect(e1,e2)',
-            'Component-Whole(e1,e2)',
-            'Message-Topic(e2,e1)',
-            'Product-Producer(e1,e2)',
-            'Entity-Origin(e2,e1)',
-            'Content-Container(e2,e1)',
-            'Instrument-Agency(e1,e2)',
-            'Entity-Destination(e2,e1)']
+from opennre import constants
 
 class SentenceRE(nn.Module):
 
@@ -47,6 +30,16 @@ class SentenceRE(nn.Module):
         super().__init__()
         self.max_epoch = max_epoch
         # Load data
+        self.train_path = train_path
+        self.dataset_name = train_path[train_path.rfind('/')+1:train_path.find('_', train_path.rfind('/'))]
+        self.preprocessing = train_path[train_path.rfind('/', 0, -(len(train_path)-train_path.rfind('/')))+1:train_path.rfind('/')]
+
+        self.classes = []
+        if self.dataset_name == 'semeval2010':
+            self.classes = constants.CLASSES_SEM_EVAL
+        elif self.dataset_name == 'ddi':
+            self.classes = constants.CLASSES_DDI
+
         if train_path != None:
             self.train_loader = SentenceRELoader(
                 train_path,
@@ -201,41 +194,54 @@ class SentenceRE(nn.Module):
         result = eval_loader.dataset.eval(pred_result)
         return result, pred_result, ground_truth
 
-    def get_confusion_matrix(self, ground_truth, pred_result, image_output_name, only_test=False, output_format='png'):
+    def get_confusion_matrix(self, ground_truth, pred_result, model, pretrain, only_test=False, output_format='png'):
         c_matrix = confusion_matrix(ground_truth, pred_result)
 
         disp = ConfusionMatrixDisplay(confusion_matrix=c_matrix,
-                                        display_labels=CLASSES)
+                                        display_labels=self.classes)
 
         disp.plot(include_values=True, xticks_rotation='vertical')
 
         if only_test:
-            image_output_name = "{}_only_test.{}".format(image_output_name, output_format)
+            image_output_name = "confusion_matrix_{}_{}_{}_{}_only_test.{}".format(model, pretrain, self.dataset_name, self.preprocessing, output_format)
+        else:
+            image_output_name = "confusion_matrix_{}_{}_{}_{}.{}".format(model, pretrain, self.dataset_name, self.preprocessing, output_format)
 
+        if not os.path.exists('results/'):
+            os.mkdir('results/')
         save_path = os.path.join('results', image_output_name)
         plt.savefig(save_path, bbox_inches="tight")
         plt.clf()
 
-    def test_set_results(self, ground_truth, pred, result):
+    def test_set_results(self, ground_truth, pred, result, model, pretrain):
+        logging.info('Ground truth: '+ str(ground_truth))
+        logging.info('Prediotions : '+ str(pred))
         logging.info('Test set results:')
         file_path = 'results/AblationStudiesOpenNRE+.txt'
-        report = metrics.classification_report(ground_truth, pred, labels=[i for i in range(19)])
+        report = metrics.classification_report(ground_truth, pred, target_names=self.classes)
         confusion_matrix = metrics.confusion_matrix(ground_truth, pred)
         logging.info(report)
-        #logging.info('Accuracy: {}'.format(result['acc']))
+        logging.info('Accuracy: {}'.format(result['acc']))
         logging.info('Micro precision: {}'.format(result['micro_p']))
         logging.info('Micro recall: {}'.format(result['micro_r']))
         logging.info('Micro F1: {}'.format(result['micro_f1']))
+        #max_length_classes = max([len(w) for w in self.classes])
         if os.path.isfile(file_path):
             with open(file_path, 'a') as ablation_file:
-                for i in CLASSES:
-                    ablation_file.write("{}\t\t{}\n\n".format(CLASSES[i], confusion_matrix[i]))
-                ablation_file.write(report+"\n\n")
+                self.write_test_results(ablation_file, model, pretrain, result, report, confusion_matrix)
         else:
             with open(file_path, 'w') as ablation_file:
-                for i in CLASSES:
-                    ablation_file.write("{}\t\t{}\n\n".format(CLASSES[i], confusion_matrix[i]))
-                ablation_file.write(report+"\n\n")
+                self.write_test_results(ablation_file, model, pretrain, result, report, confusion_matrix)
+
+    def write_test_results(self, file, model, pretrain, result, report, confusion_matrix):
+        file.write('Trained with model {}, pretrain {}, dataset {} and preprocessing {}:\n'.format(model, pretrain, self.dataset_name, self.preprocessing))
+        file.write('Confusion matrix:\n')
+        file.write(np.array2string(confusion_matrix)+'\n')
+        file.write('Test set results:\n')
+        file.write(report+"\n")
+        file.write('Micro precision: {}\n'.format(result['micro_p']))
+        file.write('Micro recall: {}\n'.format(result['micro_r']))
+        file.write('Micro F1: {}\n\n'.format(result['micro_f1']))
 
 
     def load_state_dict(self, state_dict):

@@ -10,6 +10,7 @@ import logging
 
 root_url = "https://thunlp.oss-cn-qingdao.aliyuncs.com/"
 root_url_semeval = "https://raw.githubusercontent.com/sahitya0000/Relation-Classification/master/corpus/"
+root_url_semeval = "https://raw.githubusercontent.com/sahitya0000/Relation-Classification/master/corpus/"
 default_root_path = os.path.join(os.getenv('HOME'), '.opennre')
 
 def check_root(root_path=default_root_path):
@@ -62,7 +63,7 @@ def download_semeval(root_path=default_root_path):
 
 def download_semeval2010(root_path=default_root_path):
     check_root()
-    if not os.path.exists(os.path.join(root_path, 'benchmark/raw_semeval')):
+    if not os.path.exists(os.path.join(root_path, 'benchmark/semeval2010')):
         os.system('bash ' + os.path.join(root_path, 'bechmark/download_preprocess_semeval2010.sh'))
         #os.mkdir(os.path.join(root_path, 'benchmark/raw_semeval'))
         #os.system('wget -P ' + os.path.join(root_path, 'benchmark/raw_semeval') + ' ' + root_url_semeval + 'SemEval2010_task8_training/TRAIN_FILE.TXT')
@@ -70,7 +71,7 @@ def download_semeval2010(root_path=default_root_path):
 
 def download_ddi(root_path=default_root_path):
     check_root()
-    if not os.path.exists(os.path.join(root_path, 'benchmark/raw_ddi')):
+    if not os.path.exists(os.path.join(root_path, 'benchmark/ddi')):
         os.system('bash ' + os.path.join(root_path, 'bechmark/download_preprocess_ddi.sh'))
 
 def download_glove(root_path=default_root_path):
@@ -106,6 +107,8 @@ def download(name, root_path=default_root_path):
         download_semeval(root_path=root_path)
     elif name == 'semeval2010':
         download_semeval2010(root_path=root_path)
+    elif name == 'ddi':
+        download_ddi(root_path=root_path)
     elif name == 'wiki80':
         download_wiki80(root_path=root_path)
     elif name == 'tacred':

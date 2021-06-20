@@ -7,7 +7,7 @@ from opennre import encoder, model, framework, constants
 import sys
 import os
 import argparse
-import logging
+from parser import Parser
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--ckpt', default='', 
@@ -40,43 +40,14 @@ parser.add_argument('--weight_decay', default=1e-5, type=float,
         help='Weight decay')
 parser.add_argument('--max_length', default=40, type=int,
         help='Maximum sentence length')
-parser.add_argument('--max_epoch', default=100, type=int,
+parser.add_argument('--max_epoch', default=50, type=int, # TODO : change default to 100
         help='Max number of training epochs')
 
 args = parser.parse_args()
 
 # Some basic settings
 root_path = '.'
-sys.path.append(root_path)
-if not os.path.exists('ckpt'):
-    os.mkdir('ckpt')
-if len(args.ckpt) == 0:
-    args.ckpt = '{}_{}'.format(args.dataset, 'pcnn')
-ckpt = 'ckpt/{}.pth.tar'.format(args.ckpt)
-
-if args.preprocessing == 'none':
-        args.preprocessing = 'original'
-
-if args.dataset != 'none':
-    opennre.download(args.dataset, root_path=root_path)
-    args.train_file = os.path.join(root_path, 'benchmark', args.dataset, '{}_train.txt'.format(args.dataset))
-    args.val_file = os.path.join(root_path, 'benchmark', args.dataset, '{}_val.txt'.format(args.dataset))
-    args.test_file = os.path.join(root_path, 'benchmark', args.dataset, '{}_test.txt'.format(args.dataset))
-    if not os.path.exists(args.test_file):
-        logging.warn("Test file {} does not exist! Use val file instead".format(args.test_file))
-        args.test_file = args.val_file
-    args.rel2id_file = os.path.join(root_path, 'benchmark', args.dataset, '{}_rel2id.json'.format(args.dataset))
-    if args.dataset == 'wiki80':
-        args.metric = 'acc'
-    else:
-        args.metric = 'micro_f1'
-else:
-    if not (os.path.exists(args.train_file) and os.path.exists(args.val_file) and os.path.exists(args.test_file) and os.path.exists(args.rel2id_file)):
-        raise Exception('--train_file, --val_file, --test_file and --rel2id_file are not specified or files do not exist. Or specify --dataset')
-
-logging.info('Arguments:')
-for arg in vars(args):
-    logging.info('    {}: {}'.format(arg, getattr(args, arg)))
+args, ckpt = Parser(args).init_args('pcnn')
 
 rel2id = json.load(open(args.rel2id_file))
 
@@ -125,10 +96,10 @@ if not args.only_test:
 framework.load_state_dict(torch.load(ckpt)['state_dict'])
 result, pred, ground_truth = framework.eval_model(framework.test_loader)
 
-framework.get_confusion_matrix(ground_truth, pred, 'confusion_matrix_pcnn')
+framework.get_confusion_matrix(ground_truth, pred, 'pcnn', 'glove')
 
 # Print the result
-framework.test_set_results(ground_truth, pred, result)
+framework.test_set_results(ground_truth, pred, result, 'pcnn', 'glove')
 # logging.info('Test set results:')
 # if args.metric == 'acc':
 #     logging.info('Accuracy: {}'.format(result['acc']))
