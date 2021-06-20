@@ -94,8 +94,8 @@ if not args.only_test:
 framework.load_state_dict(torch.load(ckpt)['state_dict'])
 result, pred, ground_truth = framework.eval_model(framework.test_loader)
 
-framework.get_confusion_matrix(ground_truth, pred, args.pretrain_path, only_test=args.only_test)
+framework.get_confusion_matrix(ground_truth, pred, 'transformer', args.pretrain_path, only_test=args.only_test)
 
 # Print the result
-framework.test_set_results(ground_truth, pred, result, args.pretrain_path)
+framework.test_set_results(ground_truth, pred, result, 'transformer', args.pretrain_path)
 
