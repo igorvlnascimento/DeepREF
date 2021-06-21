@@ -41,6 +41,9 @@ This code below train all the inputs. It can take several hours and you need a v
 ```
 python example/parser.py
 ```
+Or you can use the notebook `framework_test_colab.ipynb` on Colab to test it.
+
+You can see the results in the file `results/ResultsOpenNRE++.txt`
 
 If you want to train one or a few models, try this:
 ```
