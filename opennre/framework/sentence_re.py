@@ -195,6 +195,7 @@ class SentenceRE(nn.Module):
         return result, pred_result, ground_truth
 
     def get_confusion_matrix(self, ground_truth, pred_result, model, pretrain, only_test=False, output_format='png'):
+        pretrain = pretrain.replace('/', '-').replace('.', '')
         c_matrix = confusion_matrix(ground_truth, pred_result)
 
         disp = ConfusionMatrixDisplay(confusion_matrix=c_matrix,
@@ -214,11 +215,12 @@ class SentenceRE(nn.Module):
         plt.clf()
 
     def test_set_results(self, ground_truth, pred, result, model, pretrain):
+        pretrain = pretrain.replace('/', '-').replace('.', '')
         logging.info('Ground truth: '+ str(ground_truth))
         logging.info('Prediotions : '+ str(pred))
         logging.info('Test set results:')
-        file_path = 'results/AblationStudiesOpenNRE+.txt'
-        report = metrics.classification_report(ground_truth, pred, target_names=self.classes)
+        file_path = 'results/ResultsOpenNRE+.txt'
+        report = metrics.classification_report(ground_truth, pred, target_names=self.classes, digits=5)
         confusion_matrix = metrics.confusion_matrix(ground_truth, pred)
         logging.info(report)
         logging.info('Accuracy: {}'.format(result['acc']))
@@ -234,7 +236,8 @@ class SentenceRE(nn.Module):
                 self.write_test_results(ablation_file, model, pretrain, result, report, confusion_matrix)
 
     def write_test_results(self, file, model, pretrain, result, report, confusion_matrix):
-        file.write('Trained with model {}, pretrain {}, dataset {} and preprocessing {}:\n'.format(model, pretrain, self.dataset_name, self.preprocessing))
+        pretrain = pretrain.replace('/', '-').replace('.', '')
+        file.write('Trained with dataset {}, model {}, pretrain {} and preprocessing {}:\n'.format(self.dataset_name, model, pretrain, self.preprocessing))
         file.write('Confusion matrix:\n')
         file.write(np.array2string(confusion_matrix)+'\n')
         file.write('Test set results:\n')

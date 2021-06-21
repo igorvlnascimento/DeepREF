@@ -1,7 +1,7 @@
 preprocessing_choices = ['none', 'punct_digit', 'punct_stop_digit', 'entity_blinding'] # TODO : Add NER
 datasets_choices = ['semeval2010', 'ddi'] # TODO : Add TACRED
 model_choices = ["cnn", "pcnn", "bert"]
-pretrain_choices = ["bert-base-uncased", "distilbert-base-uncased", "roberta-base", "dmis-lab/biobert-v1.1", "allenai/scibert_scivocab_uncased"]
+pretrain_choices = ["bert-base-uncased", "dmis-lab/biobert-v1.1", "allenai/scibert_scivocab_uncased"]
 
 CLASSES_SEM_EVAL = ['Component-Whole(e2,e1)',
             'Other',

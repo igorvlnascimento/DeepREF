@@ -19,24 +19,9 @@ class BERTEncoder(nn.Module):
         self.blank_padding = blank_padding
         self.hidden_size = 768
         self.mask_entity = mask_entity
-        self.bert = None
-        self.tokenizer = None
         logging.info('Loading {} pre-trained checkpoint.'.format(pretrain_path.upper()))
-        if pretrain_path == 'bert':
-            self.bert = BertModel.from_pretrained(pretrain_path)
-            self.tokenizer = BertTokenizer.from_pretrained(pretrain_path)
-        elif pretrain_path == 'distilbert':
-            self.bert = DistilBertModel.from_pretrained(pretrain_path)
-            self.tokenizer = DistilBertTokenizer.from_pretrained(pretrain_path)
-        elif pretrain_path == 'roberta':
-            self.bert = AutoModelForMaskedLM.from_pretrained(pretrain_path)
-            self.tokenizer = AutoTokenizer.from_pretrained(pretrain_path)
-        elif pretrain_path == 'biobert':
-            self.bert = AutoModel.from_pretrained("dmis-lab/"+pretrain_path+"-v1.1")
-            self.tokenizer = AutoTokenizer.from_pretrained("dmis-lab/"+pretrain_path+"-v1.1")
-        elif pretrain_path == 'scibert':
-            self.bert = AutoModel.from_pretrained("allenai/"+pretrain_path)
-            self.tokenizer = AutoTokenizer.from_pretrained("allenai/"+pretrain_path)
+        self.bert = AutoModel.from_pretrained(pretrain_path)
+        self.tokenizer = AutoTokenizer.from_pretrained(pretrain_path)
 
     def forward(self, token, att_mask):
         """
@@ -126,21 +111,9 @@ class BERTEntityEncoder(nn.Module):
         self.blank_padding = blank_padding
         self.hidden_size = 768 * 2
         self.mask_entity = mask_entity
-        self.bert = None
-        self.tokenizer = None
         logging.info('Loading {} pre-trained checkpoint.'.format(pretrain_path.upper()))
-        if pretrain_path == 'bert-base-uncased':
-            self.bert = BertModel.from_pretrained(pretrain_path)
-            self.tokenizer = BertTokenizer.from_pretrained(pretrain_path)
-        elif pretrain_path == 'distilbert-base-uncased':
-            self.bert = DistilBertModel.from_pretrained(pretrain_path)
-            self.tokenizer = DistilBertTokenizer.from_pretrained(pretrain_path)
-        elif pretrain_path == 'roberta-base':
-            self.bert = AutoModelForMaskedLM.from_pretrained(pretrain_path)
-            self.tokenizer = AutoTokenizer.from_pretrained(pretrain_path)
-        elif pretrain_path == 'dmis-lab/biobert-v1.1' or pretrain_path == 'allenai/scibert_scivocab_uncased':
-            self.bert = AutoModel.from_pretrained(pretrain_path)
-            self.tokenizer = AutoTokenizer.from_pretrained(pretrain_path)
+        self.bert = AutoModel.from_pretrained(pretrain_path)
+        self.tokenizer = AutoTokenizer.from_pretrained(pretrain_path)
         self.linear = nn.Linear(self.hidden_size, self.hidden_size)
 
     def forward(self, token, att_mask, pos1, pos2):
