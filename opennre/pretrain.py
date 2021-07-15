@@ -69,6 +69,15 @@ def download_semeval2010(root_path=default_root_path):
         #os.system('wget -P ' + os.path.join(root_path, 'benchmark/raw_semeval') + ' ' + root_url_semeval + 'SemEval2010_task8_training/TRAIN_FILE.TXT')
         #os.system('wget -P ' + os.path.join(root_path, 'benchmark/raw_semeval') + ' ' + root_url_semeval + 'SemEval2010_task8_testing_keys/TEST_FILE_FULL.TXT')
 
+def download_semeval2018(root_path=default_root_path):
+    check_root()
+    if not os.path.exists(os.path.join(root_path, 'benchmark/semeval2018')):
+        os.system('bash ' + os.path.join(root_path, 'bechmark/download_preprocess_semeval2018.sh'))
+        #os.mkdir(os.path.join(root_path, 'benchmark/raw_semeval'))
+        #os.system('wget -P ' + os.path.join(root_path, 'benchmark/raw_semeval') + ' ' + root_url_semeval + 'SemEval2010_task8_training/TRAIN_FILE.TXT')
+        #os.system('wget -P ' + os.path.join(root_path, 'benchmark/raw_semeval') + ' ' + root_url_semeval + 'SemEval2010_task8_testing_keys/TEST_FILE_FULL.TXT')
+
+
 def download_ddi(root_path=default_root_path):
     check_root()
     if not os.path.exists(os.path.join(root_path, 'benchmark/ddi')):
@@ -107,6 +116,8 @@ def download(name, root_path=default_root_path):
         download_semeval(root_path=root_path)
     elif name == 'semeval2010':
         download_semeval2010(root_path=root_path)
+    elif name == 'semeval2018':
+        download_semeval2018(root_path=root_path)
     elif name == 'ddi':
         download_ddi(root_path=root_path)
     elif name == 'wiki80':
