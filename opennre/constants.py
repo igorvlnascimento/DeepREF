@@ -1,5 +1,5 @@
 preprocessing_choices = ['none', 'punct_digit', 'punct_stop_digit', 'entity_blinding'] # TODO : Add NER
-datasets_choices = ['semeval2010', 'ddi'] # TODO : Add TACRED
+datasets_choices = ['semeval2010', 'semeval2018', 'ddi'] # TODO : Add TACRED
 model_choices = ["cnn", "pcnn", "bert"]
 pretrain_choices = ["bert-base-uncased", "dmis-lab/biobert-v1.1", "allenai/scibert_scivocab_uncased"]
 
@@ -22,6 +22,8 @@ CLASSES_SEM_EVAL = ['Component-Whole(e2,e1)',
             'Content-Container(e2,e1)',
             'Instrument-Agency(e1,e2)',
             'Entity-Destination(e2,e1)']
+
+CLASSES_SEM_EVAL_2018 = ['usage', 'result', 'model-feature', 'part_whole', 'topic', 'compare']
 
 CLASSES_DDI = ['advise',
             'effect',

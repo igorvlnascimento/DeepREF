@@ -37,6 +37,8 @@ class SentenceRE(nn.Module):
         self.classes = []
         if self.dataset_name == 'semeval2010':
             self.classes = constants.CLASSES_SEM_EVAL
+        elif self.dataset_name == 'semeval2018':
+            self.classes = constants.CLASSES_SEM_EVAL_2018
         elif self.dataset_name == 'ddi':
             self.classes = constants.CLASSES_DDI
 
