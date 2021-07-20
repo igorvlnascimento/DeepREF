@@ -66,6 +66,7 @@ def get_entity_dict(sentence):
         #print("charOffset:",charOffset)
         entity_end = sentence.find("</entity>")
         sentence = sentence[:entity_end] + sentence[entity_end+9:]
+        print("sentence:",sentence)
         if '<entity' in sentence[:entity_end]:
             break
         #print("sentence2:",sentence)
@@ -256,6 +257,10 @@ def get_dataset_dataframe(nlp, directory=None, relation_extraction=True):
                     
                     pairs = get_pairs(entity_dict,entity_pairs)
                     
+                    print("entity_dict:",entity_dict)
+                    print("sentence:",sentence)
+                    print("pairs:",pairs)
+                    
                     # pegar lista de pares de entidade e relação e verificar se há pares nas sentenças
 
                     for pair in pairs:
@@ -266,8 +271,12 @@ def get_dataset_dataframe(nlp, directory=None, relation_extraction=True):
                         
                         other_entities = get_other_entities(entity_dict, e1_id, e2_id)
                         
-                        e1_data = entity_dict[e1_id]
-                        e2_data = entity_dict[e2_id]
+                        try:
+                            e1_data = entity_dict[e1_id]
+                            e2_data = entity_dict[e2_id]
+                        except KeyError:
+                            # TODO: tratar os coreference resolution
+                            continue
                         
                         tagged_sentence = tag_sentence(sentence, e1_data, e2_data, other_entities)
                         tokens = tokenize(nlp, tagged_sentence, model="stanza")
@@ -374,7 +383,6 @@ def write_into_txt(df, directory):
 # combine txt files of drugbank and medline
 def combine(res, outdir, file1, file2, outfilename):
     outfile = outdir + outfilename
-    # https://stackoverflow.com/questions/13613336/python-concatenate-text-files
     filenames = [res(outdir + file1+'.txt'), res(outdir + file2+'.txt')]
     with open(res(outfile), 'w') as outfile:
         for fname in filenames:

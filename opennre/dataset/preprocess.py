@@ -461,8 +461,9 @@ def get_entity_positions_and_replacement_sentence(tokens):
     
     tokens_for_indexing = tokens
     for token in tokens:
-        if token.endswith('START'):
+        if token.endswith('START') and len(token) > len('START'):
             ending_token = token[:-5] + 'END'
+            print("token:",token)
             e_idx, tokens_for_indexing = get_entity_start_and_end(token, ending_token, tokens_for_indexing)
             if token == entity1 + 'START' or token == entity_either + 'START':
                 e1_idx.append(e_idx)
@@ -483,6 +484,7 @@ Returns the dataframe after doing the preprocessing
 # update the metadata and the sentence with the preprocessed version
 def update_metadata_sentence(row):
     tagged_sentence = row.tagged_sentence
+    print("tagged_sentence:",tagged_sentence.split())
     e1_idx, e2_idx, tokens_for_indexing = get_entity_positions_and_replacement_sentence(tagged_sentence.split())
     new_sentence = list_to_string(tokens_for_indexing)
     metadata = row.metadata
