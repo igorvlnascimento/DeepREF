@@ -64,7 +64,7 @@ def download_semeval(root_path=default_root_path):
 def download_semeval2010(root_path=default_root_path):
     check_root()
     if not os.path.exists(os.path.join(root_path, 'benchmark/semeval2010')):
-        os.system('bash ' + os.path.join(root_path, 'bechmark/download_preprocess_semeval2010.sh'))
+        os.system('bash ' + os.path.join(root_path, 'bechmark/download_semeval2010.sh'))
         #os.mkdir(os.path.join(root_path, 'benchmark/raw_semeval'))
         #os.system('wget -P ' + os.path.join(root_path, 'benchmark/raw_semeval') + ' ' + root_url_semeval + 'SemEval2010_task8_training/TRAIN_FILE.TXT')
         #os.system('wget -P ' + os.path.join(root_path, 'benchmark/raw_semeval') + ' ' + root_url_semeval + 'SemEval2010_task8_testing_keys/TEST_FILE_FULL.TXT')
@@ -72,7 +72,7 @@ def download_semeval2010(root_path=default_root_path):
 def download_semeval2018(root_path=default_root_path):
     check_root()
     if not os.path.exists(os.path.join(root_path, 'benchmark/semeval2018')):
-        os.system('bash ' + os.path.join(root_path, 'bechmark/download_preprocess_semeval2018.sh'))
+        os.system('bash ' + os.path.join(root_path, 'bechmark/download_semeval2018.sh'))
         #os.mkdir(os.path.join(root_path, 'benchmark/raw_semeval'))
         #os.system('wget -P ' + os.path.join(root_path, 'benchmark/raw_semeval') + ' ' + root_url_semeval + 'SemEval2010_task8_training/TRAIN_FILE.TXT')
         #os.system('wget -P ' + os.path.join(root_path, 'benchmark/raw_semeval') + ' ' + root_url_semeval + 'SemEval2010_task8_testing_keys/TEST_FILE_FULL.TXT')
@@ -81,7 +81,7 @@ def download_semeval2018(root_path=default_root_path):
 def download_ddi(root_path=default_root_path):
     check_root()
     if not os.path.exists(os.path.join(root_path, 'benchmark/ddi')):
-        os.system('bash ' + os.path.join(root_path, 'bechmark/download_preprocess_ddi.sh'))
+        os.system('bash ' + os.path.join(root_path, 'bechmark/download_ddi.sh'))
 
 def download_glove(root_path=default_root_path):
     check_root()
@@ -89,7 +89,7 @@ def download_glove(root_path=default_root_path):
         os.mkdir(os.path.join(root_path, 'pretrain/glove'))
         os.system('wget -P ' + os.path.join(root_path, 'pretrain/glove') +  ' ' + root_url + 'opennre/pretrain/glove/glove.6B.50d_mat.npy')
         os.system('wget -P ' + os.path.join(root_path, 'pretrain/glove') +  ' ' + root_url + 'opennre/pretrain/glove/glove.6B.50d_word2id.json')
-
+        
 def download_bert_base_uncased(root_path=default_root_path):
     check_root()
     if not os.path.exists(os.path.join(root_path, 'pretrain/bert-base-uncased')):
@@ -97,6 +97,30 @@ def download_bert_base_uncased(root_path=default_root_path):
         os.system('wget -P ' + os.path.join(root_path, 'pretrain/bert-base-uncased') + ' ' + root_url + 'opennre/pretrain/bert-base-uncased/config.json')
         os.system('wget -P ' + os.path.join(root_path, 'pretrain/bert-base-uncased') + ' ' + root_url + 'opennre/pretrain/bert-base-uncased/pytorch_model.bin')
         os.system('wget -P ' + os.path.join(root_path, 'pretrain/bert-base-uncased') + ' ' + root_url + 'opennre/pretrain/bert-base-uncased/vocab.txt')
+        
+def download_biobert(root_path=default_root_path):
+    check_root()
+    if not os.path.exists(os.path.join(root_path, 'pretrain/biobert')):
+        os.mkdir(os.path.join(root_path, 'pretrain/biobert'))
+        os.system('bash pretrain/download_biobert.sh')
+        
+def download_scibert(root_path=default_root_path):
+    check_root()
+    if not os.path.exists(os.path.join(root_path, 'pretrain/scibert')):
+        os.mkdir(os.path.join(root_path, 'pretrain/scibert'))
+        os.system('bash pretrain/download_scibert.sh')
+        
+def download_roberta(root_path=default_root_path):
+    check_root()
+    if not os.path.exists(os.path.join(root_path, 'pretrain/roberta')):
+        os.mkdir(os.path.join(root_path, 'pretrain/roberta'))
+        os.system('bash pretrain/download_roberta.sh')
+        
+def download_distilbert(root_path=default_root_path):
+    check_root()
+    if not os.path.exists(os.path.join(root_path, 'pretrain/distilbert')):
+        os.mkdir(os.path.join(root_path, 'pretrain/distilbert'))
+        os.system('bash pretrain/download_distilbert.sh')
 
 def download_pretrain(model_name, root_path=default_root_path):
     ckpt = os.path.join(root_path, 'pretrain/nre/' + model_name + '.pth.tar')
@@ -128,6 +152,15 @@ def download(name, root_path=default_root_path):
         download_glove(root_path=root_path)
     elif name == 'bert_base_uncased':
         download_bert_base_uncased(root_path=root_path)
+    elif name == 'distilbert':
+        download_distilbert(root_path=root_path)
+    elif name == 'roberta':
+        download_roberta(root_path=root_path)
+    elif name == 'biobert':
+        download_biobert(root_path=root_path)
+    elif name == 'scibert':
+        download_scibert(root_path=root_path)
+    
     else:
         raise Exception('Cannot find corresponding data.')
 
