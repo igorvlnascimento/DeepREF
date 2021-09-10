@@ -75,19 +75,19 @@ class Training():
                                                 self.dataset, 
                                                 self.preprocessing_str, 
                                                 '{}_test_{}.txt'.format(self.dataset, self.preprocessing_str))
-                        
-                if not (os.path.exists(self.train_file)):
-                        if self.dataset == "semeval2010":
-                                stanza.download('en')
-                                nlp = stanza.Pipeline(lang='en', processors="tokenize,ner,mwt,pos", tokenize_no_ssplit=True)
-                        else:
-                                stanza.download('en', package='craft', processors={'ner': 'bionlp13cg'})
-                                nlp = stanza.Pipeline('en', package="craft", processors={"ner": "bionlp13cg"}, tokenize_no_ssplit=True)
-                        
-                        preprocess_dataset = PreprocessDataset(self.dataset, self.preprocessing, nlp)
-                        preprocess_dataset.preprocess_dataset()
-                        
-                if not os.path.exists(self.test_file):
+                
+                if self.dataset == "semeval2010":
+                        stanza.download('en')
+                        nlp = stanza.Pipeline(lang='en', processors="tokenize,ner,mwt,pos", tokenize_no_ssplit=True)
+                else:
+                        stanza.download('en', package='craft', processors={'ner': 'bionlp13cg'})
+                        nlp = stanza.Pipeline('en', package="craft", processors={"ner": "bionlp13cg"}, tokenize_no_ssplit=True)
+                
+                original_path = os.path.exists('benchmark', self.dataset, 'original')
+                if not os.path.exists(original_path, self.dataset, '{}_train_original.csv') or \
+                        os.path.exists(original_path, self.dataset, '{}_val_original.csv') or \
+                        os.path.exists(original_path, self.dataset, '{}_test_original.csv'):
+                                
                         if self.dataset == "semeval2010":
                                 converter = ConverterSemEval2010(nlp)
         
@@ -101,6 +101,11 @@ class Training():
         
                                 converter.write_split_dataframes(args.train_input_file, args.test_input_file)
                         
+                if not (os.path.exists(self.train_file)) or not(os.path.exists(self.val_file)) or not(os.path.exists(self.test_file)):
+                        preprocess_dataset = PreprocessDataset(self.dataset, self.preprocessing, nlp)
+                        preprocess_dataset.preprocess_dataset()
+                        
+                if not os.path.exists(self.test_file):
                         self.test_file = None
                 self.rel2id_file = os.path.join(root_path, 'benchmark', self.dataset, '{}_rel2id.json'.format(self.dataset))
                 
