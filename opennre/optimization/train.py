@@ -75,10 +75,10 @@ class Training():
                         
                 if not (os.path.exists(self.train_file)):
                         if self.dataset == "semeval2010":
-                                #stanza.download('en')
+                                stanza.download('en')
                                 nlp = stanza.Pipeline(lang='en', processors="tokenize,ner,mwt,pos", tokenize_no_ssplit=True)
                         else:
-                                #stanza.download('en', package='craft', processors={'ner': 'bionlp13cg'})
+                                stanza.download('en', package='craft', processors={'ner': 'bionlp13cg'})
                                 nlp = stanza.Pipeline('en', package="craft", processors={"ner": "bionlp13cg"}, tokenize_no_ssplit=True)
                         
                         preprocess_dataset = PreprocessDataset(self.dataset, self.preprocessing, nlp)
