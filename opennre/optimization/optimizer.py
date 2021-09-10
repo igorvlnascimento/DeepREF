@@ -145,7 +145,7 @@ class Optimizer():
     def optimize_model(self):
         random.seed(64)
         
-        pop = self.toolbox.population(n=10)
+        pop = self.toolbox_model.population(n=10)
         self.hof_model = tools.HallOfFame(1)
         stats = tools.Statistics(lambda ind: ind.fitness.values)
         stats.register("avg", numpy.mean)
@@ -153,7 +153,7 @@ class Optimizer():
         stats.register("min", numpy.min)
         stats.register("max", numpy.max)
         
-        pop, log = algorithms.eaSimple(pop, self.toolbox, cxpb=0.5, mutpb=0.2, ngen=2, 
+        pop, log = algorithms.eaSimple(pop, self.toolbox_model, cxpb=0.5, mutpb=0.2, ngen=2, 
                                     stats=stats, halloffame=self.hof_model, verbose=True)
         
         return pop, log, self.hof_model
@@ -161,7 +161,7 @@ class Optimizer():
     def optimize_hyperparameters(self):
         random.seed(64)
         
-        pop = self.toolbox.population(n=10)
+        pop = self.toolbox_hyperparameters.population(n=10)
         self.hof_hyperparameters = tools.HallOfFame(1)
         stats = tools.Statistics(lambda ind: ind.fitness.values)
         stats.register("avg", numpy.mean)
@@ -169,7 +169,7 @@ class Optimizer():
         stats.register("min", numpy.min)
         stats.register("max", numpy.max)
         
-        pop, log = algorithms.eaSimple(pop, self.toolbox, cxpb=0.5, mutpb=0.2, ngen=2, 
+        pop, log = algorithms.eaSimple(pop, self.toolbox_hyperparameters, cxpb=0.5, mutpb=0.2, ngen=2, 
                                     stats=stats, halloffame=self.hof_hyperparameters, verbose=True)
         
         return pop, log, self.hof_hyperparameters
