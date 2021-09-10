@@ -84,9 +84,9 @@ class Training():
                         nlp = stanza.Pipeline('en', package="craft", processors={"ner": "bionlp13cg"}, tokenize_no_ssplit=True)
                 
                 original_path = os.path.join('benchmark', self.dataset, 'original')
-                if not os.path.exists(original_path, self.dataset, '{}_train_original.csv') or \
-                   not os.path.exists(original_path, self.dataset, '{}_val_original.csv') or \
-                   not os.path.exists(original_path, self.dataset, '{}_test_original.csv'):
+                if not os.path.exists(os.path.join(original_path, self.dataset, '{}_train_original.csv')) or \
+                   not os.path.exists(os.path.join(original_path, self.dataset, '{}_val_original.csv')) or \
+                   not os.path.exists(os.path.join(original_path, self.dataset, '{}_test_original.csv')):
                                 
                         if self.dataset == "semeval2010":
                                 converter = ConverterSemEval2010(nlp)
