@@ -9,8 +9,6 @@ import numpy as np
 import logging
 
 root_url = "https://thunlp.oss-cn-qingdao.aliyuncs.com/"
-root_url_semeval = "https://raw.githubusercontent.com/sahitya0000/Relation-Classification/master/corpus/"
-root_url_semeval = "https://raw.githubusercontent.com/sahitya0000/Relation-Classification/master/corpus/"
 default_root_path = os.path.join(os.getenv('HOME'), '.opennre')
 
 def check_root(root_path=default_root_path):
@@ -65,17 +63,11 @@ def download_semeval2010(root_path=default_root_path):
     check_root()
     if not os.path.exists(os.path.join(root_path, 'benchmark/semeval2010')):
         os.system('bash ' + os.path.join(root_path, 'bechmark/download_semeval2010.sh'))
-        #os.mkdir(os.path.join(root_path, 'benchmark/raw_semeval'))
-        #os.system('wget -P ' + os.path.join(root_path, 'benchmark/raw_semeval') + ' ' + root_url_semeval + 'SemEval2010_task8_training/TRAIN_FILE.TXT')
-        #os.system('wget -P ' + os.path.join(root_path, 'benchmark/raw_semeval') + ' ' + root_url_semeval + 'SemEval2010_task8_testing_keys/TEST_FILE_FULL.TXT')
 
 def download_semeval2018(root_path=default_root_path):
     check_root()
     if not os.path.exists(os.path.join(root_path, 'benchmark/semeval2018')):
         os.system('bash ' + os.path.join(root_path, 'bechmark/download_semeval2018.sh'))
-        #os.mkdir(os.path.join(root_path, 'benchmark/raw_semeval'))
-        #os.system('wget -P ' + os.path.join(root_path, 'benchmark/raw_semeval') + ' ' + root_url_semeval + 'SemEval2010_task8_training/TRAIN_FILE.TXT')
-        #os.system('wget -P ' + os.path.join(root_path, 'benchmark/raw_semeval') + ' ' + root_url_semeval + 'SemEval2010_task8_testing_keys/TEST_FILE_FULL.TXT')
 
 
 def download_ddi(root_path=default_root_path):

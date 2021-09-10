@@ -1,8 +1,7 @@
 import logging
 import torch
 import torch.nn as nn
-from transformers import AutoTokenizer, AutoModel, AutoModelForMaskedLM
-from .base_encoder import BaseEncoder
+from transformers import AutoTokenizer, AutoModel
 
 class BERTEncoder(nn.Module):
     def __init__(self, max_length, pretrain_path, blank_padding=True, mask_entity=False):

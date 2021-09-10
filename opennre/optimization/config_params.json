@@ -1,8 +1,16 @@
 {
     "optimize": "micro_f1",
-    "preprocessing_replace": ["n", "sw", "d", "p"],
-    "preprocessing_blinding": ["n","eb","nb"],
+    "preprocessing": ["sw", "d", "b", "p", "eb","nb"],
     "model": ["cnn", "pcnn", "bert"],
     "embedding": ["glove", "fasttext", "elmo"],
-    "pretrain_bert": ["bert-base-uncased", "dmis-lab/biobert-v1.1", "allenai/scibert_scivocab_uncased"]
+    "pretrain_bert": ["bert-base-uncased", "dmis-lab/biobert-v1.1", "allenai/scibert_scivocab_uncased"],
+    "pooler": ["entity", "cls"],
+    "batch_size": [32, 64, 128, 256, 512, 1024],
+    "opt": ["adam", "sgd"],
+    "lr": [1e-5, 2e-5, 1e-4, 2e-4, 1e-3, 2e-3, 1e-2, 2e-2, 1e-1, 2e-1, 1],
+    "weight_decay": [1e-5, 2e-5, 1e-4, 2e-4, 1e-3, 2e-3, 1e-2, 2e-2, 1e-1, 2e-1, 1],
+    "max_length": [8, 16, 32, 64, 128, 256],
+    "max_epoch": [100, 120, 140, 160, 180, 200],
+    "max_epoch_bert": [3, 5, 7, 9, 12, 15],
+    "mask_entity": [0, 1]
 }

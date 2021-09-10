@@ -1,30 +1,21 @@
+import os
 import json
 from ast import literal_eval
 
 import pandas as pd
 
-import stanza
-import spacy
-
 class ConverterDataset():
     
-    def __init__(self, dataset_name, entity_name="ENTITY", nlp_model="stanza"):
+    def __init__(self, dataset_name, nlp, entity_name="ENTITY"):
         
         self.dataset_name = dataset_name
         self.entity_name = entity_name
         
-        #self.write_relations_json()
+        self.nlp = nlp
         
-        if nlp_model == "stanza":
-            stanza.download('en')
-            self.nlp = stanza.Pipeline(lang='en', processors="tokenize,ner", tokenize_no_ssplit=True)
-        elif nlp_model == "spacy":
-            self.nlp = spacy.load('en_core_web_lg')
-        
-
-    def write_relations_json(self, path):
-        json_file = open(path+'/' + self.dataset_name + '_rel2id.json', 'w')
-        json.dump(self.relation_dict, json_file)
+    def write_relations_json(self, dataset_name, relation_dict):
+        json_file = open('benchmark/{}/{}_rel2id.json'.format(dataset_name, dataset_name), 'w')
+        json.dump(relation_dict, json_file)
 
     def tokenize(self, sentence, model="spacy"):
         if model == "spacy":
@@ -125,3 +116,34 @@ class ConverterDataset():
     # write the dataframe into the text format accepted by the cnn model
     def write_into_txt(self, df, directory):
         pass
+    
+    def write_split_dataframes(self, train_input_file, test_input_file):
+        output_path = 'benchmark/{}/original'.format(self.dataset_name)
+
+        if not os.path.exists(output_path):
+            os.makedirs(output_path)
+
+        if not os.path.exists(os.path.join(output_path, self.dataset_name + '_train_original.csv')):
+            df_train = self.get_dataset_dataframe(train_input_file)
+            self.write_dataframe(df_train, os.path.join(output_path, self.dataset_name + '_train_original.csv'))
+            df_train_copy = self.read_dataframe(os.path.join(output_path, self.dataset_name + '_train_original.csv'))
+            self.check_equality_of_written_and_read_df(df_train, df_train_copy)
+        else:
+            df_train = self.read_dataframe(os.path.join(output_path, self.dataset_name + '_train_original.csv'))
+        
+        if not os.path.exists(os.path.join(output_path, self.dataset_name + '_val_original.csv')):
+            df_val = df_train.sample(frac=0.2)
+            df_train = df_train.drop(df_val.index)
+            self.write_dataframe(df_val, os.path.join(output_path, self.dataset_name + '_val_original.csv'))
+            df_val_copy = self.read_dataframe(os.path.join(output_path, self.dataset_name + '_val_original.csv'))
+            self.check_equality_of_written_and_read_df(df_val, df_val_copy)
+        else:
+            df_val = self.read_dataframe(os.path.join(output_path, self.dataset_name + '_val_original.csv'))
+        
+        if not os.path.exists(os.path.join(output_path, self.dataset_name + '_test_original.csv')):
+            df_test = self.get_dataset_dataframe(test_input_file)
+            self.write_dataframe(df_test, os.path.join(output_path, self.dataset_name + '_test_original.csv'))
+            df_test_copy = self.read_dataframe(os.path.join(output_path, self.dataset_name + '_test_original.csv'))
+            self.check_equality_of_written_and_read_df(df_test, df_test_copy)
+        else:
+            df_test = self.read_dataframe(os.path.join(output_path, self.dataset_name + '_test_original.csv'))
