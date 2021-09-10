@@ -1,4 +1,7 @@
 # coding:utf-8
+from opennre.dataset.converters.converter_ddi import ConverterDDI
+from opennre.dataset.converters.converter_semeval2010 import ConverterSemEval2010
+from opennre.dataset.converters.converter_semeval2018 import ConverterSemEval2018
 import torch
 import numpy as np
 import json
@@ -85,6 +88,19 @@ class Training():
                         preprocess_dataset.preprocess_dataset()
                         
                 if not os.path.exists(self.test_file):
+                        if self.dataset == "semeval2010":
+                                converter = ConverterSemEval2010(nlp)
+        
+                                converter.write_split_dataframes(self.train_input_file, self.test_input_file)
+                        elif self.dataset == "semeval2018": 
+                                converter = ConverterSemEval2018(nlp)
+        
+                                converter.write_split_dataframes(args.train_input_file, args.test_input_file)
+                        elif self.dataset == "ddi":
+                                converter = ConverterDDI(nlp)
+        
+                                converter.write_split_dataframes(args.train_input_file, args.test_input_file)
+                        
                         self.test_file = None
                 self.rel2id_file = os.path.join(root_path, 'benchmark', self.dataset, '{}_rel2id.json'.format(self.dataset))
                 
