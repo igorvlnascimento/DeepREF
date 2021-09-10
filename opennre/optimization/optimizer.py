@@ -31,6 +31,9 @@ class Optimizer():
         self.hof_model = []
         self.hof_hyperparameters = []
         
+        self.init_toolbox_model()
+        self.init_toolbox_hyperparameters()
+        
     def init_toolbox_model(self):
         
         self.toolbox_model = base.Toolbox()
