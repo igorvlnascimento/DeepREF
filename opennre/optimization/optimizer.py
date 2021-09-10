@@ -26,7 +26,7 @@ class Optimizer():
         creator.create("FitnessMax", base.Fitness, weights=(1.0,))
         creator.create("Individual", list, fitness=creator.FitnessMax)
         
-        self.self.N_CYCLES = 1
+        self.N_CYCLES = 1
         
         self.hof_model = []
         self.hof_hyperparameters = []
@@ -188,10 +188,41 @@ if __name__ == "__main__":
     preprocessing = 'none' if len(opt.preprocessing) == 0 else opt.preprocessing[hof_model[0]]
     model = opt.data["model"][hof_model[1]]
     embedding = opt.data["pretrain_bert"][hof_model[2]] if opt.data["model"][hof_model[1]] == 'bert' else opt.data["embedding"][hof_model[2]]
-    max_epoch = opt.data["max_epoch_bert"] if model == 'bert' else opt.data["max_epoch"]
+    max_epoch = opt.data["max_epoch_bert"][hof_hyperparameters[6]] if model == 'bert' else opt.data["max_epoch"][hof_hyperparameters[6]]
+    pooler, opt, batch_size = opt.data["pooler"][hof_hyperparameters[0]], opt.data["opt"][hof_hyperparameters[1]], opt.data["batch_size"][hof_hyperparameters[2]]
+    lr, weight_decay, max_length, mask_entity = opt.data["lr"][hof_hyperparameters[3]], \
+                                                opt.data["weight_decay"][hof_hyperparameters[4]], \
+                                                opt.data["max_length"][hof_hyperparameters[5]], \
+                                                max_epoch, opt.data["mask_entity"][hof_hyperparameters[7]]
+                                                
+    params = {
+        "dataset": args.dataset,
+        "model": model,
+        "metric": opt.data["optimize"],
+        "preprocessing": preprocessing,
+        "embedding": embedding,
+        "pooler": pooler,
+        "opt": opt,
+        "batch_size": batch_size,
+        "lr": lr,
+        "weight_decay": weight_decay,
+        "max_length": max_length,
+        "max_epoch": max_epoch,
+        "mask_entity": mask_entity
+    }
+    
+    train = Training(params)
+    metric = train.train()
+    
     
     print("Optimized parameters for dataset {}:".format(args.dataset))
     print("Preprocessing - {}; Model - {}; Embedding - {}.".format(preprocessing, model, embedding))
-    print("Pooler - {}; Optimizer - {}; Batch size - {};".format(opt.data["pooler"], opt.data["opt"], opt.data["batch_size"]))
-    print("Learning rate - {}; Max Length - {}; Max epoch - {}; Mask entity - {}.".format(opt.data["lr"], opt.data["max_length"], max_epoch, opt.data["mask_entity"]))
+    print("Pooler - {}; Optimizer - {}; Batch size - {};".format(pooler, opt, batch_size))
+    print("Learning rate - {}; Weight decay - {}; Max Length - {}; Max epoch - {}; Mask entity - {}.".format(lr, weight_decay, max_length, max_epoch, mask_entity))
+    print("Max {}:".format(opt.data["optimize"]), metric)
+    
+    # pooler, opt,
+    # batch_size, lr,
+    # weight_decay, max_length,
+    # max_epoch, mask_entity
     
