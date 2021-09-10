@@ -91,15 +91,15 @@ class Training():
                         if self.dataset == "semeval2010":
                                 converter = ConverterSemEval2010(nlp)
         
-                                converter.write_split_dataframes(self.train_input_file, self.test_input_file)
+                                converter.write_split_dataframes(self.train_file, self.test_file)
                         elif self.dataset == "semeval2018": 
                                 converter = ConverterSemEval2018(nlp)
         
-                                converter.write_split_dataframes(args.train_input_file, args.test_input_file)
+                                converter.write_split_dataframes(args.train_file, args.test_file)
                         elif self.dataset == "ddi":
                                 converter = ConverterDDI(nlp)
         
-                                converter.write_split_dataframes(args.train_input_file, args.test_input_file)
+                                converter.write_split_dataframes(args.train_file, args.test_file)
                         
                 if not (os.path.exists(self.train_file)) or not(os.path.exists(self.val_file)) or not(os.path.exists(self.test_file)):
                         preprocess_dataset = PreprocessDataset(self.dataset, self.preprocessing, nlp)
