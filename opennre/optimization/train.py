@@ -94,7 +94,25 @@ class Training():
                         
                 rel2id = json.load(open(self.rel2id_file))
 
+                word2id = None
+                word2vec = None
+                print("embedding:",self.embedding)
                 if self.embedding == "glove":
+                        print("GLooove!")
+                        # Download glove
+                        opennre.download('glove', root_path=root_path)
+                        word2id = json.load(open(os.path.join(root_path, 'pretrain/glove/glove.6B.50d_word2id.json')))
+                        word2vec = np.load(os.path.join(root_path, 'pretrain/glove/glove.6B.50d_mat.npy'))
+                        
+                if self.embedding == "fasttext":
+                        print("GLooove!")
+                        # Download glove
+                        opennre.download('glove', root_path=root_path)
+                        word2id = json.load(open(os.path.join(root_path, 'pretrain/glove/glove.6B.50d_word2id.json')))
+                        word2vec = np.load(os.path.join(root_path, 'pretrain/glove/glove.6B.50d_mat.npy'))
+                        
+                if self.embedding == "elmo":
+                        print("GLooove!")
                         # Download glove
                         opennre.download('glove', root_path=root_path)
                         word2id = json.load(open(os.path.join(root_path, 'pretrain/glove/glove.6B.50d_word2id.json')))
