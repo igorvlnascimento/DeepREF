@@ -63,7 +63,8 @@ class PreprocessDataset():
         self.makedir()
 
         for original_df_name in original_dataframe_names:
-            if not os.path.exists(os.path.join('benchmark', self.dataset_name, 'original', original_df_name + '_original.txt')):
+            if not os.path.exists(os.path.join('benchmark', self.dataset_name, 'original', original_df_name + '_original.txt')) or \
+                not os.path.exists(os.path.join('benchmark', self.dataset_name, 'original', original_df_name + '_original.csv')):
                 cmd = ['bash', 'benchmark/download_{}.sh'.format(self.dataset_name)]
                 proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
                 _, _ = proc.communicate()

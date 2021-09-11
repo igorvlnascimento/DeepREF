@@ -117,19 +117,21 @@ class ConverterDataset():
     def write_into_txt(self, df, directory):
         pass
     
-    def write_split_dataframes(self, train_input_file, test_input_file):
-        output_path = 'benchmark/{}/original'.format(self.dataset_name)
+    def write_split_dataframes(self, output_path, train_input_file, test_input_file):
 
         if not os.path.exists(output_path):
             os.makedirs(output_path)
+            
+        #original_df_names = [self.dataset_name + '_{}_original.csv'.format(split) for split in ['train', 'val', 'test']]
 
+        #for df_name in original_df_names:
         if not os.path.exists(os.path.join(output_path, self.dataset_name + '_train_original.csv')):
             df_train = self.get_dataset_dataframe(train_input_file)
             self.write_dataframe(df_train, os.path.join(output_path, self.dataset_name + '_train_original.csv'))
             df_train_copy = self.read_dataframe(os.path.join(output_path, self.dataset_name + '_train_original.csv'))
             self.check_equality_of_written_and_read_df(df_train, df_train_copy)
-        else:
-            df_train = self.read_dataframe(os.path.join(output_path, self.dataset_name + '_train_original.csv'))
+        # else:
+        #     df_train = self.read_dataframe(os.path.join(output_path, self.dataset_name + '_train_original.csv'))
         
         if not os.path.exists(os.path.join(output_path, self.dataset_name + '_val_original.csv')):
             df_val = df_train.sample(frac=0.2)
@@ -137,13 +139,18 @@ class ConverterDataset():
             self.write_dataframe(df_val, os.path.join(output_path, self.dataset_name + '_val_original.csv'))
             df_val_copy = self.read_dataframe(os.path.join(output_path, self.dataset_name + '_val_original.csv'))
             self.check_equality_of_written_and_read_df(df_val, df_val_copy)
-        else:
-            df_val = self.read_dataframe(os.path.join(output_path, self.dataset_name + '_val_original.csv'))
+        # else:
+        #     df_val = self.read_dataframe(os.path.join(output_path, self.dataset_name + '_val_original.csv'))
         
         if not os.path.exists(os.path.join(output_path, self.dataset_name + '_test_original.csv')):
             df_test = self.get_dataset_dataframe(test_input_file)
             self.write_dataframe(df_test, os.path.join(output_path, self.dataset_name + '_test_original.csv'))
             df_test_copy = self.read_dataframe(os.path.join(output_path, self.dataset_name + '_test_original.csv'))
             self.check_equality_of_written_and_read_df(df_test, df_test_copy)
-        else:
-            df_test = self.read_dataframe(os.path.join(output_path, self.dataset_name + '_test_original.csv'))
+        # else:
+        #     df_test = self.read_dataframe(os.path.join(output_path, self.dataset_name + '_test_original.csv'))
+            
+        for file in os.listdir(output_path):
+            if file.endswith(".csv"):
+                df = self.read_dataframe(os.path.join(output_path, file))
+                self.write_into_txt(df, os.path.join(output_path, file[:file.rfind('.')] + '.txt'))
