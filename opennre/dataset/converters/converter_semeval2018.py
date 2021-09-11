@@ -1,3 +1,4 @@
+import os
 import glob
 import argparse
 import stanza
@@ -262,4 +263,9 @@ if __name__ == '__main__':
     
     converter = ConverterSemEval2018(nlp)
     
-    converter.write_split_dataframes(args.train_input_file, args.test_input_file)
+    converter.write_split_dataframes(args.output_path, args.train_input_file, args.test_input_file)
+    
+    for file in os.listdir(args.output_path):
+        if file.endswith(".csv"):
+            df = converter.read_dataframe(os.path.join(args.output_path, file))
+            converter.write_into_txt(df, os.path.join(args.output_path, file[:file.rfind('.')] + '.txt'))
