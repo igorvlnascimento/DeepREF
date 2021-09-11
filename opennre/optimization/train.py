@@ -82,24 +82,6 @@ class Training():
                 else:
                         stanza.download('en', package='craft', processors={'ner': 'bionlp13cg'})
                         nlp = stanza.Pipeline('en', package="craft", processors={"ner": "bionlp13cg"}, tokenize_no_ssplit=True)
-                
-                original_path = os.path.join('benchmark', self.dataset, 'original')
-                if not os.path.exists(os.path.join(original_path, self.dataset, '{}_train_original.csv')) or \
-                   not os.path.exists(os.path.join(original_path, self.dataset, '{}_val_original.csv')) or \
-                   not os.path.exists(os.path.join(original_path, self.dataset, '{}_test_original.csv')):
-                                
-                        if self.dataset == "semeval2010":
-                                converter = ConverterSemEval2010(nlp)
-        
-                                converter.write_split_dataframes(self.train_file, self.test_file)
-                        elif self.dataset == "semeval2018": 
-                                converter = ConverterSemEval2018(nlp)
-        
-                                converter.write_split_dataframes(args.train_file, args.test_file)
-                        elif self.dataset == "ddi":
-                                converter = ConverterDDI(nlp)
-        
-                                converter.write_split_dataframes(args.train_file, args.test_file)
                         
                 if not (os.path.exists(self.train_file)) or not(os.path.exists(self.val_file)) or not(os.path.exists(self.test_file)):
                         preprocess_dataset = PreprocessDataset(self.dataset, self.preprocessing, nlp)
