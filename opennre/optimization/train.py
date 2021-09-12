@@ -1,7 +1,4 @@
 # coding:utf-8
-from opennre.dataset.converters.converter_ddi import ConverterDDI
-from opennre.dataset.converters.converter_semeval2010 import ConverterSemEval2010
-from opennre.dataset.converters.converter_semeval2018 import ConverterSemEval2018
 import torch
 import numpy as np
 import json
@@ -78,7 +75,7 @@ class Training():
                 
                 if self.dataset == "semeval2010":
                         stanza.download('en')
-                        nlp = stanza.Pipeline(lang='en', processors="tokenize,ner,mwt,pos", tokenize_no_ssplit=True)
+                        nlp = stanza.Pipeline(lang='en', processors="tokenize,ner,pos", tokenize_no_ssplit=True)
                 else:
                         stanza.download('en', package='craft', processors={'ner': 'bionlp13cg'})
                         nlp = stanza.Pipeline('en', package="craft", processors={"ner": "bionlp13cg"}, tokenize_no_ssplit=True)
@@ -153,6 +150,79 @@ class Training():
 
                         # Define the model
                         self.model_opennre = opennre.model.SoftmaxNN(sentence_encoder, len(rel2id), rel2id)
+                elif self.model == "crcnn":
+                        sentence_encoder = opennre.encoder.CRCNNEncoder(
+                                token2id=word2id,
+                                max_length=self.max_length,
+                                word_size=50,
+                                position_size=5,
+                                hidden_size=230,
+                                blank_padding=True,
+                                kernel_size=3,
+                                padding_size=1,
+                                word2vec=word2vec,
+                                dropout=0.5
+                        )
+
+
+                        # Define the model
+                        self.model_opennre = opennre.model.SoftmaxNN(sentence_encoder, len(rel2id), rel2id)
+                elif self.model == "gru":
+                        sentence_encoder = opennre.encoder.GRUEncoder(
+                                token2id=word2id,
+                                max_length=self.max_length,
+                                word_size=50,
+                                position_size=5,
+                                hidden_size=230,
+                                blank_padding=True,
+                                word2vec=word2vec,
+                                dropout=0.5,
+                                bidirectional=False)
+
+                        # Define the model
+                        self.model_opennre = opennre.model.SoftmaxNN(sentence_encoder, len(rel2id), rel2id)
+                elif self.model == "bigru":
+                        sentence_encoder = opennre.encoder.GRUEncoder(
+                                token2id=word2id,
+                                max_length=self.max_length,
+                                word_size=50,
+                                position_size=5,
+                                hidden_size=230,
+                                blank_padding=True,
+                                word2vec=word2vec,
+                                dropout=0.5,
+                                bidirectional=True)
+
+                        # Define the model
+                        self.model_opennre = opennre.model.SoftmaxNN(sentence_encoder, len(rel2id), rel2id)
+                elif self.model == "lstm":
+                        sentence_encoder = opennre.encoder.LSTMEncoder(
+                                token2id=word2id,
+                                max_length=self.max_length,
+                                word_size=50,
+                                position_size=5,
+                                hidden_size=230,
+                                blank_padding=True,
+                                word2vec=word2vec,
+                                dropout=0.5,
+                                bidirectional=False)
+
+                        # Define the model
+                        self.model_opennre = opennre.model.SoftmaxNN(sentence_encoder, len(rel2id), rel2id)
+                elif self.model == "bilstm":
+                        sentence_encoder = opennre.encoder.LSTMEncoder(
+                                token2id=word2id,
+                                max_length=self.max_length,
+                                word_size=50,
+                                position_size=5,
+                                hidden_size=230,
+                                blank_padding=True,
+                                word2vec=word2vec,
+                                dropout=0.5,
+                                bidirectional=True)
+
+                        # Define the model
+                        self.model_opennre = opennre.model.SoftmaxNN(sentence_encoder, len(rel2id), rel2id)
                 elif self.model == "bert":
                         if self.pooler == 'entity':
                                 sentence_encoder = opennre.encoder.BERTEntityEncoder(
@@ -172,9 +242,10 @@ class Training():
                         # Define the model
                         self.model_opennre = opennre.model.SoftmaxNN(sentence_encoder, len(rel2id), rel2id)
                         
-        def train(self):
                 
-                print("test:", self.test_file)
+                self.criterion = opennre.encoder.PairwiseRankingLoss() if self.model == 'crcnn' else None
+                        
+        def train(self):
 
                 # Define the whole training framework
                 framework = opennre.framework.SentenceRE(
@@ -187,7 +258,8 @@ class Training():
                         max_epoch=self.max_epoch,
                         lr=self.lr,
                         weight_decay=self.weight_decay,
-                        opt=self.opt
+                        opt=self.opt,
+                        criterion=self.criterion,
                 )
 
                 # Train the model
@@ -227,7 +299,7 @@ if __name__ == '__main__':
                 help='Mask entity mentions')
 
         #Model
-        parser.add_argument('--model', default='cnn', choices=['cnn', 'pcnn', 'bert'],
+        parser.add_argument('--model', default='cnn', choices=['cnn', 'pcnn', 'bert', 'crcnn', 'gru', 'bigru', 'lstm', 'bilstm'],
                 help='Model to train')
 
         #Embedding
