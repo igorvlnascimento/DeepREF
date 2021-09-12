@@ -25,7 +25,8 @@ class SentenceRE(nn.Module):
                  lr=0.1, 
                  weight_decay=1e-5, 
                  warmup_step=300,
-                 opt='sgd'):
+                 opt='sgd',
+                 criterion=None):
     
         super().__init__()
         self.max_epoch = max_epoch
@@ -70,7 +71,10 @@ class SentenceRE(nn.Module):
         self.model = model
         self.parallel_model = nn.DataParallel(self.model)
         # Criterion
-        self.criterion = nn.CrossEntropyLoss()
+        if criterion is None:
+            self.criterion = nn.CrossEntropyLoss()
+        else:
+            self.criterion = criterion
         # Params and optimizer
         params = self.parameters()
         self.lr = lr
