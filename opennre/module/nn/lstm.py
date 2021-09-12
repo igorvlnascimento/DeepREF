@@ -3,7 +3,7 @@ import torch.nn as nn
 
 class LSTM(nn.Module):
 
-    def __init__(self, input_size=50, hidden_size=256, dropout=0, bidirectional=False, num_layers=1, activation_function="tanh"):
+    def __init__(self, input_size=50, hidden_size=256, dropout=0, bidirectional=False, num_layers=1):
         """
         Args:
             input_size: dimention of input embedding
@@ -19,7 +19,6 @@ class LSTM(nn.Module):
         self.lstm = nn.LSTM(input_size, 
                           hidden_size, 
                           num_layers, 
-                          nonlinearity=activation_function, 
                           dropout=dropout, 
                           bidirectional=bidirectional)
 
@@ -32,6 +31,6 @@ class LSTM(nn.Module):
         """
         # Check size of tensors
         x = x.transpose(0, 1) # (L, B, I_EMBED)
-        x, h, c = self.lstm(x) # (L, B, H_EMBED)
+        x, _ = self.lstm(x) # (L, B, H_EMBED)
         x = x.transpose(0, 1) # (B, L, I_EMBED)
         return x
