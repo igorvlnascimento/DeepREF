@@ -9,9 +9,16 @@ import os
 import sys
 import argparse
 import stanza
+import random
 
 class Training():
         def __init__(self, parameters):
+                
+                random.seed(42)
+                np.random.seed(42)
+                torch.manual_seed(42)
+                torch.cuda.manual_seed_all(42)
+
                 
                 self.dataset = "semeval2010" if parameters["dataset"] is None else parameters["dataset"]
                 self.preprocessing = None if len(parameters["preprocessing"]) == 0 else parameters["preprocessing"]
@@ -144,7 +151,7 @@ class Training():
                                 kernel_size=3,
                                 padding_size=1,
                                 word2vec=word2vec,
-                                dropout=0.5
+                                #dropout=0.5
                         )
 
 
@@ -161,7 +168,7 @@ class Training():
                                 kernel_size=3,
                                 padding_size=1,
                                 word2vec=word2vec,
-                                dropout=0.5
+                                #dropout=0.5
                         )
 
 
@@ -196,6 +203,7 @@ class Training():
                         # Define the model
                         self.model_opennre = opennre.model.SoftmaxNN(sentence_encoder, len(rel2id), rel2id)
                 elif self.model == "lstm":
+                        print()
                         sentence_encoder = opennre.encoder.LSTMEncoder(
                                 token2id=word2id,
                                 max_length=self.max_length,
@@ -273,7 +281,7 @@ class Training():
                 framework.get_confusion_matrix(ground_truth, pred, self.model, self.embedding)
 
                 # Print the result
-                #framework.test_set_results(ground_truth, pred, result, model, embedding)
+                framework.test_set_results(ground_truth, pred, result, model, self.embedding)
                 
                 return result[self.metric]
                         
