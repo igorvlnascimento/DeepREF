@@ -40,7 +40,7 @@ class PreprocessDataset():
             if "nb" in self.preprocessing_types:
                 preprocessing_types["ner_blinding"] = True
             elif "eb" in self.preprocessing_types:
-                preprocessing_types["entity_bliding"] = True
+                preprocessing_types["entity_blinding"] = True
                 
             if "d" in self.preprocessing_types:
                 preprocessing_types["digit"] = True
