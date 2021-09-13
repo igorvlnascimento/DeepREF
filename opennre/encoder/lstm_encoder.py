@@ -10,7 +10,7 @@ class LSTMEncoder(BaseEncoder):
     def __init__(self, 
                  token2id, 
                  max_length=128, 
-                 hidden_size=230, 
+                 hidden_size=256, 
                  word_size=50,
                  position_size=5,
                  blank_padding=True,
@@ -55,8 +55,6 @@ class LSTMEncoder(BaseEncoder):
         x = x.transpose(1, 2) # (B, EMBED, L)
         x = self.pool(x).squeeze(-1)
         x = self.drop(x)
-        
-        print(x.shape)
         
         return x
 

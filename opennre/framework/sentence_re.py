@@ -210,9 +210,9 @@ class SentenceRE(nn.Module):
         disp.plot(include_values=True, xticks_rotation='vertical')
 
         if only_test:
-            image_output_name = "confusion_matrix_{}_{}_{}_{}_only_test.{}".format(model, pretrain, self.dataset_name, self.preprocessing, output_format)
+            image_output_name = "confusion_matrix_{}_{}_{}_{}_only_test.{}".format(self.dataset_name, model, pretrain, self.preprocessing, output_format)
         else:
-            image_output_name = "confusion_matrix_{}_{}_{}_{}.{}".format(model, pretrain, self.dataset_name, self.preprocessing, output_format)
+            image_output_name = "confusion_matrix_{}_{}_{}_{}.{}".format(self.dataset_name, model, pretrain, self.preprocessing, output_format)
 
         if not os.path.exists('results/'):
             os.mkdir('results/')
@@ -225,7 +225,7 @@ class SentenceRE(nn.Module):
         logging.info('Ground truth: '+ str(ground_truth))
         logging.info('Prediotions : '+ str(pred))
         logging.info('Test set results:')
-        file_path = 'results/ResultsOpenNRE+.txt'
+        file_path = 'results/ResultsOpenNRE++.txt'
         report = metrics.classification_report(ground_truth, pred, target_names=self.classes, digits=5)
         confusion_matrix = metrics.confusion_matrix(ground_truth, pred)
         logging.info(report)

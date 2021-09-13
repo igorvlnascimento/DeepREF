@@ -184,7 +184,8 @@ class Training():
                                 blank_padding=True,
                                 word2vec=word2vec,
                                 dropout=0.5,
-                                bidirectional=False)
+                                bidirectional=False
+                        )
 
                         # Define the model
                         self.model_opennre = opennre.model.SoftmaxNN(sentence_encoder, len(rel2id), rel2id)
@@ -198,7 +199,8 @@ class Training():
                                 blank_padding=True,
                                 word2vec=word2vec,
                                 dropout=0.5,
-                                bidirectional=True)
+                                bidirectional=True
+                        )
 
                         # Define the model
                         self.model_opennre = opennre.model.SoftmaxNN(sentence_encoder, len(rel2id), rel2id)
@@ -209,11 +211,12 @@ class Training():
                                 max_length=self.max_length,
                                 word_size=50,
                                 position_size=5,
-                                hidden_size=230,
+                                hidden_size=256,
                                 blank_padding=True,
                                 word2vec=word2vec,
                                 dropout=0.5,
-                                bidirectional=False)
+                                bidirectional=False
+                        )
 
                         # Define the model
                         self.model_opennre = opennre.model.SoftmaxNN(sentence_encoder, len(rel2id), rel2id)
@@ -223,11 +226,12 @@ class Training():
                                 max_length=self.max_length,
                                 word_size=50,
                                 position_size=5,
-                                hidden_size=230,
+                                hidden_size=256,
                                 blank_padding=True,
                                 word2vec=word2vec,
                                 dropout=0.5,
-                                bidirectional=True)
+                                bidirectional=True
+                        )
 
                         # Define the model
                         self.model_opennre = opennre.model.SoftmaxNN(sentence_encoder, len(rel2id), rel2id)
@@ -281,7 +285,7 @@ class Training():
                 framework.get_confusion_matrix(ground_truth, pred, self.model, self.embedding)
 
                 # Print the result
-                framework.test_set_results(ground_truth, pred, result, model, self.embedding)
+                framework.test_set_results(ground_truth, pred, result, self.model, self.embedding)
                 
                 return result[self.metric]
                         
