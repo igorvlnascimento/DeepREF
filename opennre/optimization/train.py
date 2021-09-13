@@ -255,7 +255,7 @@ class Training():
                         self.model_opennre = opennre.model.SoftmaxNN(sentence_encoder, len(rel2id), rel2id)
                         
                 
-                self.criterion = opennre.encoder.PairwiseRankingLoss() if self.model == 'crcnn' else None
+                self.criterion = opennre.model.PairwiseRankingLoss() if self.model == 'crcnn' else None
                         
         def train(self):
 
@@ -287,14 +287,7 @@ class Training():
                 # Print the result
                 framework.test_set_results(ground_truth, pred, result, self.model, self.embedding)
                 
-                return result[self.metric]
-                        
-                
-
-                
-                
-                
-                
+                return result[self.metric]                
                 
 if __name__ == '__main__':
 
