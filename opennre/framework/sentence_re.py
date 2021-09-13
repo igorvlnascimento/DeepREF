@@ -225,6 +225,8 @@ class SentenceRE(nn.Module):
         logging.info('Ground truth: '+ str(ground_truth))
         logging.info('Prediotions : '+ str(pred))
         logging.info('Test set results:')
+        logging.info('Trained with dataset {}, model {}, pretrain {} and preprocessing {}:\n'.format(self.dataset_name, model, pretrain, self.preprocessing))
+        
         file_path = 'results/ResultsOpenNRE++.txt'
         report = metrics.classification_report(ground_truth, pred, target_names=self.classes, digits=5)
         confusion_matrix = metrics.confusion_matrix(ground_truth, pred)
