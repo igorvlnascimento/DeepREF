@@ -3,22 +3,15 @@ import torch
 import numpy as np
 import json
 import opennre
-from opennre import model, constants
+from opennre import constants
 from opennre.pre_processing.preprocess_dataset import PreprocessDataset
 import os
 import sys
 import argparse
 import stanza
-import random
 
 class Training():
         def __init__(self, parameters):
-                
-                random.seed(42)
-                np.random.seed(42)
-                torch.manual_seed(42)
-                torch.cuda.manual_seed_all(42)
-
                 
                 self.dataset = "semeval2010" if parameters["dataset"] is None else parameters["dataset"]
                 self.preprocessing = None if len(parameters["preprocessing"]) == 0 else parameters["preprocessing"]
@@ -30,9 +23,11 @@ class Training():
                 self.pretrain_path = "bert-base-uncased" if parameters["embedding"] is None else parameters["embedding"]
                 self.mask_entity = True if parameters["mask_entity"] is None else parameters["mask_entity"]
                 
-                if model == "bert":
-                        self.batch_size = 64 if parameters["batch_size"] is None else parameters["batch_size"]
+                if self.model == "bert":
+                        self.embedding = "bert-base-uncased" if parameters["embedding"] is None else parameters["embedding"]
+                        self.batch_size = 2 if parameters["batch_size"] is None else parameters["batch_size"]
                         self.lr = 2e-5 if parameters["lr"] is None else parameters["lr"]
+                        self.weight_decay = 1e-5 if parameters["weight_decay"] is None else parameters["weight_decay"]
                         self.max_epoch = 3 if parameters["max_epoch"] is None else parameters["max_epoch"]
                 else:
                         self.embedding = "glove" if parameters["embedding"] is None else parameters["embedding"]
@@ -79,15 +74,14 @@ class Training():
                                                 self.dataset, 
                                                 self.preprocessing_str, 
                                                 '{}_test_{}.txt'.format(self.dataset, self.preprocessing_str))
-                
-                if self.dataset == "semeval2010":
-                        stanza.download('en')
-                        nlp = stanza.Pipeline(lang='en', processors="tokenize,ner,pos", tokenize_no_ssplit=True)
-                else:
-                        stanza.download('en', package='craft', processors={'ner': 'bionlp13cg'})
-                        nlp = stanza.Pipeline('en', package="craft", processors={"ner": "bionlp13cg"}, tokenize_no_ssplit=True)
                         
                 if not (os.path.exists(self.train_file)) or not(os.path.exists(self.val_file)) or not(os.path.exists(self.test_file)):
+                        if self.dataset == "semeval2010":
+                                stanza.download('en')
+                                nlp = stanza.Pipeline(lang='en', processors="tokenize,ner,pos", tokenize_no_ssplit=True)
+                        else:
+                                stanza.download('en', package='craft', processors={'ner': 'bionlp13cg'})
+                                nlp = stanza.Pipeline('en', package="craft", processors={"ner": "bionlp13cg"}, tokenize_no_ssplit=True)
                         preprocess_dataset = PreprocessDataset(self.dataset, self.preprocessing, nlp)
                         preprocess_dataset.preprocess_dataset()
                         

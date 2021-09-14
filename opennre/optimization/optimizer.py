@@ -148,7 +148,7 @@ class Optimizer():
     def optimize_model(self):
         random.seed(64)
         
-        pop = self.toolbox_model.population(n=10)
+        pop = self.toolbox_model.population(n=20)
         self.hof_model = tools.HallOfFame(1)
         stats = tools.Statistics(lambda ind: ind.fitness.values)
         stats.register("avg", numpy.mean)
@@ -156,7 +156,9 @@ class Optimizer():
         stats.register("min", numpy.min)
         stats.register("max", numpy.max)
         
-        pop, log = algorithms.eaSimple(pop, self.toolbox_model, cxpb=0.5, mutpb=0.2, ngen=2, 
+        print("hof_model:",self.hof_model)
+        
+        pop, log = algorithms.eaSimple(pop, self.toolbox_model, cxpb=0.5, mutpb=0.2, ngen=20, 
                                     stats=stats, halloffame=self.hof_model, verbose=True)
         
         return pop, log, self.hof_model
@@ -185,7 +187,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
     
     opt = Optimizer(args.dataset)
-    hof_model = opt.optimize_model()[2]
+    hof_model = opt.optimize_model()[2][0]
     #hof_hyperparameters = opt.optimize_hyperparameters()[2]
     
     preprocessing = 'none' if len(opt.preprocessing) == 0 else opt.preprocessing[hof_model[0]]
@@ -207,7 +209,7 @@ if __name__ == "__main__":
         "pooler": None,#pooler,
         "opt": opt,
         "batch_size": None,#batch_size,
-        "lr": lr,
+        "lr": None,
         "weight_decay": None,#weight_decay,
         "max_length": None,#max_length,
         "max_epoch": None,#max_epoch,
