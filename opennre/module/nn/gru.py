@@ -16,6 +16,7 @@ class GRU(nn.Module):
         super().__init__()
         if bidirectional:
             hidden_size /= 2
+            hidden_size = int(hidden_size)
         self.gru = nn.GRU(input_size, 
                           hidden_size, 
                           num_layers, 
