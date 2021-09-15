@@ -21,7 +21,6 @@ class Training():
                 self.metric = "micro_f1" if parameters["metric"] is None else parameters["metric"]
                 self.max_length = 128 if parameters["max_length"] is None else parameters["max_length"]
                 self.pooler = "entity" if parameters["pooler"] is None else parameters["pooler"]
-                self.pretrain_path = "bert-base-uncased" if parameters["embedding"] is None else parameters["embedding"]
                 self.mask_entity = True if parameters["mask_entity"] is None else parameters["mask_entity"]
                 self.hidden_size = parameters["hidden_size"]
                 self.position_size = parameters["position_size"]
@@ -46,6 +45,18 @@ class Training():
                 if self.preprocessing is not None:
                         print(self.preprocessing)
                         self.preprocessing_str = "_".join(sorted(self.preprocessing))
+                        
+                self.hyper_params = {
+                        "max_length": self.max_length,
+                        "max_epoch": self.max_epoch,
+                        "pooler": self.pooler,
+                        "mask_entity": self.mask_entity,
+                        "hidden_size": self.hidden_size,
+                        "dropout": self.dropout,
+                        "batch_size": self.batch_size,
+                        "lr": self.lr,
+                        "weight_decay": self.weight_decay,
+                }
 
                 root_path = '.'
                 sys.path.append(root_path)
@@ -296,7 +307,7 @@ class Training():
                 framework.get_confusion_matrix(ground_truth, pred, self.model, self.embedding)
 
                 # Print the result
-                framework.test_set_results(ground_truth, pred, result, self.model, self.embedding)
+                framework.test_set_results(ground_truth, pred, result, self.model, self.embedding, self.hyper_params)
                 
                 return result[self.metric]                
                 

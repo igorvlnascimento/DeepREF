@@ -200,8 +200,8 @@ class SentenceRE(nn.Module):
         result = eval_loader.dataset.eval(pred_result)
         return result, pred_result, ground_truth
 
-    def get_confusion_matrix(self, ground_truth, pred_result, model, pretrain, only_test=False, output_format='png'):
-        pretrain = pretrain.replace('/', '-').replace('.', '')
+    def get_confusion_matrix(self, ground_truth, pred_result, model, embedding, only_test=False, output_format='png'):
+        embedding = embedding.replace('/', '-').replace('.', '')
         c_matrix = confusion_matrix(ground_truth, pred_result)
 
         disp = ConfusionMatrixDisplay(confusion_matrix=c_matrix,
@@ -210,9 +210,9 @@ class SentenceRE(nn.Module):
         disp.plot(include_values=True, xticks_rotation='vertical')
 
         if only_test:
-            image_output_name = "confusion_matrix_{}_{}_{}_{}_only_test.{}".format(self.dataset_name, model, pretrain, self.preprocessing, output_format)
+            image_output_name = "confusion_matrix_{}_{}_{}_{}_only_test.{}".format(self.dataset_name, model, embedding, self.preprocessing, output_format)
         else:
-            image_output_name = "confusion_matrix_{}_{}_{}_{}.{}".format(self.dataset_name, model, pretrain, self.preprocessing, output_format)
+            image_output_name = "confusion_matrix_{}_{}_{}_{}.{}".format(self.dataset_name, model, embedding, self.preprocessing, output_format)
 
         if not os.path.exists('results/'):
             os.mkdir('results/')
@@ -220,13 +220,13 @@ class SentenceRE(nn.Module):
         plt.savefig(save_path, bbox_inches="tight")
         plt.clf()
 
-    def test_set_results(self, ground_truth, pred, result, model, pretrain):
-        pretrain = pretrain.replace('/', '-').replace('.', '')
-        logging.info('Ground truth: '+ str(ground_truth))
-        logging.info('Prediotions : '+ str(pred))
+    def test_set_results(self, ground_truth, pred, result, model, embedding, hyper_params):
+        embedding = embedding.replace('/', '-').replace('.', '')
+        #logging.info('Ground truth: '+ str(ground_truth))
+        #logging.info('Predictions : '+ str(pred))
         logging.info('Test set results:')
-        logging.info('Trained with dataset {}, model {}, pretrain {} and preprocessing {}:\n'.format(self.dataset_name, model, pretrain, self.preprocessing))
-        
+        logging.info('Trained with dataset {}, model {}, embedding {} and preprocessing {}:\n'.format(self.dataset_name, model, embedding, self.preprocessing))
+        logging.info('Hyperparams: {}'.format(hyper_params))
         file_path = 'results/ResultsOpenNRE++.txt'
         report = metrics.classification_report(ground_truth, pred, target_names=self.classes, digits=5)
         confusion_matrix = metrics.confusion_matrix(ground_truth, pred)
@@ -238,14 +238,14 @@ class SentenceRE(nn.Module):
         #max_length_classes = max([len(w) for w in self.classes])
         if os.path.isfile(file_path):
             with open(file_path, 'a') as ablation_file:
-                self.write_test_results(ablation_file, model, pretrain, result, report, confusion_matrix)
+                self.write_test_results(ablation_file, model, embedding, result, report, confusion_matrix)
         else:
             with open(file_path, 'w') as ablation_file:
-                self.write_test_results(ablation_file, model, pretrain, result, report, confusion_matrix)
+                self.write_test_results(ablation_file, model, embedding, result, report, confusion_matrix)
 
-    def write_test_results(self, file, model, pretrain, result, report, confusion_matrix):
-        pretrain = pretrain.replace('/', '-').replace('.', '')
-        file.write('Trained with dataset {}, model {}, pretrain {} and preprocessing {}:\n'.format(self.dataset_name, model, pretrain, self.preprocessing))
+    def write_test_results(self, file, model, embedding, result, report, confusion_matrix):
+        embedding = embedding.replace('/', '-').replace('.', '')
+        file.write('Trained with dataset {}, model {}, embedding {} and preprocessing {}:\n'.format(self.dataset_name, model, embedding, self.preprocessing))
         file.write('Confusion matrix:\n')
         file.write(np.array2string(confusion_matrix)+'\n')
         file.write('Test set results:\n')
