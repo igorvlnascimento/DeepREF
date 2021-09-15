@@ -85,20 +85,17 @@ def download_glove(root_path=default_root_path):
 def download_fasttext_wiki(root_path=default_root_path):
     check_root()
     if not os.path.exists(os.path.join(root_path, 'pretrain/fasttext_wiki')):
-        os.mkdir(os.path.join(root_path, 'pretrain/fasttext_wiki'))
         os.system('bash pretrain/download_fasttext_wiki.sh')
 
 def download_fasttext_crawl(root_path=default_root_path):
     check_root()
     if not os.path.exists(os.path.join(root_path, 'pretrain/fasttext_crawl')):
-        os.mkdir(os.path.join(root_path, 'pretrain/fasttext_crawl'))
         os.system('bash pretrain/download_fasttext_crawl.sh')
 
         
 def download_senna(root_path=default_root_path):
     check_root()
     if not os.path.exists(os.path.join(root_path, 'pretrain/senna')):
-        os.mkdir(os.path.join(root_path, 'pretrain/senna'))
         os.system('bash pretrain/download_senna.sh')
         
 def download_bert_base_uncased(root_path=default_root_path):
