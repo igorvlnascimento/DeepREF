@@ -9,6 +9,8 @@ from deap import creator
 from deap import tools
 from deap import algorithms
 
+import optuna
+
 from train import Training
 
 CONFIG_FILE_PATH = "opennre/optimization/config_params.json"
@@ -30,6 +32,8 @@ class Optimizer():
         
         self.hof_model = []
         self.hof_hyperparameters = []
+        
+        self.study = optuna.create_study()
         
         self.init_toolbox_model()
         self.init_toolbox_hyperparameters()
@@ -98,15 +102,12 @@ class Optimizer():
         preprocessing = None if len(self.preprocessing) == 0 else self.preprocessing[individual[0]]
         embedding = self.data["pretrain_bert"][individual[2]] if self.data["model"][individual[1]] == 'bert' else self.data["embedding"][individual[2]]
         
-        
-        
         parameters = {
             "dataset": self.dataset,
             "model": model,
             "metric": self.data["optimize"],
             "preprocessing": preprocessing,
             "embedding": embedding,
-            #"pretrain_path": self.data["pretrain_bert"][individual[3]],
             "pooler": None,
             "opt": None,
             "batch_size": None,
@@ -114,11 +115,59 @@ class Optimizer():
             "weight_decay": None,
             "max_length": None,
             "max_epoch": None,
-            "mask_entity": None
+            "mask_entity": None,
+            "hidden_size": None,
+            "position_size": None,
+            "dropout": None,
         }
         
-        train = Training(parameters)
-        return [train.train()]
+        def objective(trial):
+            
+            pooler =  trial.suggest_categorical("pooler", ["entity", "cls"]) if model == 'bert' else None,
+            opt =  trial.suggest_categorical("opt", ["adam", "sgd"]),
+            batch_size =  trial.suggest_int("batch_size", 8, 128, log=True) if model == 'bert' else trial.suggest_int("batch_size", 16, 256, log=True),
+            lr =  trial.suggest_float("lr", 1e-5, 1e-1, log=True),
+            weight_decay =  trial.suggest_float("weight_decay", 1e-5, 1e-2, log=True),
+            max_length =  trial.suggest_int("max_length", 8, 256, log=True),
+            max_epoch =  trial.suggest_int("max_epoch", 2, 16, log=True) if model == 'bert' else trial.suggest_int("max_epoch", 100, 200, step=20),
+            mask_entity =  trial.suggest_int("mask_entity", 0, 1)
+            hidden_size =  trial.suggest_int("hidden_size", 64, 1024, log=True) if model != 'bert' else None
+            position_size =  trial.suggest_int("position_size", 5, 30) if model != 'bert' else None
+            dropout =  trial.suggest_float("dropout", 0.0, 0.6, step=0.1) if model != 'bert' else None
+            
+            parameters["pooler"] = pooler[0]
+            parameters["opt"] = opt[0]
+            parameters["batch_size"] = batch_size[0]
+            parameters["lr"] = lr[0]
+            parameters["weight_decay"] = weight_decay[0]
+            parameters["max_length"] = max_length[0]
+            parameters["max_epoch"] = max_epoch[0]
+            parameters["mask_entity"] = mask_entity
+            parameters["hidden_size"] = hidden_size
+            parameters["position_size"] = position_size
+            parameters["dropout"] = dropout
+            
+            print("parameters:",parameters)     
+        
+            train = Training(parameters)
+            return train.train()
+        
+        self.study.optimize(objective, n_trials=100)
+        
+        params = self.study.best_params
+        
+        parameters["pooler"] = params["pooler"]
+        parameters["opt"] = params["opt"]
+        parameters["batch_size"] = params["batch_size"]
+        parameters["lr"] = params["lr"]
+        parameters["weight_decay"] = params["weight_decay"]
+        parameters["max_length"] = params["max_length"]
+        parameters["max_epoch"] = params["max_epoch"]
+        parameters["mask_entity"] = params["mask_entity"]
+        
+        print("params:",params)
+        
+        return [Training(parameters)]
     
     def evaluate_hyperparameters(self, individual):
         
@@ -148,7 +197,7 @@ class Optimizer():
     def optimize_model(self):
         random.seed(64)
         
-        pop = self.toolbox_model.population(n=20)
+        pop = self.toolbox_model.population(n=30)
         self.hof_model = tools.HallOfFame(1)
         stats = tools.Statistics(lambda ind: ind.fitness.values)
         stats.register("avg", numpy.mean)
@@ -158,7 +207,7 @@ class Optimizer():
         
         print("hof_model:",self.hof_model)
         
-        pop, log = algorithms.eaSimple(pop, self.toolbox_model, cxpb=0.5, mutpb=0.2, ngen=20, 
+        pop, log = algorithms.eaSimple(pop, self.toolbox_model, cxpb=0.5, mutpb=0.2, ngen=10, 
                                     stats=stats, halloffame=self.hof_model, verbose=True)
         
         return pop, log, self.hof_model

@@ -117,18 +117,9 @@ benchmark/tacred
 *.swp
 
 # data and pretrain
-benchmark/raw_ddi
-benchmark/raw_semeval
-benchmark/semeval
-benchmark/wiki_distant
-benchmark/wiki80
+benchmark/
 !benchmark/*.sh
-pretrain/glove/
-pretrain/roberta-base/
-pretrain/bert-base-uncased/
-pretrain/distilbert-base-uncased/
-pretrain/biobert/
-pretrain/scibert_scivocab_uncased/
+pretrain/
 !pretrain/*.sh
 
 # test env
@@ -138,9 +129,7 @@ pretrain/scibert_scivocab_uncased/
 opennre-egg.info
 
 # debug
-benchmark/nyt10-ori
-train_nyt10_pcnn_att_ori.py
 
 results/*.png
-Results OpenNRE.txt
+ResultsOpenNRE*.txt
 AblationStudies.txt

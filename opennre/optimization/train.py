@@ -5,6 +5,7 @@ import json
 import opennre
 from opennre import constants
 from opennre.pre_processing.preprocess_dataset import PreprocessDataset
+from opennre.framework.word_embedding_loader import WordEmbeddingLoader
 import os
 import sys
 import argparse
@@ -22,6 +23,9 @@ class Training():
                 self.pooler = "entity" if parameters["pooler"] is None else parameters["pooler"]
                 self.pretrain_path = "bert-base-uncased" if parameters["embedding"] is None else parameters["embedding"]
                 self.mask_entity = True if parameters["mask_entity"] is None else parameters["mask_entity"]
+                self.hidden_size = parameters["hidden_size"]
+                self.position_size = parameters["position_size"]
+                self.dropout = parameters["dropout"]
                 
                 if self.model == "bert":
                         self.embedding = "bert-base-uncased" if parameters["embedding"] is None else parameters["embedding"]
@@ -92,29 +96,42 @@ class Training():
                         
                 rel2id = json.load(open(self.rel2id_file))
 
-                word2id = None
-                word2vec = None
                 print("embedding:",self.embedding)
-                if self.embedding == "glove":
-                        print("GLooove!")
-                        # Download glove
-                        opennre.download('glove', root_path=root_path)
-                        word2id = json.load(open(os.path.join(root_path, 'pretrain/glove/glove.6B.50d_word2id.json')))
-                        word2vec = np.load(os.path.join(root_path, 'pretrain/glove/glove.6B.50d_mat.npy'))
+                opennre.download(self.embedding, root_path=root_path)
+                word2id, word2vec = WordEmbeddingLoader(self.embedding).load_embedding()
+                
+                # if self.embedding == "glove":
+                #         print("GLooove!")
+                #         # Download glove
+                #         opennre.download('glove', root_path=root_path)
+                #         word2id, word2vec = WordEmbeddingLoader(self.embedding)
+                #         #word2id = json.load(open(os.path.join(root_path, 'pretrain/glove/glove.6B.50d_word2id.json')))
+                #         #word2vec = np.load(os.path.join(root_path, 'pretrain/glove/glove.6B.50d_mat.npy'))
                         
-                if self.embedding == "fasttext":
-                        print("GLooove!")
-                        # Download glove
-                        opennre.download('glove', root_path=root_path)
-                        word2id = json.load(open(os.path.join(root_path, 'pretrain/glove/glove.6B.50d_word2id.json')))
-                        word2vec = np.load(os.path.join(root_path, 'pretrain/glove/glove.6B.50d_mat.npy'))
+                # if self.embedding == "fasttext_wiki":
+                #         print("FTWiki!")
+                #         # Download glove
+                #         opennre.download('fasttext_wiki', root_path=root_path)
+                #         word2id, word2vec = WordEmbeddingLoader(self.embedding)
                         
-                if self.embedding == "elmo":
-                        print("GLooove!")
-                        # Download glove
-                        opennre.download('glove', root_path=root_path)
-                        word2id = json.load(open(os.path.join(root_path, 'pretrain/glove/glove.6B.50d_word2id.json')))
-                        word2vec = np.load(os.path.join(root_path, 'pretrain/glove/glove.6B.50d_mat.npy'))
+                # if self.embedding == "fasttext_crawl":
+                #         print("FTCrawl!")
+                #         # Download glove
+                #         opennre.download('fasttext_crawl', root_path=root_path)
+                #         word2id, word2vec = WordEmbeddingLoader(self.embedding)
+                
+                # if self.embedding == "senna":
+                #         print("Senna!")
+                #         # Download glove
+                #         opennre.download('glove', root_path=root_path)
+                #         word2id, word2vec = WordEmbeddingLoader(self.embedding)
+                        
+                # if self.embedding == "elmo":
+                #         print("GLooove!")
+                #         # Download glove
+                #         opennre.download('glove', root_path=root_path)
+                #         word2id = json.load(open(os.path.join(root_path, 'pretrain/glove/glove.6B.50d_word2id.json')))
+                #         word2vec = np.load(os.path.join(root_path, 'pretrain/glove/glove.6B.50d_mat.npy'))
 
                 # Define the sentence encoder
                 if self.model == "cnn":
@@ -122,8 +139,8 @@ class Training():
                                 token2id=word2id,
                                 max_length=self.max_length,
                                 word_size=50,
-                                position_size=5,
-                                hidden_size=230,
+                                position_size=self.position_size,
+                                hidden_size=self.hidden_size,
                                 blank_padding=True,
                                 kernel_size=3,
                                 padding_size=1,
@@ -139,13 +156,13 @@ class Training():
                                 token2id=word2id,
                                 max_length=self.max_length,
                                 word_size=50,
-                                position_size=5,
-                                hidden_size=230,
+                                position_size=self.position_size,
+                                hidden_size=self.hidden_size,
                                 blank_padding=True,
                                 kernel_size=3,
                                 padding_size=1,
                                 word2vec=word2vec,
-                                #dropout=0.5
+                                dropout=0.5
                         )
 
 
@@ -156,13 +173,13 @@ class Training():
                                 token2id=word2id,
                                 max_length=self.max_length,
                                 word_size=50,
-                                position_size=5,
-                                hidden_size=230,
+                                position_size=self.position_size,
+                                hidden_size=self.hidden_size,
                                 blank_padding=True,
                                 kernel_size=3,
                                 padding_size=1,
                                 word2vec=word2vec,
-                                #dropout=0.5
+                                dropout=0.5
                         )
 
 
@@ -173,8 +190,8 @@ class Training():
                                 token2id=word2id,
                                 max_length=self.max_length,
                                 word_size=50,
-                                position_size=5,
-                                hidden_size=230,
+                                position_size=self.position_size,
+                                hidden_size=self.hidden_size,
                                 blank_padding=True,
                                 word2vec=word2vec,
                                 dropout=0.5,
@@ -188,8 +205,8 @@ class Training():
                                 token2id=word2id,
                                 max_length=self.max_length,
                                 word_size=50,
-                                position_size=5,
-                                hidden_size=230,
+                                position_size=self.position_size,
+                                hidden_size=self.hidden_size,
                                 blank_padding=True,
                                 word2vec=word2vec,
                                 dropout=0.5,
@@ -204,8 +221,8 @@ class Training():
                                 token2id=word2id,
                                 max_length=self.max_length,
                                 word_size=50,
-                                position_size=5,
-                                hidden_size=256,
+                                position_size=self.position_size,
+                                hidden_size=self.hidden_size,
                                 blank_padding=True,
                                 word2vec=word2vec,
                                 dropout=0.5,
@@ -219,8 +236,8 @@ class Training():
                                 token2id=word2id,
                                 max_length=self.max_length,
                                 word_size=50,
-                                position_size=5,
-                                hidden_size=256,
+                                position_size=self.position_size,
+                                hidden_size=self.hidden_size,
                                 blank_padding=True,
                                 word2vec=word2vec,
                                 dropout=0.5,
