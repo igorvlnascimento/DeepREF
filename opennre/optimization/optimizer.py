@@ -271,6 +271,7 @@ if __name__ == "__main__":
     
     print("Optimized parameters for dataset {}:".format(args.dataset))
     print("Preprocessing - {}; Model - {}; Embedding - {}.".format(preprocessing, model, embedding))
+    print("Best params:",opt.study.best_params)
     # print("Pooler - {}; Optimizer - {}; Batch size - {};".format(pooler, opt, batch_size))
     # print("Learning rate - {}; Weight decay - {}; Max Length - {}; Max epoch - {}; Mask entity - {}.".format(lr, weight_decay, max_length, max_epoch, mask_entity))
     print("Max {}:".format(opt.data["optimize"]), metric)
