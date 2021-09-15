@@ -56,7 +56,7 @@ class WordEmbeddingLoader(object):
         elif 'fasttext_wiki' == self.embedding_name:
             if not os.path.exists(os.path.join(self.path_word, 'fasttext_wiki.1M.300d_word2id.json')):
                 fasttext_model = KeyedVectors.load_word2vec_format(os.path.join(self.path_word, 'wiki-300d-1M.vec'))
-                word2id = fasttext_model.vocab
+                word2id = fasttext_model.key_to_index
                 json.dump(word2id, open(os.path.join(self.path_word,'fasttext_wiki.1M.300d_word2id.json')))
                 word2vec = np.array([fasttext_model.word_vec(k) for k in word2id.keys()])
                 np.save(os.path.join(self.path_word,'fasttext_wiki.1M.300d._mat.npy'), word2vec)
@@ -68,7 +68,7 @@ class WordEmbeddingLoader(object):
         elif 'fasttext_crawl' == self.embedding_name:
             if not os.path.exists(os.path.join(self.path_word, 'fasttext_crawl.1M.300d_word2id.json')):
                 fasttext_model = KeyedVectors.load_word2vec_format(os.path.join(self.path_word, 'crawl-300d-2M.vec'))
-                word2id = fasttext_model.vocab
+                word2id = fasttext_model.key_to_index
                 json.dump(word2id, open(os.path.join(self.path_word,'fasttext_crawl.1M.300d_word2id.json')))
                 word2vec = np.array([fasttext_model.word_vec(k) for k in word2id.keys()])
                 np.save(os.path.join(self.path_word,'fasttext_crawl.1M.300d._mat.npy'), word2vec)
