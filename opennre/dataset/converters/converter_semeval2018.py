@@ -16,6 +16,8 @@ class ConverterSemEval2018(ConverterDataset):
     def __init__(self, nlp) -> None:
         super().__init__(dataset_name="semeval2018", entity_name="ENTITY", nlp=nlp)
         
+        os.makedirs(os.path.join('benchmark', self.dataset_name), exist_ok=True)
+        
         self.write_relations_json(self.dataset_name, rev_relation_dict)
         
     def tokenize(self, sentence, model="spacy"):

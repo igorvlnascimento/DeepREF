@@ -238,14 +238,15 @@ class SentenceRE(nn.Module):
         #max_length_classes = max([len(w) for w in self.classes])
         if os.path.isfile(file_path):
             with open(file_path, 'a') as ablation_file:
-                self.write_test_results(ablation_file, model, embedding, result, report, confusion_matrix)
+                self.write_test_results(ablation_file, model, embedding, hyper_params, result, report, confusion_matrix)
         else:
             with open(file_path, 'w') as ablation_file:
-                self.write_test_results(ablation_file, model, embedding, result, report, confusion_matrix)
+                self.write_test_results(ablation_file, model, embedding, hyper_params, result, report, confusion_matrix)
 
-    def write_test_results(self, file, model, embedding, result, report, confusion_matrix):
+    def write_test_results(self, file, model, embedding, hyper_params, result, report, confusion_matrix):
         embedding = embedding.replace('/', '-').replace('.', '')
         file.write('Trained with dataset {}, model {}, embedding {} and preprocessing {}:\n'.format(self.dataset_name, model, embedding, self.preprocessing))
+        file.write('Hyperparams: {}'.format(hyper_params))
         file.write('Confusion matrix:\n')
         file.write(np.array2string(confusion_matrix)+'\n')
         file.write('Test set results:\n')

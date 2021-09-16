@@ -17,6 +17,8 @@ class ConverterDDI(ConverterDataset):
     def __init__(self, nlp):
         super().__init__(dataset_name="ddi", entity_name="DRUG", nlp=nlp)
         
+        os.makedirs(os.path.join('benchmark', self.dataset_name), exist_ok=True)
+        
         self.write_relations_json(self.dataset_name, rev_relation_dict)
         
     def tokenize(self, sentence, model="spacy"):
