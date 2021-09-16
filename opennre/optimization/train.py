@@ -110,6 +110,7 @@ class Training():
                 print("embedding:",self.embedding)
                 opennre.download(self.embedding, root_path=root_path)
                 word2id, word2vec = WordEmbeddingLoader(self.embedding).load_embedding()
+                word_dim = word2vec.shape[1]
                 
                 # if self.embedding == "glove":
                 #         print("GLooove!")
@@ -149,14 +150,14 @@ class Training():
                         sentence_encoder = opennre.encoder.CNNEncoder(
                                 token2id=word2id,
                                 max_length=self.max_length,
-                                word_size=50,
+                                word_size=word_dim,
                                 position_size=self.position_size,
                                 hidden_size=self.hidden_size,
                                 blank_padding=True,
                                 kernel_size=3,
                                 padding_size=1,
                                 word2vec=word2vec,
-                                dropout=0.5
+                                dropout=self.dropout,
                         )
 
 
@@ -166,14 +167,14 @@ class Training():
                         sentence_encoder = opennre.encoder.PCNNEncoder(
                                 token2id=word2id,
                                 max_length=self.max_length,
-                                word_size=50,
+                                word_size=word_dim,
                                 position_size=self.position_size,
                                 hidden_size=self.hidden_size,
                                 blank_padding=True,
                                 kernel_size=3,
                                 padding_size=1,
                                 word2vec=word2vec,
-                                dropout=0.5
+                                dropout=self.dropout,
                         )
 
 
@@ -183,14 +184,14 @@ class Training():
                         sentence_encoder = opennre.encoder.CRCNNEncoder(
                                 token2id=word2id,
                                 max_length=self.max_length,
-                                word_size=50,
+                                word_size=word_dim,
                                 position_size=self.position_size,
                                 hidden_size=self.hidden_size,
                                 blank_padding=True,
                                 kernel_size=3,
                                 padding_size=1,
                                 word2vec=word2vec,
-                                dropout=0.5
+                                dropout=self.dropout,
                         )
 
 
@@ -200,12 +201,12 @@ class Training():
                         sentence_encoder = opennre.encoder.GRUEncoder(
                                 token2id=word2id,
                                 max_length=self.max_length,
-                                word_size=50,
+                                word_size=word_dim,
                                 position_size=self.position_size,
                                 hidden_size=self.hidden_size,
                                 blank_padding=True,
                                 word2vec=word2vec,
-                                dropout=0.5,
+                                dropout=self.dropout,
                                 bidirectional=False
                         )
 
@@ -215,12 +216,12 @@ class Training():
                         sentence_encoder = opennre.encoder.GRUEncoder(
                                 token2id=word2id,
                                 max_length=self.max_length,
-                                word_size=50,
+                                word_size=word_dim,
                                 position_size=self.position_size,
                                 hidden_size=self.hidden_size,
                                 blank_padding=True,
                                 word2vec=word2vec,
-                                dropout=0.5,
+                                dropout=self.dropout,
                                 bidirectional=True
                         )
 
@@ -231,12 +232,12 @@ class Training():
                         sentence_encoder = opennre.encoder.LSTMEncoder(
                                 token2id=word2id,
                                 max_length=self.max_length,
-                                word_size=50,
+                                word_size=word_dim,
                                 position_size=self.position_size,
                                 hidden_size=self.hidden_size,
                                 blank_padding=True,
                                 word2vec=word2vec,
-                                dropout=0.5,
+                                dropout=self.dropout,
                                 bidirectional=False
                         )
 
@@ -246,12 +247,12 @@ class Training():
                         sentence_encoder = opennre.encoder.LSTMEncoder(
                                 token2id=word2id,
                                 max_length=self.max_length,
-                                word_size=50,
+                                word_size=word_dim,
                                 position_size=self.position_size,
                                 hidden_size=self.hidden_size,
                                 blank_padding=True,
                                 word2vec=word2vec,
-                                dropout=0.5,
+                                dropout=self.dropout,
                                 bidirectional=True
                         )
 
