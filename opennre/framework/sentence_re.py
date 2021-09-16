@@ -251,6 +251,7 @@ class SentenceRE(nn.Module):
         file.write(np.array2string(confusion_matrix)+'\n')
         file.write('Test set results:\n')
         file.write(report+"\n")
+        file.write('Accuracy: {}\n'.format(result['acc']))
         file.write('Micro precision: {}\n'.format(result['micro_p']))
         file.write('Micro recall: {}\n'.format(result['micro_r']))
         file.write('Micro F1: {}\n\n'.format(result['micro_f1']))

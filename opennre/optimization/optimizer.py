@@ -150,7 +150,7 @@ class Optimizer():
             print("parameters:",parameters)     
         
             train = Training(parameters)
-            return train.train()
+            return -(train.train())
         
         self.study.optimize(objective, n_trials=100)
         

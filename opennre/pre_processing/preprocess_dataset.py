@@ -79,7 +79,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('-d', '--dataset_name', type=str, required=True,
         help='Dataset name')
-    parser.add_argument('-p', '--preprocessing_types', nargs="+", default="all",
+    parser.add_argument('-p', '--preprocessing_types', nargs="+",
         help='Preprocessing types')
     
     args = parser.parse_args()
