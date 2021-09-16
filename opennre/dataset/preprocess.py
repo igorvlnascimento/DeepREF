@@ -202,6 +202,16 @@ class Preprocess():
             new_sentence.append(word)
         return self.list_to_string(new_sentence)
     
+    def generate_tagged_sentence(self, row):
+        sentence = row.tokenized_sentence.split(" ")
+        #print("sentence:",sentence)
+        e1_indexes = row.metadata['e1']['word_index']
+        e2_indexes = row.metadata['e2']['word_index']
+        if not 'ESTART' in sentence and not 'EEND' in sentence:
+            sentence = self.get_new_sentence_with_entity_replacement(sentence, e1_indexes, e2_indexes)
+        
+        return sentence
+    
     def replace_digit_punctuation_stop_word_brackets(self, row):
         if "tagged_sentence" in row:
             sentence = row.tagged_sentence.split(" ")
@@ -621,31 +631,46 @@ class Preprocess():
         tqdm.pandas()
         df = self.read_dataframe(df_directory)
         
-        if self.preprocessing_types["ner_blinding"]:
-            print("NER blinding preprocessing:")
-            df['tagged_sentence'] = df.progress_apply(self.replace_ner, axis=1)
+        none = True
+        for p in self.preprocessing_types:
+            if self.preprocessing_types[p]:
+                none = False
+                break
+            
+        if none:
+            df['tagged_sentence'] = df.progress_apply(self.generate_tagged_sentence, axis=1)
             
             print("Updating metadata sentence:")
             df = df.progress_apply(self.update_metadata_sentence, axis=1)
-        elif self.preprocessing_types["entity_blinding"]:
-            print("Entity blinding preprocessing:")
-            df['tagged_sentence'] = df.progress_apply(self.replace_with_concept, axis=1) # along the column axis
-            
-            print("Updating metadata sentence:")
-            df = df.progress_apply(self.update_metadata_sentence, axis=1)
-            
-        if self.preprocessing_types["digit"] or self.preprocessing_types["punct"] or self.preprocessing_types["stopword"]:
-            print("Digit, punctuaction, brackets or stopword preprocessing:")
-            df['tagged_sentence'] = df.progress_apply(self.replace_digit_punctuation_stop_word_brackets, axis=1)
-            
-            print("Updating metadata sentence:")
-            df = df.progress_apply(self.update_metadata_sentence, axis=1)
-        if self.preprocessing_types["syntatic_features"]:
-            print("Syntatic features preprocessing:")
-            df['pos_tags'] = df.progress_apply(self.get_pos_tags, axis=1)
-            
-            print("Updating metadata sentence:")
-            df = df.progress_apply(self.update_metadata_sentence, axis=1)
+        else:
+            if self.preprocessing_types["ner_blinding"]:
+                print("NER blinding preprocessing:")
+                df['tagged_sentence'] = df.progress_apply(self.replace_ner, axis=1)
+                
+                print("Updating metadata sentence:")
+                df = df.progress_apply(self.update_metadata_sentence, axis=1)
+            elif self.preprocessing_types["entity_blinding"]:
+                print("Entity blinding preprocessing:")
+                df['tagged_sentence'] = df.progress_apply(self.replace_with_concept, axis=1) # along the column axis
+                
+                print("Updating metadata sentence:")
+                df = df.progress_apply(self.update_metadata_sentence, axis=1)
+                
+            if self.preprocessing_types["digit"] or \
+                self.preprocessing_types["punct"] or \
+                self.preprocessing_types["stopword"] or \
+                self.preprocessing_types["brackets"]:
+                print("Digit, punctuaction, brackets or stopword preprocessing:")
+                df['tagged_sentence'] = df.progress_apply(self.replace_digit_punctuation_stop_word_brackets, axis=1)
+                
+                print("Updating metadata sentence:")
+                df = df.progress_apply(self.update_metadata_sentence, axis=1)
+            if self.preprocessing_types["syntatic_features"]:
+                print("Syntatic features preprocessing:")
+                df['pos_tags'] = df.progress_apply(self.get_pos_tags, axis=1)
+                
+                print("Updating metadata sentence:")
+                df = df.progress_apply(self.update_metadata_sentence, axis=1)
             
         df = df.rename({'tokenized_sentence': 'preprocessed_sentence'}, axis=1)
         df = df.drop(['tagged_sentence'], axis=1)
