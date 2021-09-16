@@ -197,7 +197,7 @@ class Optimizer():
     def optimize_model(self):
         random.seed(64)
         
-        pop = self.toolbox_model.population(n=30)
+        pop = self.toolbox_model.population(n=20)
         self.hof_model = tools.HallOfFame(1)
         stats = tools.Statistics(lambda ind: ind.fitness.values)
         stats.register("avg", numpy.mean)
@@ -207,7 +207,7 @@ class Optimizer():
         
         print("hof_model:",self.hof_model)
         
-        pop, log = algorithms.eaSimple(pop, self.toolbox_model, cxpb=0.5, mutpb=0.2, ngen=10, 
+        pop, log = algorithms.eaSimple(pop, self.toolbox_model, cxpb=0.5, mutpb=0.2, ngen=5, 
                                     stats=stats, halloffame=self.hof_model, verbose=True)
         
         return pop, log, self.hof_model
