@@ -136,6 +136,9 @@ class ConverterDataset():
         if not os.path.exists(os.path.join(output_path, self.dataset_name + '_val_original.csv')):
             df_val = df_train.sample(frac=0.2)
             df_train = df_train.drop(df_val.index)
+            self.write_dataframe(df_train, os.path.join(output_path, self.dataset_name + '_train_original.csv'))
+            df_train_copy = self.read_dataframe(os.path.join(output_path, self.dataset_name + '_train_original.csv'))
+            self.check_equality_of_written_and_read_df(df_val, df_train_copy)
             self.write_dataframe(df_val, os.path.join(output_path, self.dataset_name + '_val_original.csv'))
             df_val_copy = self.read_dataframe(os.path.join(output_path, self.dataset_name + '_val_original.csv'))
             self.check_equality_of_written_and_read_df(df_val, df_val_copy)

@@ -44,10 +44,10 @@ class Optimizer():
 
         self.toolbox_model.register("attr_preprocessing", random.randint, 0, len(self.preprocessing))
         self.toolbox_model.register("attr_model", random.randint, 0, len(self.data["model"])-1)
-        self.toolbox_model.register("attr_embedding", random.randint, 0, 2)
+        #self.toolbox_model.register("attr_embedding", random.randint, 0, 2)
         #self.toolbox_model.register("attr_pretrain_bert", random.randint, 0, len(self.data["pretrain_bert"])-1)
         self.toolbox_model.register("individual", tools.initCycle, creator.Individual,
-                        (self.toolbox_model.attr_preprocessing, self.toolbox_model.attr_model, self.toolbox_model.attr_embedding), n=self.N_CYCLES)
+                        (self.toolbox_model.attr_preprocessing, self.toolbox_model.attr_model), n=self.N_CYCLES)
         self.toolbox_model.register("population", tools.initRepeat, list, self.toolbox_model.individual)
         
         self.toolbox_model.register("evaluate", self.evaluate_model)
@@ -55,29 +55,29 @@ class Optimizer():
         self.toolbox_model.register("mutate", tools.mutFlipBit, indpb=0.05)    
         self.toolbox_model.register("select", tools.selTournament, tournsize=3)
         
-    def init_toolbox_hyperparameters(self):
+    # def init_toolbox_hyperparameters(self):
         
-        self.toolbox_hyperparameters = base.Toolbox()
+    #     self.toolbox_hyperparameters = base.Toolbox()
 
-        self.toolbox_hyperparameters.register("attr_pooler", random.randint, 0, len(self.data["pooler"])-1)
-        self.toolbox_hyperparameters.register("attr_opt", random.randint, 0, len(self.data["opt"])-1)
-        self.toolbox_hyperparameters.register("attr_batch_size", random.randint, 0, len(self.data["batch_size"])-1)
-        self.toolbox_hyperparameters.register("attr_lr", random.randint, 0, len(self.data["lr"])-1)
-        self.toolbox_hyperparameters.register("attr_weight_decay", random.randint, 0, len(self.data["weight_decay"])-1)
-        self.toolbox_hyperparameters.register("attr_max_length", random.randint, 0, len(self.data["max_length"])-1)
-        self.toolbox_hyperparameters.register("attr_max_epoch", random.randint, 0, len(self.data["max_epoch"])-1)
-        self.toolbox_hyperparameters.register("attr_mask_entity", random.randint, 0, len(self.data["mask_entity"])-1)
-        self.toolbox_hyperparameters.register("individual", tools.initCycle, creator.Individual,
-                        (self.toolbox_hyperparameters.attr_pooler, self.toolbox_hyperparameters.attr_opt,
-                         self.toolbox_hyperparameters.attr_batch_size, self.toolbox_hyperparameters.attr_lr,
-                         self.toolbox_hyperparameters.attr_weight_decay, self.toolbox_hyperparameters.attr_max_length,
-                         self.toolbox_hyperparameters.attr_max_epoch, self.toolbox_hyperparameters.attr_mask_entity), n=self.N_CYCLES)
-        self.toolbox_hyperparameters.register("population", tools.initRepeat, list, self.toolbox_hyperparameters.individual)
+    #     self.toolbox_hyperparameters.register("attr_pooler", random.randint, 0, len(self.data["pooler"])-1)
+    #     self.toolbox_hyperparameters.register("attr_opt", random.randint, 0, len(self.data["opt"])-1)
+    #     self.toolbox_hyperparameters.register("attr_batch_size", random.randint, 0, len(self.data["batch_size"])-1)
+    #     self.toolbox_hyperparameters.register("attr_lr", random.randint, 0, len(self.data["lr"])-1)
+    #     self.toolbox_hyperparameters.register("attr_weight_decay", random.randint, 0, len(self.data["weight_decay"])-1)
+    #     self.toolbox_hyperparameters.register("attr_max_length", random.randint, 0, len(self.data["max_length"])-1)
+    #     self.toolbox_hyperparameters.register("attr_max_epoch", random.randint, 0, len(self.data["max_epoch"])-1)
+    #     self.toolbox_hyperparameters.register("attr_mask_entity", random.randint, 0, len(self.data["mask_entity"])-1)
+    #     self.toolbox_hyperparameters.register("individual", tools.initCycle, creator.Individual,
+    #                     (self.toolbox_hyperparameters.attr_pooler, self.toolbox_hyperparameters.attr_opt,
+    #                      self.toolbox_hyperparameters.attr_batch_size, self.toolbox_hyperparameters.attr_lr,
+    #                      self.toolbox_hyperparameters.attr_weight_decay, self.toolbox_hyperparameters.attr_max_length,
+    #                      self.toolbox_hyperparameters.attr_max_epoch, self.toolbox_hyperparameters.attr_mask_entity), n=self.N_CYCLES)
+    #     self.toolbox_hyperparameters.register("population", tools.initRepeat, list, self.toolbox_hyperparameters.individual)
         
-        self.toolbox_hyperparameters.register("evaluate", self.evaluate_hyperparameters)
-        self.toolbox_hyperparameters.register("mate", tools.cxTwoPoint)
-        self.toolbox_hyperparameters.register("mutate", tools.mutFlipBit, indpb=0.05)    
-        self.toolbox_hyperparameters.register("select", tools.selTournament, tournsize=3)
+    #     self.toolbox_hyperparameters.register("evaluate", self.evaluate_hyperparameters)
+    #     self.toolbox_hyperparameters.register("mate", tools.cxTwoPoint)
+    #     self.toolbox_hyperparameters.register("mutate", tools.mutFlipBit, indpb=0.05)    
+    #     self.toolbox_hyperparameters.register("select", tools.selTournament, tournsize=3)
         
     def combine_preprocessing(self, preprocessing):
         combinations = []
@@ -107,7 +107,7 @@ class Optimizer():
             "model": model,
             "metric": self.data["optimize"],
             "preprocessing": preprocessing,
-            "embedding": embedding,
+            "embedding": None,
             "pooler": None,
             "opt": None,
             "batch_size": None,
@@ -123,36 +123,34 @@ class Optimizer():
         
         def objective(trial):
             
-            pooler =  trial.suggest_categorical("pooler", ["entity", "cls"]) if model == 'bert' else None,
-            opt =  trial.suggest_categorical("opt", ["adam", "sgd"]),
-            batch_size =  trial.suggest_int("batch_size", 8, 128, log=True) if model == 'bert' else trial.suggest_int("batch_size", 16, 256, log=True),
-            lr =  trial.suggest_float("lr", 1e-5, 1e-1, log=True),
-            weight_decay =  trial.suggest_float("weight_decay", 1e-5, 1e-2, log=True),
-            max_length =  trial.suggest_int("max_length", 8, 256, log=True),
-            max_epoch =  trial.suggest_int("max_epoch", 2, 16, log=True) if model == 'bert' else trial.suggest_int("max_epoch", 100, 200, step=20),
-            mask_entity =  trial.suggest_int("mask_entity", 0, 1)
-            hidden_size =  trial.suggest_int("hidden_size", 64, 1024, log=True) if model != 'bert' else None
-            position_size =  trial.suggest_int("position_size", 5, 30) if model != 'bert' else None
-            dropout =  trial.suggest_float("dropout", 0.0, 0.6, step=0.1) if model != 'bert' else None
+            # pooler =  trial.suggest_categorical("pooler", ["entity", "cls"]) if model == 'bert' else None,
+            #opt =  trial.suggest_categorical("opt", ["adam", "sgd"])
+            embedding = trial.suggest_categorical("embedding", ["bert-base-uncased", "dmis-lab/biobert-v1.1", "allenai/scibert_scivocab_uncased"]) \
+                            if model == 'bert' \
+                            else trial.suggest_categorical("embedding", ["glove", "fasttext_wiki", "fasttext_crawl", "senna"])
+            batch_size =  trial.suggest_int("batch_size", 8, 128, log=True) if model == 'bert' else trial.suggest_int("batch_size", 16, 256, log=True)
+            lr =  trial.suggest_float("lr", 1e-5, 1e-1, log=True)
+            weight_decay =  trial.suggest_float("weight_decay", 1e-5, 1e-2, log=True)
+            max_length =  trial.suggest_int("max_length", 8, 256, log=True)
+            max_epoch =  trial.suggest_int("max_epoch", 2, 8, log=True) if model == 'bert' else trial.suggest_int("max_epoch", 100, 200, step=20)
+            # mask_entity =  trial.suggest_int("mask_entity", 0, 1)
+            # hidden_size =  trial.suggest_int("hidden_size", 64, 1024, log=True) if model != 'bert' else None
+            # position_size =  trial.suggest_int("position_size", 5, 30) if model != 'bert' else None
+            # dropout =  trial.suggest_float("dropout", 0.0, 0.7, step=0.1) if model != 'bert' else None
             
-            parameters["pooler"] = pooler[0]
-            parameters["opt"] = opt[0]
+            parameters["embedding"] = embedding[0]
             parameters["batch_size"] = batch_size[0]
             parameters["lr"] = lr[0]
             parameters["weight_decay"] = weight_decay[0]
             parameters["max_length"] = max_length[0]
             parameters["max_epoch"] = max_epoch[0]
-            parameters["mask_entity"] = mask_entity
-            parameters["hidden_size"] = hidden_size
-            parameters["position_size"] = position_size
-            parameters["dropout"] = dropout
             
-            print("parameters:",parameters)     
-        
+            print("parameters:",parameters)
+            
             train = Training(parameters)
             return -(train.train())
         
-        self.study.optimize(objective, n_trials=100)
+        self.study.optimize(objective, n_trials=10)
         
         params = self.study.best_params
         
@@ -212,21 +210,21 @@ class Optimizer():
         
         return pop, log, self.hof_model
     
-    def optimize_hyperparameters(self):
-        random.seed(64)
+    # def optimize_hyperparameters(self):
+    #     random.seed(64)
         
-        pop = self.toolbox_hyperparameters.population(n=10)
-        self.hof_hyperparameters = tools.HallOfFame(1)
-        stats = tools.Statistics(lambda ind: ind.fitness.values)
-        stats.register("avg", numpy.mean)
-        stats.register("std", numpy.std)
-        stats.register("min", numpy.min)
-        stats.register("max", numpy.max)
+    #     pop = self.toolbox_hyperparameters.population(n=10)
+    #     self.hof_hyperparameters = tools.HallOfFame(1)
+    #     stats = tools.Statistics(lambda ind: ind.fitness.values)
+    #     stats.register("avg", numpy.mean)
+    #     stats.register("std", numpy.std)
+    #     stats.register("min", numpy.min)
+    #     stats.register("max", numpy.max)
         
-        pop, log = algorithms.eaSimple(pop, self.toolbox_hyperparameters, cxpb=0.5, mutpb=0.2, ngen=2, 
-                                    stats=stats, halloffame=self.hof_hyperparameters, verbose=True)
+    #     pop, log = algorithms.eaSimple(pop, self.toolbox_hyperparameters, cxpb=0.5, mutpb=0.2, ngen=2, 
+    #                                 stats=stats, halloffame=self.hof_hyperparameters, verbose=True)
         
-        return pop, log, self.hof_hyperparameters
+    #     return pop, log, self.hof_hyperparameters
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

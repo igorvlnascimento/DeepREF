@@ -16,30 +16,28 @@ class Training():
                 
                 self.dataset = "semeval2010" if parameters["dataset"] is None else parameters["dataset"]
                 self.preprocessing = None if len(parameters["preprocessing"]) == 0 else parameters["preprocessing"]
-                print("self.preprocessing:",self.preprocessing)
                 self.model = "cnn" if parameters["model"] is None else parameters["model"]
                 self.metric = "micro_f1" if parameters["metric"] is None else parameters["metric"]
                 self.max_length = 128 if parameters["max_length"] is None else parameters["max_length"]
                 self.pooler = "entity" if parameters["pooler"] is None else parameters["pooler"]
                 self.mask_entity = True if parameters["mask_entity"] is None else parameters["mask_entity"]
-                self.hidden_size = parameters["hidden_size"]
-                self.position_size = parameters["position_size"]
-                self.dropout = parameters["dropout"]
+                self.hidden_size = 230 if parameters["hidden_size"] is None else parameters["hidden_size"]
+                self.position_size = 5 if parameters["position_size"] is None else parameters["position_size"]
+                self.dropout = 0.5 if parameters["dropout"] is None else parameters["dropout"]
+                self.weight_decay = 1e-5 if parameters["weight_decay"] is None else parameters["weight_decay"]
                 
                 if self.model == "bert":
                         self.embedding = "bert-base-uncased" if parameters["embedding"] is None else parameters["embedding"]
-                        self.batch_size = 2 if parameters["batch_size"] is None else parameters["batch_size"]
+                        self.batch_size = 64 if parameters["batch_size"] is None else parameters["batch_size"]
                         self.lr = 2e-5 if parameters["lr"] is None else parameters["lr"]
-                        self.weight_decay = 1e-5 if parameters["weight_decay"] is None else parameters["weight_decay"]
                         self.max_epoch = 3 if parameters["max_epoch"] is None else parameters["max_epoch"]
+                        self.opt = 'adamw'
                 else:
                         self.embedding = "glove" if parameters["embedding"] is None else parameters["embedding"]
                         self.batch_size = 160 if parameters["batch_size"] is None else parameters["batch_size"]
                         self.lr = 1e-1 if parameters["lr"] is None else parameters["lr"]
-                        self.weight_decay = 1e-5 if parameters["weight_decay"] is None else parameters["weight_decay"]
                         self.max_epoch = 100 if parameters["max_epoch"] is None else parameters["max_epoch"]
-
-                self.opt = 'adamw' if self.model == 'bert' else 'sgd'
+                        self.opt = "sgd" if parameters["opt"] is None else parameters["opt"]
                 
                 self.preprocessing_str = 'original'
                 if self.preprocessing is not None:
@@ -299,7 +297,16 @@ class Training():
 
                 # Train the model
                 #if not self.only_test:
-                framework.train_model(self.metric)
+                try:
+                        framework.train_model(self.metric)
+                except RuntimeError as e:
+                        if 'out of memory' in str(e):
+                                print(" | WARNING: rran out of memory, retrying batch")
+                                for p in framework.model.parameters():
+                                        if p .grad is not None:
+                                                del p.grad
+                                torch.cuda.empty_cache()
+                                return 0
                         
                 # Test
                 framework.load_state_dict(torch.load(self.ckpt)['state_dict'])
