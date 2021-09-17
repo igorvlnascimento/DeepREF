@@ -258,7 +258,7 @@ if __name__ == "__main__":
     print("hof_hyperparameters:",hof_hyperparameters)
     
     if opt.optimization_type == 'bo':
-        preprocessing = 'none' if len(hof_model["preprocessing"]) == 0 else hof_model["preprocessing"]
+        preprocessing = 'none' if hof_model["preprocessing"] == 0 else opt.preprocessing[hof_model["preprocessing"]]
         model = hof_model["model"]
         embedding = hof_model["pretrain_bert"] if model == 'bert' else hof_model["embedding"]
         max_epoch = hof_hyperparameters["max_epoch"] if model == 'bert' else hof_hyperparameters["max_epoch"]
