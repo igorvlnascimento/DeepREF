@@ -101,7 +101,7 @@ class Optimizer():
         
         if self.optimization_type == 'bo':
             model = individual.suggest_categorical("model", self.data["model"])
-            preprocessing =  individual.suggest_int("preprocessing", 0, len(self.preprocessing)-1)
+            preprocessing =  individual.suggest_categorical("preprocessing", self.preprocessing)
             embedding = individual.suggest_categorical("embedding", self.data["pretrain_bert"]) \
                             if model == 'bert' \
                             else individual.suggest_categorical("embedding", self.data["embedding"])
