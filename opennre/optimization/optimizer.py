@@ -251,7 +251,7 @@ if __name__ == "__main__":
     
     args = parser.parse_args()
     
-    opt = Optimizer(args.dataset)
+    opt = Optimizer(args.dataset, "bo")
     hof_model = opt.optimize_model()[2][0]
     hof_hyperparameters = opt.optimize_hyperparameters()[2]
     print("hof_model:",hof_model)
