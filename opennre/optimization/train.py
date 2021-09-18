@@ -106,7 +106,7 @@ class Training():
                 rel2id = json.load(open(self.rel2id_file))
 
                 print("embedding:",self.embedding)
-                opennre.download(self.embedding, root_path=root_path)
+                #opennre.download(self.embedding, root_path=root_path)
                 word2id, word2vec = WordEmbeddingLoader(self.embedding).load_embedding()
                 word_dim = word2vec.shape[1]
                 
