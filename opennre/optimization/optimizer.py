@@ -101,9 +101,9 @@ class Optimizer():
         
         if self.optimization_type == 'bo':
             model = individual.suggest_categorical("model", self.data["model"])
-            preprocessing =  individual.suggest_int("preprocessing", len(self.preprocessing)-1)
+            preprocessing =  individual.suggest_int("preprocessing", 0, len(self.preprocessing)-1)
             embedding = individual.suggest_categorical("embedding", self.data["embedding"])
-            pretrain_bert = individual.suggest_categorical("embedding", self.data["pretrain_bert"])
+            pretrain_bert = individual.suggest_categorical("pretrain_bert", self.data["pretrain_bert"])
         else:
         
             model = self.data["model"][individual[1]]
@@ -156,11 +156,13 @@ class Optimizer():
             model = self.study.best_params["model"]
             embedding = self.study.best_params["embedding"]
             
-            batch_size =  individual.suggest_int("batch_size", 32, 128, log=True) if model == 'bert' else individual.suggest_int("batch_size", 32, 256, log=True)
+            batch_size_bert =  individual.suggest_int("batch_size_bert", 32, 128, log=True)
+            batch_size =  individual.suggest_int("batch_size", 32, 256, log=True)
             lr =  individual.suggest_float("lr", 1e-5, 1e-1, log=True)
             weight_decay =  individual.suggest_float("weight_decay", 1e-5, 1e-2, log=True)
             max_length =  individual.suggest_int("max_length", 8, 256, log=True)
-            max_epoch =  individual.suggest_int("max_epoch", 2, 8, log=True) if model == 'bert' else individual.suggest_int("max_epoch", 100, 200, step=20)
+            max_epoch_bert =  individual.suggest_int("max_epoch_bert", 2, 8, log=True)
+            max_epoch = individual.suggest_int("max_epoch", 100, 200, step=20)
         else:
             preprocessing = self.preprocessing[self.hof_model[0]]
             model = self.data["model"][self.hof_model[1]]
@@ -179,11 +181,11 @@ class Optimizer():
             "metric": self.data["optimize"],
             "preprocessing": preprocessing,
             "embedding": embedding,
-            "batch_size": batch_size,
+            "batch_size": batch_size_bert if model == 'bert' else batch_size,
             "lr": lr,
             "weight_decay": weight_decay,
             "max_length": max_length,
-            "max_epoch": max_epoch,
+            "max_epoch": max_epoch_bert if model == 'bert' else max_epoch,
             "pooler": None,
             "opt": None,
             "mask_entity": None
