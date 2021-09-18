@@ -101,23 +101,22 @@ class Optimizer():
         
         if self.optimization_type == 'bo':
             model = individual.suggest_categorical("model", self.data["model"])
-            preprocessing =  individual.suggest_categorical("preprocessing", self.preprocessing)
-            embedding = individual.suggest_categorical("embedding", self.data["pretrain_bert"]) \
-                            if model == 'bert' \
-                            else individual.suggest_categorical("embedding", self.data["embedding"])
+            preprocessing =  individual.suggest_int("preprocessing", len(self.preprocessing)-1)
+            embedding = individual.suggest_categorical("embedding", self.data["embedding"])
+            pretrain_bert = individual.suggest_categorical("embedding", self.data["pretrain_bert"])
         else:
         
             model = self.data["model"][individual[1]]
-            
-            preprocessing = None if len(self.preprocessing) == 0 else self.preprocessing[individual[0]]
-            embedding = self.data["pretrain_bert"][individual[3]] if self.data["model"][individual[1]] == 'bert' else self.data["embedding"][individual[2]]
+            preprocessing = individual[0]
+            embedding = self.data["embedding"][individual[2]]
+            pretrain_bert = self.data["pretrain_bert"][individual[3]]
         
         parameters = {
             "dataset": self.dataset,
             "model": model,
             "metric": self.data["optimize"],
-            "preprocessing": preprocessing,
-            "embedding": embedding,
+            "preprocessing": self.preprocessing[preprocessing],
+            "embedding": pretrain_bert if model == "bert" else embedding,
             "pooler": None,
             "opt": None,
             "batch_size": None,
