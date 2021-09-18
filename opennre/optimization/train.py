@@ -107,8 +107,9 @@ class Training():
 
                 print("embedding:",self.embedding)
                 #opennre.download(self.embedding, root_path=root_path)
-                word2id, word2vec = WordEmbeddingLoader(self.embedding).load_embedding()
-                word_dim = word2vec.shape[1]
+                if self.model != 'bert':
+                        word2id, word2vec = WordEmbeddingLoader(self.embedding).load_embedding()
+                        word_dim = word2vec.shape[1]
                 
                 # if self.embedding == "glove":
                 #         print("GLooove!")
