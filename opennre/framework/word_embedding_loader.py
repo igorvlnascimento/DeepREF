@@ -83,8 +83,8 @@ class WordEmbeddingLoader(object):
             
         elif 'senna' == self.embedding_name:
             if not os.path.exists(os.path.join(self.path_word, 'senna.50d_word2id.json')):
-                fr = open(os.path.join(self.path_word, 'embeddings', 'embeddings.txt'), 'r', encoding='utf-8')
-                w = open(os.path.join(self.path_word, 'hash', 'words.lst'), 'r', encoding='utf-8')
+                fr = open(os.path.join(self.path_word, 'senna', 'embeddings', 'embeddings.txt'), 'r', encoding='utf-8')
+                w = open(os.path.join(self.path_word, 'senna', 'hash', 'words.lst'), 'r', encoding='utf-8')
                 for i, line in enumerate(fr):
                     line = line.strip().split()
                     if len(line) != self.word_dim + 1:
