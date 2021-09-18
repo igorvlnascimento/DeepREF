@@ -28,7 +28,7 @@ class WordEmbeddingLoader(object):
             self.path_word = 'pretrain/elmo'
         elif 'senna' == embedding_name:
             self.word_dim = 50
-            self.path_word = 'pretrain/senna/senna'
+            self.path_word = 'pretrain/senna'
         #self.word_dim = word_dim  # dimension of word embedding
 
     def load_embedding(self):
@@ -82,7 +82,7 @@ class WordEmbeddingLoader(object):
             word2vec = np.load(os.path.join(self.path_word, 'glove.6B.50d_mat.npy'))
             
         elif 'senna' == self.embedding_name:
-            if not os.path.exists(os.path.join(self.path_word, 'fasttext_crawl.2M.300d_word2id.json')):
+            if not os.path.exists(os.path.join(self.path_word, 'senna.50d_word2id.json')):
                 fr = open(os.path.join(self.path_word, 'embeddings', 'embeddings.txt'), 'r', encoding='utf-8')
                 w = open(os.path.join(self.path_word, 'hash', 'words.lst'), 'r', encoding='utf-8')
                 for i, line in enumerate(fr):
