@@ -19,7 +19,7 @@ class CRCNNEncoder(BaseEncoder):
                  kernel_size=3, 
                  padding_size=1,
                  dropout=0,
-                 activation_function=F.tanh,
+                 activation_function=torch.tanh,
                  mask_entity=False):
         """
         Args:

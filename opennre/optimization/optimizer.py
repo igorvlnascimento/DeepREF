@@ -200,7 +200,7 @@ class Optimizer():
 
     def optimize_model(self):
         if self.optimization_type == "bo":
-            self.study.optimize(self.evaluate_model, n_trials=200)
+            self.study.optimize(self.evaluate_model, n_trials=50)
         
             params = self.study.best_params
             
@@ -225,7 +225,7 @@ class Optimizer():
     def optimize_hyperparameters(self):
         #random.seed(64)
         if self.optimization_type == 'bo':
-            self.study.optimize(self.evaluate_hyperparameters, n_trials=100)
+            self.study.optimize(self.evaluate_hyperparameters, n_trials=50)
         
             params = self.study.best_params
             
