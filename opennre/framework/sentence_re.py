@@ -216,8 +216,8 @@ class SentenceRE(nn.Module):
 
         if not os.path.exists('results/'):
             os.mkdir('results/')
-        save_path = os.path.join('results', image_output_name)
-        plt.savefig(save_path, bbox_inches="tight")
+        #save_path = os.path.join('results', image_output_name)
+        #plt.savefig(save_path, bbox_inches="tight")
         plt.clf()
 
     def test_set_results(self, ground_truth, pred, result, model, embedding, hyper_params):
