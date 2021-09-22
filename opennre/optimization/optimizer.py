@@ -23,7 +23,8 @@ class Optimizer():
         self.optimization_type = optimization_type
         
         if optimization_type == "bo":
-            self.study = optuna.create_study()
+            self.study_model = optuna.create_study()
+            self.study_params = optuna.create_study()
         elif optimization_type == "ga":
             
             creator.create("FitnessMax", base.Fitness, weights=(1.0,))
@@ -101,13 +102,13 @@ class Optimizer():
         
         if self.optimization_type == 'bo':
             model = individual.suggest_categorical("model", self.data["model"])
-            preprocessing =  individual.suggest_int("preprocessing", 0, len(self.preprocessing)-1)
+            #preprocessing =  individual.suggest_int("preprocessing", 0, len(self.preprocessing)-1)
             embedding = individual.suggest_categorical("embedding", self.data["embedding"])
             pretrain_bert = individual.suggest_categorical("pretrain_bert", self.data["pretrain_bert"])
         else:
         
             model = self.data["model"][individual[1]]
-            preprocessing = individual[0]
+            #preprocessing = individual[0]
             embedding = self.data["embedding"][individual[2]]
             pretrain_bert = self.data["pretrain_bert"][individual[3]]
         
@@ -115,7 +116,7 @@ class Optimizer():
             "dataset": self.dataset,
             "model": model,
             "metric": self.data["optimize"],
-            "preprocessing": self.preprocessing[preprocessing],
+            "preprocessing": [],#self.preprocessing[preprocessing],
             "embedding": pretrain_bert if model == "bert" else embedding,
             "pooler": None,
             "opt": None,
@@ -152,10 +153,11 @@ class Optimizer():
     def evaluate_hyperparameters(self, individual):
         
         if self.optimization_type == 'bo':
-            preprocessing = self.preprocessing[self.study.best_params["preprocessing"]]
-            model = self.study.best_params["model"]
-            embedding = self.study.best_params["embedding"]
+            #preprocessing = self.preprocessing[self.study.best_params["preprocessing"]]
+            model = self.study_model.best_params["model"]
+            embedding = self.study_model.best_params["embedding"]
             
+            preprocessing =  individual.suggest_int("preprocessing", 0, len(self.preprocessing)-1)
             batch_size_bert =  individual.suggest_int("batch_size_bert", 32, 128, log=True)
             batch_size =  individual.suggest_int("batch_size", 32, 256, log=True)
             lr =  individual.suggest_float("lr", 1e-5, 1e-1, log=True)
@@ -164,10 +166,11 @@ class Optimizer():
             max_epoch_bert =  individual.suggest_int("max_epoch_bert", 2, 8, log=True)
             max_epoch = individual.suggest_int("max_epoch", 100, 200, step=20)
         else:
-            preprocessing = self.preprocessing[self.hof_model[0]]
+            #preprocessing = self.preprocessing[self.hof_model[0]]
             model = self.data["model"][self.hof_model[1]]
             embedding = self.data["pretrain_bert"][self.hof_model[2]] if model == 'bert' else self.data["embedding"][self.hof_model[2]]
-        
+
+            preprocessing = individual[0] # TODO change toolbox inserting the preprocessing parameter to search
             batch_size =  individual[0]
             lr =  individual[1]
             weight_decay =  individual[2]
@@ -179,7 +182,7 @@ class Optimizer():
             "dataset": self.dataset,
             "model": model,
             "metric": self.data["optimize"],
-            "preprocessing": preprocessing,
+            "preprocessing": self.preprocessing[preprocessing],
             "embedding": embedding,
             "batch_size": batch_size_bert if model == 'bert' else batch_size,
             "lr": lr,
@@ -188,7 +191,10 @@ class Optimizer():
             "max_epoch": max_epoch_bert if model == 'bert' else max_epoch,
             "pooler": None,
             "opt": None,
-            "mask_entity": None
+            "mask_entity": None,
+            "hidden_size": None,
+            "position_size": None,
+            "dropout": None,
         }
         
         train = Training(parameters)
@@ -200,14 +206,14 @@ class Optimizer():
 
     def optimize_model(self):
         if self.optimization_type == "bo":
-            self.study.optimize(self.evaluate_model, n_trials=50)
+            self.study_model.optimize(self.evaluate_model, n_trials=50)
         
-            params = self.study.best_params
+            params = self.study_model.best_params
             
             return params
         else:
         
-            pop = self.toolbox_model.population(n=20)
+            pop = self.toolbox_model.population(n=1)
             self.hof_model = tools.HallOfFame(1)
             stats = tools.Statistics(lambda ind: ind.fitness.values)
             stats.register("avg", numpy.mean)
@@ -225,9 +231,9 @@ class Optimizer():
     def optimize_hyperparameters(self):
         #random.seed(64)
         if self.optimization_type == 'bo':
-            self.study.optimize(self.evaluate_hyperparameters, n_trials=50)
+            self.study_params.optimize(self.evaluate_hyperparameters, n_trials=100)
         
-            params = self.study.best_params
+            params = self.study_params.best_params
             
             return params
         else:
@@ -253,21 +259,22 @@ if __name__ == "__main__":
     args = parser.parse_args()
     
     opt = Optimizer(args.dataset, "bo")
-    hof_model = opt.optimize_model()[2][0]
-    hof_hyperparameters = opt.optimize_hyperparameters()[2]
+    if opt.optimization_type == 'ga':
+        hof_model = opt.optimize_model()[2][0]
+        hof_hyperparameters = opt.optimize_hyperparameters()[2]
+    else:
+        hof_model = opt.optimize_model()
+        hof_hyperparameters = opt.optimize_hyperparameters()
     print("hof_model:",hof_model)
     print("hof_hyperparameters:",hof_hyperparameters)
     
     if opt.optimization_type == 'bo':
-        preprocessing = 'none' if hof_model["preprocessing"] == 0 else opt.preprocessing[hof_model["preprocessing"]]
+        preprocessing = 'original' if hof_hyperparameters["preprocessing"] == 0 else opt.preprocessing[hof_hyperparameters["preprocessing"]]
         model = hof_model["model"]
         embedding = hof_model["pretrain_bert"] if model == 'bert' else hof_model["embedding"]
         max_epoch = hof_hyperparameters["max_epoch"] if model == 'bert' else hof_hyperparameters["max_epoch"]
-        batch_size = opt.data["pooler"][hof_hyperparameters[0]], opt.data["opt"][hof_hyperparameters[1]], opt.data["batch_size"][hof_hyperparameters[2]]
-        lr, weight_decay, max_length, batch_size = opt.data["lr"][hof_hyperparameters[3]], \
-                                                    opt.data["weight_decay"][hof_hyperparameters[4]], \
-                                                    opt.data["max_length"][hof_hyperparameters[5]], \
-                                                    opt.data["batch_size"][hof_hyperparameters[2]]
+        batch_size = hof_hyperparameters["batch_size"]
+        lr, weight_decay, max_length = hof_hyperparameters["lr"], hof_hyperparameters["weight_decay"], hof_hyperparameters["max_length"]
     else:
         preprocessing = 'none' if len(opt.preprocessing) == 0 else opt.preprocessing[hof_model[0]]
         model = opt.data["model"][hof_model[1]]
@@ -290,9 +297,12 @@ if __name__ == "__main__":
         "weight_decay": weight_decay,
         "max_length": max_length,
         "max_epoch": max_epoch,
-        "mask_entity": mask_entity,
+        "mask_entity": None,
         "pooler": None,
         "opt": None,
+        "hidden_size": None,
+        "position_size": None,
+        "dropout": None,
     }
     
     train = Training(params)
@@ -301,7 +311,8 @@ if __name__ == "__main__":
     
     print("Optimized parameters for dataset {}:".format(args.dataset))
     print("Preprocessing - {}; Model - {}; Embedding - {}.".format(preprocessing, model, embedding))
-    print("Best params:",opt.study.best_params)
+    print("Best model params:",opt.study_model.best_params)
+    print("Best  hyperparams:",opt.study_params.best_params)
     print("Batch size - {};".format(batch_size))
     print("Learning rate - {}; Weight decay - {}; Max Length - {}; Max epoch - {}.".format(lr, weight_decay, max_length, max_epoch))
     print("Max {}:".format(opt.data["optimize"]), metric)
