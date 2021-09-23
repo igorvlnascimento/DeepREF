@@ -37,7 +37,7 @@ class Training():
                         self.batch_size = 160 if parameters["batch_size"] is None else parameters["batch_size"]
                         self.lr = 1e-1 if parameters["lr"] is None else parameters["lr"]
                         self.max_epoch = 100 if parameters["max_epoch"] is None else parameters["max_epoch"]
-                        self.opt = "sgd" if parameters["opt"] is None else parameters["opt"]
+                        self.opt = "adam" if parameters["opt"] is None else parameters["opt"]
                 
                 self.preprocessing_str = 'original'
                 if self.preprocessing is not None:
@@ -50,6 +50,7 @@ class Training():
                         "pooler": self.pooler,
                         "mask_entity": self.mask_entity,
                         "hidden_size": self.hidden_size,
+                        "position_size": self.position_size,
                         "dropout": self.dropout,
                         "batch_size": self.batch_size,
                         "lr": self.lr,
@@ -313,7 +314,7 @@ class Training():
                 framework.load_state_dict(torch.load(self.ckpt)['state_dict'])
                 result, pred, ground_truth = framework.eval_model(framework.test_loader)
                 
-                framework.get_confusion_matrix(ground_truth, pred, self.model, self.embedding)
+                #framework.get_confusion_matrix(ground_truth, pred, self.model, self.embedding)
 
                 # Print the result
                 framework.test_set_results(ground_truth, pred, result, self.model, self.embedding, self.hyper_params)

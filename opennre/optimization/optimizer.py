@@ -155,7 +155,7 @@ class Optimizer():
         if self.optimization_type == 'bo':
             #preprocessing = self.preprocessing[self.study.best_params["preprocessing"]]
             model = self.study_model.best_params["model"]
-            embedding = self.study_model.best_params["embedding"]
+            embedding = self.study_model.best_params["pretrain_bert"] if model == 'bert' else self.study_model.best_params["embedding"]
             
             preprocessing =  individual.suggest_int("preprocessing", 0, len(self.preprocessing)-1)
             batch_size_bert =  individual.suggest_int("batch_size_bert", 32, 128, log=True)
@@ -261,7 +261,7 @@ if __name__ == "__main__":
     opt = Optimizer(args.dataset, "bo")
     if opt.optimization_type == 'ga':
         hof_model = opt.optimize_model()[2][0]
-        hof_hyperparameters = opt.optimize_hyperparameters()[2]
+        hof_hyperparameters = opt.optimize_hyperparameters()[2][0]
     else:
         hof_model = opt.optimize_model()
         hof_hyperparameters = opt.optimize_hyperparameters()
@@ -272,8 +272,8 @@ if __name__ == "__main__":
         preprocessing = 'original' if hof_hyperparameters["preprocessing"] == 0 else opt.preprocessing[hof_hyperparameters["preprocessing"]]
         model = hof_model["model"]
         embedding = hof_model["pretrain_bert"] if model == 'bert' else hof_model["embedding"]
-        max_epoch = hof_hyperparameters["max_epoch"] if model == 'bert' else hof_hyperparameters["max_epoch"]
-        batch_size = hof_hyperparameters["batch_size"]
+        max_epoch = hof_hyperparameters["max_epoch_bert"] if model == 'bert' else hof_hyperparameters["max_epoch"]
+        batch_size = hof_hyperparameters["batch_size_bert"] if model == 'bert' else hof_hyperparameters["batch_size"]
         lr, weight_decay, max_length = hof_hyperparameters["lr"], hof_hyperparameters["weight_decay"], hof_hyperparameters["max_length"]
     else:
         preprocessing = 'none' if len(opt.preprocessing) == 0 else opt.preprocessing[hof_model[0]]
