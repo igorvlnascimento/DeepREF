@@ -201,7 +201,6 @@ class SentenceRE(nn.Module):
         return result, pred_result, ground_truth
 
     def get_confusion_matrix(self, ground_truth, pred_result, model, embedding, only_test=False, output_format='png'):
-        return
         # embedding = embedding.replace('/', '-').replace('.', '')
         # c_matrix = confusion_matrix(ground_truth, pred_result)
 
@@ -215,8 +214,8 @@ class SentenceRE(nn.Module):
         # else:
         #     image_output_name = "confusion_matrix_{}_{}_{}_{}.{}".format(self.dataset_name, model, embedding, self.preprocessing, output_format)
 
-        # if not os.path.exists('results/'):
-        #     os.mkdir('results/')
+        if not os.path.exists('results/'):
+            os.mkdir('results/')
         # save_path = os.path.join('results', image_output_name)
         # plt.savefig(save_path, bbox_inches="tight")
         # plt.clf()
