@@ -215,7 +215,7 @@ class SentenceRE(nn.Module):
         #     image_output_name = "confusion_matrix_{}_{}_{}_{}.{}".format(self.dataset_name, model, embedding, self.preprocessing, output_format)
 
         if not os.path.exists('results/'):
-            os.mkdir('results/')
+            c
         # save_path = os.path.join('results', image_output_name)
         # plt.savefig(save_path, bbox_inches="tight")
         # plt.clf()
@@ -236,6 +236,7 @@ class SentenceRE(nn.Module):
         logging.info('Micro recall: {}'.format(result['micro_r']))
         logging.info('Micro F1: {}'.format(result['micro_f1']))
         #max_length_classes = max([len(w) for w in self.classes])
+        os.makedirs('results/', exist_ok=True)
         if os.path.isfile(file_path):
             with open(file_path, 'a') as ablation_file:
                 self.write_test_results(ablation_file, model, embedding, hyper_params, result, report, confusion_matrix)
