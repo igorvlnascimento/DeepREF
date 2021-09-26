@@ -35,6 +35,7 @@ class ConverterSemEval2018(ConverterDataset):
     # given sentence dom in DDI corpus, get all the information related to the entities 
     # present in the dom
     def get_entity_dict(self, sentence):
+        sentence = sentence.replace("<SectionTitle></SectionTitle>", "")
         if '<abstract>' in sentence:
             abstract_start = sentence.find('<abstract>')
             abstract_end = sentence.find('</abstract>')
@@ -50,22 +51,37 @@ class ConverterSemEval2018(ConverterDataset):
             
             sentence = sentence[sentence.find('>')+1:]
         entity_dict = {}
-        while sentence.find('<entity') != -1:
+        print("sentence1:",sentence)
+        while sentence.find('<entity id=') != -1:
+            #print("sentence1:",sentence)
             entity_start = sentence.find("<entity")
             entity_end = sentence.find("</entity>")
-            id_end = sentence.find('>')
-            entity_id = sentence[entity_start+12:id_end-1]
+            id_end = sentence.find('">')
+            entity_id = sentence[entity_start+12:id_end]
             
-            entity_name = sentence[id_end+1:entity_end]
+            entity_name = sentence[id_end+2:entity_end]
+            if '<entity' in entity_name:
+                entity_start_in = entity_name.find("<entity")
+                entity_end_in = entity_name.find("</entity>")
+                id_end_in = entity_name.find('">')
+                entity_id_in = entity_name[entity_start_in+12:id_end_in-1]
+                
+                entity_name_in = entity_name[id_end_in+2:] + entity_name[:entity_end_in]
+                entity_name = entity_name[:entity_start_in] + entity_name[id_end_in+2:]
+                print("entity_name_in:",entity_name_in)
+                charOffset_in = ["{}-{}".format(len(sentence[:entity_start])+entity_start_in+1, len(sentence[:entity_start])+entity_start_in+1+len(entity_name)-1)]
+                #entity_end = sentence.find("</entity>")
+                #sentence = sentence[:entity_end] + sentence[entity_end+9:]
+                entity_dict[entity_id_in] = {'id': entity_id_in, 'word': entity_name_in, 'charOffset':charOffset_in}
+            #print("entity_name:",entity_name)
             
-            sentence = sentence[:entity_start] + sentence[id_end+1:]
+            sentence = sentence[:entity_start] + sentence[id_end+2:]
             charOffset = ["{}-{}".format(len(sentence[:entity_start]), len(sentence[:entity_start])+len(entity_name)-1)]
             entity_end = sentence.find("</entity>")
             sentence = sentence[:entity_end] + sentence[entity_end+9:]
-            print("sentence:",sentence)
-            if '<entity' in sentence[:entity_end]:
-                break
+            
             entity_dict[entity_id] = {'id': entity_id, 'word': entity_name, 'charOffset':charOffset}
+        print("sentence:",sentence)
         return entity_dict, sentence
 
 
@@ -199,18 +215,21 @@ class ConverterSemEval2018(ConverterDataset):
         for file in tqdm(total_files_to_read):
             lines = open(file).readlines()
             for line in lines:
-                print("line:",line)
+                line = line.strip().strip('\"').strip()
+                #print("line:",line)
                 if '</entity>' in line:
                     sentences = tokenizer.tokenize(line)
                     #print("sentences:",sentences)
                     for sentence in sentences:
+                        sentence = sentence.strip().strip('\"').strip()
+                        sentence = sentence.strip()
                         entity_dict, sentence = self.get_entity_dict(sentence)
                         
                         pairs = self.get_pairs(entity_dict,entity_pairs)
                         
-                        print("entity_dict:",entity_dict)
-                        print("sentence:",sentence)
-                        print("pairs:",pairs)
+                        # print("entity_dict:",entity_dict)
+                        # print("sentence:",sentence)
+                        # print("pairs:",pairs)
                         
                         # pegar lista de pares de entidade e relação e verificar se há pares nas sentenças
 
@@ -242,12 +261,52 @@ class ConverterSemEval2018(ConverterDataset):
 
                             relation_type = pair[0].lower()
                             if not not relation_type: # not of empty string is True, but we don't want to append
-                                data.append([str(sentence), str(e1_data['word']), str(e2_data['word']),
-                                    str(relation_type), metadata, str(tokenized_sentence)])
+                                data.append([str(sentence.lower()), str(e1_data['word']).lower(), str(e2_data['word']).lower(),
+                                    str(relation_type), metadata, str(tokenized_sentence.lower())])
 
         df = pd.DataFrame(data,
                 columns='original_sentence,e1,e2,relation_type,metadata,tokenized_sentence'.split(','))
         return df
+    
+    # write the dataframe into the text format accepted by the cnn model
+    def write_into_txt(self, df, directory):
+        print("Unique relations: \t", df['relation_type'].unique())
+        null_row = df[df["relation_type"].isnull()]
+        if null_row.empty:
+            idx_null_row = None
+        else:
+            idx_null_row = null_row.index.values[0]
+        with open(directory, 'w') as outfile:
+            for i in tqdm(range(0, len(df))):
+                dict = {}
+                head = {}
+                tail = {}
+                if idx_null_row is not None and i == idx_null_row:
+                    continue
+                row = df.iloc[i]
+                metadata = row.metadata
+                # TODO: need to change below in order to contain a sorted list of the positions
+                e1 = self.flatten_list_of_tuples(metadata['e1']['word_index'])
+                e2 = self.flatten_list_of_tuples(metadata['e2']['word_index'])
+                e1 = sorted(e1)
+                e2 = sorted(e2)
+                head["name"] = metadata['e1']['word']
+                head["pos"] = [e1[0], e1[1]+1]
+                tail["name"] = metadata['e2']['word']
+                tail["pos"] = [e2[0], e2[1]+1]
+                try:
+                    tokenized_sentence = row.tokenized_sentence
+                except AttributeError:
+                    tokenized_sentence = row.preprocessed_sentence
+                if type(tokenized_sentence) is not str:
+                    continue
+                tokenized_sentence = tokenized_sentence.split(" ")
+                dict["token"] = tokenized_sentence
+                dict["h"] = head
+                dict["t"] = tail
+                dict["relation"] = row.relation_type
+                outfile.write(str(dict)+"\n")
+            outfile.close()
     
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()

@@ -227,7 +227,7 @@ class SentenceRE(nn.Module):
         logging.info('Test set results:')
         logging.info('Trained with dataset {}, model {}, embedding {} and preprocessing {}:\n'.format(self.dataset_name, model, embedding, self.preprocessing))
         logging.info('Hyperparams: {}'.format(hyper_params))
-        file_path = 'results/ResultsOpenNRE++.txt'
+        file_path = 'results/ResultsOpenNRE++_{}.txt'.format(self.dataset_name)
         report = metrics.classification_report(ground_truth, pred, target_names=self.classes, digits=5)
         confusion_matrix = metrics.confusion_matrix(ground_truth, pred)
         logging.info(report)

@@ -34,7 +34,7 @@ class LSTMEncoder(BaseEncoder):
         super(LSTMEncoder, self).__init__(token2id, max_length, hidden_size, word_size, position_size, blank_padding, word2vec, mask_entity=mask_entity)
         input_size = word2vec.shape[-1] + 2 * position_size
         self.drop = nn.Dropout(dropout)
-        self.lstm = LSTM(input_size=input_size, dropout=dropout, bidirectional=bidirectional, hidden_size=hidden_size)
+        self.lstm = LSTM(input_size=input_size, dropout=dropout, bidirectional=bidirectional, hidden_size=hidden_size, num_layers=2)
         self.pool = nn.MaxPool1d(self.max_length)
         self.act = activation_function
 

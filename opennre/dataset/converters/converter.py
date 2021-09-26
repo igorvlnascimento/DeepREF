@@ -126,6 +126,11 @@ class ConverterDataset():
                         bool_every_column = False
                         break
         return bool_equality, bool_every_column
+    
+    # suggested in
+    # https://stackoverflow.com/questions/10632839/transform-list-of-tuples-into-a-flat-list-or-a-matrix
+    def flatten_list_of_tuples(self, a):
+        return list(sum(a, ()))
 
     # write the dataframe into the text format accepted by the cnn model
     def write_into_txt(self, df, directory):
