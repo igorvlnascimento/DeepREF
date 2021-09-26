@@ -159,7 +159,7 @@ class SentenceRE(nn.Module):
                 global_step += 1
             # Val 
             logging.info("=== Epoch %d val ===" % epoch)
-            result, _, _ = self.eval_model(self.val_loader) 
+            result, _, _ = self.eval_model(self.val_loader)
             logging.info('Metric {} current / best: {} / {}'.format(metric, result[metric], best_metric))
             if result[metric] > best_metric:
                 logging.info("Best ckpt and saved.")
@@ -201,24 +201,25 @@ class SentenceRE(nn.Module):
         return result, pred_result, ground_truth
 
     def get_confusion_matrix(self, ground_truth, pred_result, model, embedding, only_test=False, output_format='png'):
-        embedding = embedding.replace('/', '-').replace('.', '')
-        c_matrix = confusion_matrix(ground_truth, pred_result)
+        return
+        # embedding = embedding.replace('/', '-').replace('.', '')
+        # c_matrix = confusion_matrix(ground_truth, pred_result)
 
-        disp = ConfusionMatrixDisplay(confusion_matrix=c_matrix,
-                                        display_labels=self.classes)
+        # disp = ConfusionMatrixDisplay(confusion_matrix=c_matrix,
+        #                                display_labels=self.classes)
 
-        disp.plot(include_values=True, xticks_rotation='vertical')
+        # disp.plot(include_values=True, xticks_rotation='vertical')
 
-        if only_test:
-            image_output_name = "confusion_matrix_{}_{}_{}_{}_only_test.{}".format(self.dataset_name, model, embedding, self.preprocessing, output_format)
-        else:
-            image_output_name = "confusion_matrix_{}_{}_{}_{}.{}".format(self.dataset_name, model, embedding, self.preprocessing, output_format)
+        # if only_test:
+        #     image_output_name = "confusion_matrix_{}_{}_{}_{}_only_test.{}".format(self.dataset_name, model, embedding, self.preprocessing, output_format)
+        # else:
+        #     image_output_name = "confusion_matrix_{}_{}_{}_{}.{}".format(self.dataset_name, model, embedding, self.preprocessing, output_format)
 
-        if not os.path.exists('results/'):
-            os.mkdir('results/')
-        #save_path = os.path.join('results', image_output_name)
-        #plt.savefig(save_path, bbox_inches="tight")
-        plt.clf()
+        # if not os.path.exists('results/'):
+        #     os.mkdir('results/')
+        # save_path = os.path.join('results', image_output_name)
+        # plt.savefig(save_path, bbox_inches="tight")
+        # plt.clf()
 
     def test_set_results(self, ground_truth, pred, result, model, embedding, hyper_params):
         embedding = embedding.replace('/', '-').replace('.', '')

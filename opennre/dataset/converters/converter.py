@@ -72,6 +72,20 @@ class ConverterDataset():
         key = str(e_idx[0]) + ":" + str(e_idx[1])
         entity_replacement[key] = replace_by
         return entity_replacement
+    
+    #given string 12-30, return 12, 30 as a tuple of ints
+    def parse_position(self, position):
+        positions = position.split('-')
+        return int(positions[0]), int(positions[1])
+        #if metadata['e1']['charOffset'] and metadata['e2']['charOffset'] have something in common
+
+    # given position dictionary, sort the positions from ascending order. Assumes no overlap. 
+    # will be messed up if there is overlap
+    # can also check for overlap but not right now
+    def sort_position_keys(self, position_dict):
+        positions = list(position_dict.keys())
+        sorted_positions = sorted(positions, key=lambda x: int(x.split('-')[0]))
+        return sorted_positions
 
     # TODO: need to edit this 
     def get_dataset_dataframe(self, directory=None, relation_extraction=True):

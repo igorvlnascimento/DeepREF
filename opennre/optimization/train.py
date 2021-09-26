@@ -20,7 +20,7 @@ class Training():
                 self.metric = "micro_f1" if parameters["metric"] is None else parameters["metric"]
                 self.max_length = 128 if parameters["max_length"] is None else parameters["max_length"]
                 self.pooler = "entity" if parameters["pooler"] is None else parameters["pooler"]
-                self.mask_entity = True if parameters["mask_entity"] is None else parameters["mask_entity"]
+                self.mask_entity = False if parameters["mask_entity"] is None else parameters["mask_entity"]
                 self.hidden_size = 230 if parameters["hidden_size"] is None else parameters["hidden_size"]
                 self.position_size = 5 if parameters["position_size"] is None else parameters["position_size"]
                 self.dropout = 0.5 if parameters["dropout"] is None else parameters["dropout"]
@@ -111,39 +111,6 @@ class Training():
                 if self.model != 'bert':
                         word2id, word2vec = WordEmbeddingLoader(self.embedding).load_embedding()
                         word_dim = word2vec.shape[1]
-                
-                # if self.embedding == "glove":
-                #         print("GLooove!")
-                #         # Download glove
-                #         opennre.download('glove', root_path=root_path)
-                #         word2id, word2vec = WordEmbeddingLoader(self.embedding)
-                #         #word2id = json.load(open(os.path.join(root_path, 'pretrain/glove/glove.6B.50d_word2id.json')))
-                #         #word2vec = np.load(os.path.join(root_path, 'pretrain/glove/glove.6B.50d_mat.npy'))
-                        
-                # if self.embedding == "fasttext_wiki":
-                #         print("FTWiki!")
-                #         # Download glove
-                #         opennre.download('fasttext_wiki', root_path=root_path)
-                #         word2id, word2vec = WordEmbeddingLoader(self.embedding)
-                        
-                # if self.embedding == "fasttext_crawl":
-                #         print("FTCrawl!")
-                #         # Download glove
-                #         opennre.download('fasttext_crawl', root_path=root_path)
-                #         word2id, word2vec = WordEmbeddingLoader(self.embedding)
-                
-                # if self.embedding == "senna":
-                #         print("Senna!")
-                #         # Download glove
-                #         opennre.download('glove', root_path=root_path)
-                #         word2id, word2vec = WordEmbeddingLoader(self.embedding)
-                        
-                # if self.embedding == "elmo":
-                #         print("GLooove!")
-                #         # Download glove
-                #         opennre.download('glove', root_path=root_path)
-                #         word2id = json.load(open(os.path.join(root_path, 'pretrain/glove/glove.6B.50d_word2id.json')))
-                #         word2vec = np.load(os.path.join(root_path, 'pretrain/glove/glove.6B.50d_mat.npy'))
 
                 # Define the sentence encoder
                 if self.model == "cnn":

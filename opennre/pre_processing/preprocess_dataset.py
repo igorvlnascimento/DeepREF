@@ -10,7 +10,7 @@ class PreprocessDataset():
     def __init__(self, dataset_name, preprocessing_types, nlp):
         self.dataset_name = dataset_name
         self.preprocessing_types = None if preprocessing_types is None else sorted(preprocessing_types)
-        self.preprocessing_types_str = 'original' if len(preprocessing_types) == 0 else "_".join(self.preprocessing_types)
+        self.preprocessing_types_str = 'original' if preprocessing_types is None else "_".join(self.preprocessing_types)
         self.output_path = os.path.join('benchmark', dataset_name, self.preprocessing_types_str)
         self.nlp = nlp
 
@@ -58,7 +58,7 @@ class PreprocessDataset():
             if "sf" in self.preprocessing_types:
                 preprocessing_types["semantic_features"] = True
     
-            preprocess = Preprocess(self.dataset_name, preprocessing_types, self.nlp)
+        preprocess = Preprocess(self.dataset_name, preprocessing_types, self.nlp)
 
         original_dataframe_names = [self.dataset_name + '_train', self.dataset_name + '_val', self.dataset_name + '_test']
         self.makedir()
@@ -69,10 +69,10 @@ class PreprocessDataset():
                 cmd = ['bash', 'benchmark/download_{}.sh'.format(self.dataset_name)]
                 proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
                 _, _ = proc.communicate()
-            if not os.path.exists(self.out(original_df_name + '_{}.txt'.format(self.preprocessing_types_str))):
-                print("preprocessing_types_str:",self.preprocessing_types_str)
-                original_ds = preprocess.preprocess(os.path.join('benchmark', self.dataset_name, 'original', original_df_name + '_original.csv'))
-                preprocess.write_into_txt(original_ds, self.out(original_df_name + '_{}.txt'.format(self.preprocessing_types_str)))
+            #if not os.path.exists(self.out(original_df_name + '_{}.txt'.format(self.preprocessing_types_str))):
+            print("preprocessing_types_str:",self.preprocessing_types_str)
+            original_ds = preprocess.preprocess(os.path.join('benchmark', self.dataset_name, 'original', original_df_name + '_original.csv'))
+            preprocess.write_into_txt(original_ds, self.out(original_df_name + '_{}.txt'.format(self.preprocessing_types_str)))
             
         for original_df_name in original_dataframe_names:
             print(self.output_file_length(os.path.join('benchmark', self.dataset_name, 'original', '{}_original.txt'.format(original_df_name))))
@@ -109,9 +109,13 @@ if __name__ == '__main__':
         stanza.download('en', package='craft', processors={'ner': 'bionlp13cg'})
         nlp = stanza.Pipeline('en', package="craft", processors={"ner": "bionlp13cg"}, tokenize_no_ssplit=True)
         
-    for comb in final_combinations:
-        print("comb:",comb)
-        preprocess_dataset = PreprocessDataset(args.dataset_name, comb, nlp)
+    if args.preprocessing_types is not None:
+        preprocess_dataset = PreprocessDataset(args.dataset_name, args.preprocessing_types, nlp)
         preprocess_dataset.preprocess_dataset()
+    else:
+        for comb in final_combinations:
+            print("comb:",comb)
+            preprocess_dataset = PreprocessDataset(args.dataset_name, comb, nlp)
+            preprocess_dataset.preprocess_dataset()
 
 
