@@ -104,7 +104,7 @@ class Optimizer():
             model = 'bert',#individual.suggest_categorical("model", self.data["model"])
             #preprocessing =  individual.suggest_int("preprocessing", 0, len(self.preprocessing)-1)
             #embedding = individual.suggest_categorical("embedding", self.data["embedding"])
-            pretrain_bert = 'bert-base-uncased'#individual.suggest_categorical("pretrain_bert", self.data["pretrain_bert"])
+            pretrain_bert = 'bert-base-uncased' if self.dataset == 'semeval2010' else 'allenai/scibert_scivocab_uncased'#individual.suggest_categorical("pretrain_bert", self.data["pretrain_bert"])
             
             #batch_size_bert =  individual.suggest_int("batch_size_bert", 32, 128, log=True)
             batch_size =  individual.suggest_int("batch_size", 32, 128, log=True)
