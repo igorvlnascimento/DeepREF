@@ -122,7 +122,7 @@ class Optimizer():
         
         parameters = {
             "dataset": self.dataset,
-            "model": model,
+            "model": 'bert',#model,
             "metric": self.data["optimize"],
             "preprocessing": [],#self.preprocessing[preprocessing],
             "embedding": pretrain_bert,# if model == "bert" else embedding,
@@ -277,11 +277,11 @@ if __name__ == "__main__":
     #print("hof_hyperparameters:",hof_hyperparameters)
     
     if opt.optimization_type == 'bo':
-        preprocessing = [] #opt.preprocessing[hof_model["preprocessing"]]
-        model = hof_model["model"]
-        embedding = hof_model["pretrain_bert"] if model == 'bert' else hof_model["embedding"]
-        max_epoch = hof_model["max_epoch_bert"] if model == 'bert' else hof_model["max_epoch"]
-        batch_size = hof_model["batch_size_bert"] if model == 'bert' else hof_model["batch_size"]
+        preprocessing = 'original' #opt.preprocessing[hof_model["preprocessing"]]
+        model = 'bert'#hof_model["model"]
+        embedding = 'bert-base-uncased' if opt.dataset == 'semeval2010' else 'allenai/scibert_scivocab_uncased'#hof_model["pretrain_bert"] if model == 'bert' else hof_model["embedding"]
+        max_epoch = hof_model["max_epoch"]#hof_model["max_epoch_bert"] if model == 'bert' else hof_model["max_epoch"]
+        batch_size = hof_model["batch_size"]#hof_model["batch_size_bert"] if model == 'bert' else hof_model["batch_size"]
         lr, weight_decay, max_length = hof_model["lr"], hof_model["weight_decay"], hof_model["max_length"]
         # if opt.study_model.best_value < opt.study_hyperparameters.best_value:
         #     max_epoch = hof_hyperparameters["max_epoch_bert"] if model == 'bert' else hof_hyperparameters["max_epoch"]
@@ -307,27 +307,27 @@ if __name__ == "__main__":
                                                     opt.data["max_length"][hof_hyperparameters[5]], \
                                                     max_epoch, opt.data["mask_entity"][hof_hyperparameters[7]]
                                                     
-    params = {
-        "dataset": args.dataset,
-        "model": model,
-        "metric": opt.data["optimize"],
-        "preprocessing": preprocessing,
-        "embedding": embedding,
-        "batch_size": batch_size,
-        "lr": lr,
-        "weight_decay": weight_decay,
-        "max_length": max_length,
-        "max_epoch": max_epoch,
-        "mask_entity": None,
-        "pooler": None,
-        "opt": None,
-        "hidden_size": None,
-        "position_size": None,
-        "dropout": None,
-    }
+    # params = {
+    #     "dataset": args.dataset,
+    #     "model": model,
+    #     "metric": opt.data["optimize"],
+    #     "preprocessing": preprocessing,
+    #     "embedding": embedding,
+    #     "batch_size": batch_size,
+    #     "lr": lr,
+    #     "weight_decay": weight_decay,
+    #     "max_length": max_length,
+    #     "max_epoch": max_epoch,
+    #     "mask_entity": None,
+    #     "pooler": None,
+    #     "opt": None,
+    #     "hidden_size": None,
+    #     "position_size": None,
+    #     "dropout": None,
+    # }
     
-    train = Training(params)
-    metric = train.train()
+    # train = Training(params)
+    # metric = train.train()
     
     
     print("Optimized parameters for dataset {}:".format(args.dataset))
@@ -336,5 +336,5 @@ if __name__ == "__main__":
     #print("Best  hyperparams:",opt.study_params.best_params)
     print("Batch size - {};".format(batch_size))
     print("Learning rate - {}; Weight decay - {}; Max Length - {}; Max epoch - {}.".format(lr, weight_decay, max_length, max_epoch))
-    print("Max {}:".format(opt.data["optimize"]), metric)
+    print("Best {}:".format(opt.data["optimize"]), abs(opt.study_model.best_value))
     
