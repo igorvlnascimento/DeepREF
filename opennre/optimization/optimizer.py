@@ -125,7 +125,7 @@ class Optimizer():
             "model": model,
             "metric": self.data["optimize"],
             "preprocessing": [],#self.preprocessing[preprocessing],
-            "embedding": pretrain_bert if model == "bert" else embedding,
+            "embedding": pretrain_bert,# if model == "bert" else embedding,
             "pooler": None,
             "opt": None,
             "batch_size": batch_size,#_bert if model == "bert" else batch_size,
