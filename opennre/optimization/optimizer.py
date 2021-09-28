@@ -101,18 +101,18 @@ class Optimizer():
     def evaluate_model(self, individual):
         
         if self.optimization_type == 'bo':
-            model = individual.suggest_categorical("model", self.data["model"])
+            model = 'bert',#individual.suggest_categorical("model", self.data["model"])
             #preprocessing =  individual.suggest_int("preprocessing", 0, len(self.preprocessing)-1)
-            embedding = individual.suggest_categorical("embedding", self.data["embedding"])
-            pretrain_bert = individual.suggest_categorical("pretrain_bert", self.data["pretrain_bert"])
+            #embedding = individual.suggest_categorical("embedding", self.data["embedding"])
+            pretrain_bert = 'bert-base-uncased'#individual.suggest_categorical("pretrain_bert", self.data["pretrain_bert"])
             
-            batch_size_bert =  individual.suggest_int("batch_size_bert", 32, 128, log=True)
-            batch_size =  individual.suggest_int("batch_size", 32, 256, log=True)
+            #batch_size_bert =  individual.suggest_int("batch_size_bert", 32, 128, log=True)
+            batch_size =  individual.suggest_int("batch_size", 32, 128, log=True)
             lr =  individual.suggest_float("lr", 1e-5, 1e-1, log=True)
-            weight_decay =  individual.suggest_float("weight_decay", 1e-5, 1e-2, log=True)
+            weight_decay =  individual.suggest_float("weight_decay", 1e-5, 1e-1, log=True)
             max_length =  individual.suggest_int("max_length", 8, 256, log=True)
-            max_epoch_bert =  individual.suggest_int("max_epoch_bert", 2, 8, log=True)
-            max_epoch = individual.suggest_int("max_epoch", 100, 200, step=20)
+            #max_epoch_bert =  individual.suggest_int("max_epoch_bert", 2, 8, log=True)
+            max_epoch = individual.suggest_int("max_epoch", 2, 8, step=20)
         else:
         
             model = self.data["model"][individual[1]]
@@ -128,11 +128,11 @@ class Optimizer():
             "embedding": pretrain_bert if model == "bert" else embedding,
             "pooler": None,
             "opt": None,
-            "batch_size": batch_size_bert if model == "bert" else batch_size,
+            "batch_size": batch_size,#_bert if model == "bert" else batch_size,
             "lr": lr,
             "weight_decay": weight_decay,
             "max_length": max_length,
-            "max_epoch": max_epoch_bert if model == 'bert' else max_epoch,
+            "max_epoch": max_epoch,#_bert if model == 'bert' else max_epoch,
             "mask_entity": None,
             "hidden_size": None,
             "position_size": None,
@@ -214,7 +214,7 @@ class Optimizer():
 
     def optimize_model(self):
         if self.optimization_type == "bo":
-            self.study_model.optimize(self.evaluate_model, n_trials=100)
+            self.study_model.optimize(self.evaluate_model, n_trials=50)
         
             params = self.study_model.best_params
             
@@ -277,7 +277,7 @@ if __name__ == "__main__":
     #print("hof_hyperparameters:",hof_hyperparameters)
     
     if opt.optimization_type == 'bo':
-        preprocessing = 'original' #if hof_hyperparameters["preprocessing"] == 0 else opt.preprocessing[hof_hyperparameters["preprocessing"]]
+        preprocessing = [] #opt.preprocessing[hof_model["preprocessing"]]
         model = hof_model["model"]
         embedding = hof_model["pretrain_bert"] if model == 'bert' else hof_model["embedding"]
         max_epoch = hof_model["max_epoch_bert"] if model == 'bert' else hof_model["max_epoch"]
@@ -297,7 +297,7 @@ if __name__ == "__main__":
         #         batch_size = 160
         #         lr, weight_decay, max_length = 1e-5, 1e-5, 128
     else:
-        preprocessing = 'original'# if len(opt.preprocessing) == 0 else opt.preprocessing[hof_model[0]]
+        preprocessing = []# if len(opt.preprocessing) == 0 else opt.preprocessing[hof_model[0]]
         model = opt.data["model"][hof_model[1]]
         embedding = opt.data["pretrain_bert"][hof_model[2]] if opt.data["model"][hof_model[1]] == 'bert' else opt.data["embedding"][hof_model[2]]
         max_epoch = opt.data["max_epoch_bert"][hof_hyperparameters[6]] if model == 'bert' else opt.data["max_epoch"][hof_hyperparameters[6]]
