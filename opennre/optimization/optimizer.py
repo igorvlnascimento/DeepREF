@@ -108,11 +108,11 @@ class Optimizer():
             
             #batch_size_bert =  individual.suggest_int("batch_size_bert", 32, 128, log=True)
             batch_size =  individual.suggest_int("batch_size", 32, 128, log=True)
-            lr =  individual.suggest_float("lr", 1e-5, 1e-1, log=True)
-            weight_decay =  individual.suggest_float("weight_decay", 1e-5, 1e-1, log=True)
-            max_length =  individual.suggest_int("max_length", 8, 256, log=True)
+            lr =  individual.suggest_float("lr", 1e-6, 1e-1, log=True)
+            weight_decay =  individual.suggest_float("weight_decay", 1e-6, 1e-1, log=True)
+            max_length =  individual.suggest_int("max_length", 32, 256, log=True)
             #max_epoch_bert =  individual.suggest_int("max_epoch_bert", 2, 8, log=True)
-            max_epoch = individual.suggest_int("max_epoch", 2, 8, step=20)
+            max_epoch = individual.suggest_int("max_epoch", 2, 8)
         else:
         
             model = self.data["model"][individual[1]]
