@@ -141,7 +141,9 @@ class ConverterDataset():
         if not os.path.exists(output_path):
             os.makedirs(output_path)
             
-        #original_df_names = [self.dataset_name + '_{}_original.csv'.format(split) for split in ['train', 'val', 'test']]
+        self.dataset_name = output_path.split('/')[1]
+            
+        original_df_names = [self.dataset_name + '_{}_original.csv'.format(split) for split in ['train', 'val', 'test']]
 
         #for df_name in original_df_names:
         if not os.path.exists(os.path.join(output_path, self.dataset_name + '_train_original.csv')):
@@ -169,8 +171,8 @@ class ConverterDataset():
             self.write_dataframe(df_test, os.path.join(output_path, self.dataset_name + '_test_original.csv'))
             df_test_copy = self.read_dataframe(os.path.join(output_path, self.dataset_name + '_test_original.csv'))
             self.check_equality_of_written_and_read_df(df_test, df_test_copy)
-        # else:
-        #     df_test = self.read_dataframe(os.path.join(output_path, self.dataset_name + '_test_original.csv'))
+        else:
+            df_test = self.read_dataframe(os.path.join(output_path, self.dataset_name + '_test_original.csv'))
             
         for file in os.listdir(output_path):
             if file.endswith(".csv"):

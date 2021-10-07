@@ -51,9 +51,7 @@ class ConverterSemEval2018(ConverterDataset):
             
             sentence = sentence[sentence.find('>')+1:]
         entity_dict = {}
-        print("sentence1:",sentence)
         while sentence.find('<entity id=') != -1:
-            #print("sentence1:",sentence)
             entity_start = sentence.find("<entity")
             entity_end = sentence.find("</entity>")
             id_end = sentence.find('">')
@@ -68,12 +66,8 @@ class ConverterSemEval2018(ConverterDataset):
                 
                 entity_name_in = entity_name[id_end_in+2:] + entity_name[:entity_end_in]
                 entity_name = entity_name[:entity_start_in] + entity_name[id_end_in+2:]
-                print("entity_name_in:",entity_name_in)
                 charOffset_in = ["{}-{}".format(len(sentence[:entity_start])+entity_start_in+1, len(sentence[:entity_start])+entity_start_in+1+len(entity_name)-1)]
-                #entity_end = sentence.find("</entity>")
-                #sentence = sentence[:entity_end] + sentence[entity_end+9:]
                 entity_dict[entity_id_in] = {'id': entity_id_in, 'word': entity_name_in, 'charOffset':charOffset_in}
-            #print("entity_name:",entity_name)
             
             sentence = sentence[:entity_start] + sentence[id_end+2:]
             charOffset = ["{}-{}".format(len(sentence[:entity_start]), len(sentence[:entity_start])+len(entity_name)-1)]
@@ -81,7 +75,7 @@ class ConverterSemEval2018(ConverterDataset):
             sentence = sentence[:entity_end] + sentence[entity_end+9:]
             
             entity_dict[entity_id] = {'id': entity_id, 'word': entity_name, 'charOffset':charOffset}
-        print("sentence:",sentence)
+            
         return entity_dict, sentence
 
 
@@ -90,7 +84,7 @@ class ConverterSemEval2018(ConverterDataset):
         entity_list = [key for key in entity_dict]
         for entity in entity_list:
             if entity in entity_pairs:
-                pairs.append((entity_pairs[entity]['relation'], entity, entity_pairs[entity]['e2']))
+                pairs.append((entity_pairs[entity]['relation'], entity, entity_pairs[entity]['e2'], entity_pairs[entity]['reverse']))
         return pairs
     
     # given the metadata, get the individual positions in the sentence and know what to replace them by
@@ -182,6 +176,46 @@ class ConverterSemEval2018(ConverterDataset):
                 if token == 'ENTITYOTHERSTART' or token == 'ENTITYEITHERSTART':
                     e2_idx.append(e_idx)
         return e1_idx, e2_idx, entity_replacement, tokens_for_indexing
+    
+    
+    def reverse_sentence(self, tokens):
+        idx_start = []
+        idx_end = []
+        entities = []
+        for i, t in enumerate(tokens):
+            if t.startswith('ENTITY') and t.endswith('START'):
+                idx_start.append(i)
+            if t.startswith('ENTITY') and t.endswith('END'):
+                idx_end.append(i)
+                entities.append(tokens[idx_start[-1]:idx_end[-1]+1])
+        
+        for i, idx in enumerate(list(zip(idx_start, idx_end))[::-1]):
+            tokens = tokens[:idx[0]] + ['ENTITY' + str(i+1)] + tokens[idx[1]+1:]
+            
+        
+        punct = tokens[-1]
+        
+        tokens = tokens[:-1]
+        tokens = tokens[::-1] + [punct]
+        
+        ent_idx = []
+        for i, t in enumerate(tokens):
+            if t.startswith('ENTITY'):
+                ent_idx.append(i)
+                
+        ent_idx = ent_idx[::-1]
+                
+        for i, idx in enumerate(ent_idx):
+            tokens = tokens[:idx] + entities[i] + tokens[idx+1:]
+        
+        return tokens
+    
+    def remove_tags(self, tokens):
+        for t in range(len(tokens)-1, -1, -1):
+            if tokens[t].startswith('ENTITY'):
+                tokens.remove(tokens[t])
+                
+        return tokens
 
     # TODO: need to edit this 
     def get_dataset_dataframe(self, directory=None, relation_extraction=True):
@@ -194,7 +228,7 @@ class ConverterSemEval2018(ConverterDataset):
         punk_param.abbrev_types = set(abbreviations)
         tokenizer = PunktSentenceTokenizer(punk_param)
         
-        relation_files_to_read = glob.glob(directory + '*.txt')
+        relation_files_to_read = glob.glob(directory + '**/*.txt', recursive=True)
         entity_pairs = {}
         for file_name in relation_files_to_read:
             lines = open(file_name).readlines()
@@ -203,23 +237,22 @@ class ConverterSemEval2018(ConverterDataset):
                 if 'REVERSE' in line:
                     e2_id = line[line.find('(')+1:line.find(',')]
                     e1_id = line[line.find(',')+1:line.find(',REVERSE)')]
-                    entity_pairs[e1_id] = {'relation':type, 'e2':e2_id}
+                    entity_pairs[e1_id] = {'relation':type, 'e2':e2_id, 'reverse':True}
                 else:
                     e1_id = line[line.find('(')+1:line.find(',')]
                     e2_id = line[line.find(',')+1:line.find(')')]
-                    entity_pairs[e1_id] = {'relation':type, 'e2':e2_id}
+                    entity_pairs[e1_id] = {'relation':type, 'e2':e2_id, 'reverse': False}
         
         data = []
-        total_files_to_read = glob.glob(directory + '*.xml')
+        total_files_to_read = glob.glob(directory + '**/*.xml', recursive=True)
         print('total_files_to_read:' , len(total_files_to_read) , ' from dir: ' , directory)
-        for file in tqdm(total_files_to_read):
+        for file in total_files_to_read:
             lines = open(file).readlines()
-            for line in lines:
+            for line in tqdm(lines):
                 line = line.strip().strip('\"').strip()
-                #print("line:",line)
                 if '</entity>' in line:
                     sentences = tokenizer.tokenize(line)
-                    #print("sentences:",sentences)
+                                
                     for sentence in sentences:
                         sentence = sentence.strip().strip('\"').strip()
                         sentence = sentence.strip()
@@ -234,10 +267,9 @@ class ConverterSemEval2018(ConverterDataset):
                         # pegar lista de pares de entidade e relação e verificar se há pares nas sentenças
 
                         for pair in pairs:
-                            #pair_id = pair.getAttribute('id')
-                            #ddi_flag = pair.getAttribute('ddi')
                             e1_id = pair[1]
                             e2_id = pair[2]
+                            reverse = pair[3]
                             
                             other_entities = self.get_other_entities(entity_dict, e1_id, e2_id)
                             
@@ -247,22 +279,72 @@ class ConverterSemEval2018(ConverterDataset):
                             except KeyError:
                                 # TODO: tratar os coreference resolution
                                 continue
+                                
+                            #print("sentence:",sentence)
                             
                             tagged_sentence = self.tag_sentence(sentence, e1_data, e2_data, other_entities)
+                            #print("tagged_sentence:",tagged_sentence)
                             tokens = self.tokenize(tagged_sentence, model="stanza")
-
+                            print("tokens:",tokens)
+                            #temp_tokens = tokens.copy()
+                            
+                            rev_tokens = self.reverse_sentence(tokens)
+                            rev_tokens_copy = rev_tokens.copy()
+                               
+                            rev_sentence = " ".join(self.remove_tags(rev_tokens_copy))
+                            
+                            #print("tokens:",rev_tokens)
+                            #if not reverse:
                             e1_idx, e2_idx, entity_replacement, tokens_for_indexing = \
                                     self.get_entity_positions_and_replacement_dictionary(tokens)
-                            # TODO (geeticka): for unifying purposes, can remove the e1_id and e2_id
+                                    
+                            rev_e1_idx, rev_e2_idx, rev_entity_replacement, rev_tokens_for_indexing = \
+                                    self.get_entity_positions_and_replacement_dictionary(rev_tokens)
+                            # # TODO (geeticka): for unifying purposes, can remove the e1_id and e2_id
                             metadata = {'e1': {'word': e1_data['word'], 'word_index': e1_idx, 'id': e1_id},
                                         'e2': {'word': e2_data['word'], 'word_index': e2_idx, 'id': e2_id},
                                         'entity_replacement': entity_replacement}
+                            
+                            # TODO (geeticka): for unifying purposes, can remove the e1_id and e2_id
+                            rev_metadata = {'e1': {'word': e1_data['word'], 'word_index': rev_e1_idx, 'id': e1_id},
+                                        'e2': {'word': e2_data['word'], 'word_index': rev_e2_idx, 'id': e2_id},
+                                        'entity_replacement': rev_entity_replacement}
                             tokenized_sentence = " ".join(tokens_for_indexing)
+                            rev_tokenized_sentence = " ".join(rev_tokens_for_indexing)
+                            
+                            #print("rev_sentence:",rev_sentence)
 
+                            #if reverse:
                             relation_type = pair[0].lower()
                             if not not relation_type: # not of empty string is True, but we don't want to append
                                 data.append([str(sentence.lower()), str(e1_data['word']).lower(), str(e2_data['word']).lower(),
-                                    str(relation_type), metadata, str(tokenized_sentence.lower())])
+                                        str(relation_type), metadata, str(tokenized_sentence.lower())])
+                                #if reverse:
+                                #    data.append([str(rev_sentence.lower()), str(e1_data['word']).lower(), str(e2_data['word']).lower(),
+                                #            str(relation_type), rev_metadata, str(rev_tokenized_sentence.lower())])
+                            # else:
+                            #     relation_type = 'none'
+                            #     if not not relation_type: # not of empty string is True, but we don't want to append
+                            #         data.append([str(sentence.lower()), str(e1_data['word']).lower(), str(e2_data['word']).lower(),
+                            #             str(relation_type), metadata, str(tokenized_sentence.lower())])
+                                
+                            # else:
+                            #     rev_tokens = self.reverse_sentence(tokens)
+                               
+                            #     rev_sentence = " ".join(rev_tokens)
+                               
+                            #     e1_idx, e2_idx, entity_replacement, tokens_for_indexing = \
+                            #             self.get_entity_positions_and_replacement_dictionary(rev_tokens)
+                            #     # TODO (geeticka): for unifying purposes, can remove the e1_id and e2_id
+                            #     rev_metadata = {'e1': {'word': e1_data['word'], 'word_index': e1_idx, 'id': e1_id},
+                            #                 'e2': {'word': e2_data['word'], 'word_index': e2_idx, 'id': e2_id},
+                            #                 'entity_replacement': entity_replacement}
+                            #     tokenized_sentence = " ".join(tokens_for_indexing)
+
+                            #     relation_type = pair[0].lower()
+                            #     if not not relation_type: # not of empty string is True, but we don't want to append
+                            #         data.append([str(rev_sentence.lower()), str(e1_data['word']).lower(), str(e2_data['word']).lower(),
+                            #             str(relation_type), rev_metadata, str(tokenized_sentence.lower())])
 
         df = pd.DataFrame(data,
                 columns='original_sentence,e1,e2,relation_type,metadata,tokenized_sentence'.split(','))
@@ -310,11 +392,11 @@ class ConverterSemEval2018(ConverterDataset):
     
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--train_input_file', default='benchmark/raw_semeval2018/Train/', 
+    parser.add_argument('--train_input_file', default='benchmark/raw_semeval20181-1/Train/', 
         help='Input path of training examples')
-    parser.add_argument('--test_input_file', default='benchmark/raw_semeval2018/Test/', 
+    parser.add_argument('--test_input_file', default='benchmark/raw_semeval20181-1/Test/', 
         help='Input path of training examples')
-    parser.add_argument('--output_path', default='benchmark/semeval2018/original', 
+    parser.add_argument('--output_path', default='benchmark/semeval20181-1/original', 
         help='Input path of training examples')
 
     args = parser.parse_args()
@@ -325,3 +407,5 @@ if __name__ == '__main__':
     converter = ConverterSemEval2018(nlp)
     
     converter.write_split_dataframes(args.output_path, args.train_input_file, args.test_input_file)
+    converter.write_split_dataframes('benchmark/semeval20181-2/original', 'benchmark/raw_semeval20181-2/Train/', 'benchmark/raw_semeval20181-2/Test/')
+    converter.write_split_dataframes('benchmark/semeval2018/original', 'benchmark/raw_semeval2018/Train/', 'benchmark/raw_semeval2018/Test/')
