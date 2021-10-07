@@ -40,6 +40,10 @@ class SentenceRE(nn.Module):
             self.classes = constants.CLASSES_SEM_EVAL
         elif self.dataset_name == 'semeval2018':
             self.classes = constants.CLASSES_SEM_EVAL_2018
+        elif self.dataset_name == 'semeval20181-1':
+            self.classes = constants.CLASSES_SEM_EVAL_2018
+        elif self.dataset_name == 'semeval20181-2':
+            self.classes = constants.CLASSES_SEM_EVAL_2018
         elif self.dataset_name == 'ddi':
             self.classes = constants.CLASSES_DDI
 
@@ -215,7 +219,7 @@ class SentenceRE(nn.Module):
         #     image_output_name = "confusion_matrix_{}_{}_{}_{}.{}".format(self.dataset_name, model, embedding, self.preprocessing, output_format)
 
         if not os.path.exists('results/'):
-            c
+            os.makedirs("results", exist_ok=True)
         # save_path = os.path.join('results', image_output_name)
         # plt.savefig(save_path, bbox_inches="tight")
         # plt.clf()
@@ -256,6 +260,7 @@ class SentenceRE(nn.Module):
         file.write('Micro precision: {}\n'.format(result['micro_p']))
         file.write('Micro recall: {}\n'.format(result['micro_r']))
         file.write('Micro F1: {}\n\n'.format(result['micro_f1']))
+        file.write('Macro F1: {}\n\n'.format(result['macro_f1']))
 
 
     def load_state_dict(self, state_dict):
