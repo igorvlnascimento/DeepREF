@@ -239,6 +239,7 @@ class SentenceRE(nn.Module):
         logging.info('Micro precision: {}'.format(result['micro_p']))
         logging.info('Micro recall: {}'.format(result['micro_r']))
         logging.info('Micro F1: {}'.format(result['micro_f1']))
+        logging.info('Macro F1: {}'.format(result['macro_f1']))
         #max_length_classes = max([len(w) for w in self.classes])
         os.makedirs('results/', exist_ok=True)
         if os.path.isfile(file_path):
