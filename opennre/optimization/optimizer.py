@@ -16,8 +16,9 @@ from train import Training
 CONFIG_FILE_PATH = "opennre/optimization/config_params.json"
 
 class Optimizer():
-    def __init__(self, dataset, optimization_type):
+    def __init__(self, dataset, metric, optimization_type):
         self.dataset = dataset
+        self.metric = metric
         self.data = json.load(open(CONFIG_FILE_PATH))
         
         self.optimization_type = optimization_type
@@ -109,7 +110,7 @@ class Optimizer():
             #batch_size_bert =  individual.suggest_int("batch_size_bert", 32, 128, log=True)
             batch_size =  individual.suggest_int("batch_size", 32, 128, log=True)
             lr =  individual.suggest_float("lr", 1e-6, 1e-1, log=True)
-            weight_decay =  individual.suggest_float("weight_decay", 1e-6, 1e-1, log=True)
+            #weight_decay =  individual.suggest_float("weight_decay", 1e-6, 1e-1, log=True)
             max_length =  individual.suggest_int("max_length", 32, 256, log=True)
             #max_epoch_bert =  individual.suggest_int("max_epoch_bert", 2, 8, log=True)
             max_epoch = individual.suggest_int("max_epoch", 2, 8)
@@ -123,14 +124,14 @@ class Optimizer():
         parameters = {
             "dataset": self.dataset,
             "model": 'bert',#model,
-            "metric": self.data["optimize"],
+            "metric": self.metric,
             "preprocessing": [],#self.preprocessing[preprocessing],
             "embedding": pretrain_bert,# if model == "bert" else embedding,
             "pooler": None,
             "opt": None,
             "batch_size": batch_size,#_bert if model == "bert" else batch_size,
             "lr": lr,
-            "weight_decay": weight_decay,
+            "weight_decay": None,#weight_decay,
             "max_length": max_length,
             "max_epoch": max_epoch,#_bert if model == 'bert' else max_epoch,
             "mask_entity": None,
@@ -261,12 +262,14 @@ class Optimizer():
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('-d','--dataset', default="semeval2010", choices=["semeval2010", "semeval2018", "ddi"], 
+    parser.add_argument('-d','--dataset', default="semeval2010", choices=["semeval2010", "semeval20181-1", "semeval20181-2", "ddi"], 
                 help='Dataset')
+    parser.add_argument('-m','--metric', default="micro_f1", choices=["micro_f1", "macro_f1", "acc"], 
+                help='Metric to optimize')
     
     args = parser.parse_args()
     
-    opt = Optimizer(args.dataset, "bo")
+    opt = Optimizer(args.dataset, args.metric, "bo")
     if opt.optimization_type == 'ga':
         hof_model = opt.optimize_model()[2][0]
         hof_hyperparameters = opt.optimize_hyperparameters()[2][0]
@@ -282,7 +285,7 @@ if __name__ == "__main__":
         embedding = 'bert-base-uncased' if opt.dataset == 'semeval2010' else 'allenai/scibert_scivocab_uncased'#hof_model["pretrain_bert"] if model == 'bert' else hof_model["embedding"]
         max_epoch = hof_model["max_epoch"]#hof_model["max_epoch_bert"] if model == 'bert' else hof_model["max_epoch"]
         batch_size = hof_model["batch_size"]#hof_model["batch_size_bert"] if model == 'bert' else hof_model["batch_size"]
-        lr, weight_decay, max_length = hof_model["lr"], hof_model["weight_decay"], hof_model["max_length"]
+        lr, max_length = hof_model["lr"], hof_model["max_length"]
         # if opt.study_model.best_value < opt.study_hyperparameters.best_value:
         #     max_epoch = hof_hyperparameters["max_epoch_bert"] if model == 'bert' else hof_hyperparameters["max_epoch"]
         #     batch_size = hof_hyperparameters["batch_size_bert"] if model == 'bert' else hof_hyperparameters["batch_size"]
@@ -335,6 +338,6 @@ if __name__ == "__main__":
     #print("Best model params:",opt.study_model.best_params)
     #print("Best  hyperparams:",opt.study_params.best_params)
     print("Batch size - {};".format(batch_size))
-    print("Learning rate - {}; Weight decay - {}; Max Length - {}; Max epoch - {}.".format(lr, weight_decay, max_length, max_epoch))
+    print("Learning rate - {}; Max Length - {}; Max epoch - {}.".format(lr, max_length, max_epoch))
     print("Best {}:".format(opt.data["optimize"]), abs(opt.study_model.best_value))
     
