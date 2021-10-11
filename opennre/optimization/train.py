@@ -10,6 +10,9 @@ import os
 import sys
 import argparse
 import stanza
+import random
+
+SEED = 42
 
 class Training():
         def __init__(self, parameters):
@@ -28,7 +31,7 @@ class Training():
                 
                 if self.model == "bert":
                         self.embedding = "bert-base-uncased" if parameters["embedding"] is None else parameters["embedding"]
-                        self.batch_size = 64 if parameters["batch_size"] is None else parameters["batch_size"]
+                        self.batch_size = 16 if parameters["batch_size"] is None else parameters["batch_size"]
                         self.lr = 2e-5 if parameters["lr"] is None else parameters["lr"]
                         self.max_epoch = 3 if parameters["max_epoch"] is None else parameters["max_epoch"]
                         self.opt = 'adamw'
@@ -246,6 +249,15 @@ class Training():
                         
                 
                 self.criterion = opennre.model.PairwiseRankingLoss() if self.model == 'crcnn' else None
+                
+                # Set random seed
+                self.set_seed(SEED)
+                
+        def set_seed(self, seed):
+                random.seed(seed)
+                np.random.seed(seed)
+                torch.manual_seed(seed)
+                torch.cuda.manual_seed_all(seed)
                         
         def train(self):
 
