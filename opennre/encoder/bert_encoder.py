@@ -4,7 +4,7 @@ import torch.nn as nn
 from transformers import AutoTokenizer, AutoModel
 
 class BERTEncoder(nn.Module):
-    def __init__(self, max_length, pretrain_path, blank_padding=True, mask_entity=False):
+    def __init__(self, max_length, pretrain_path, blank_padding=True, mask_entity=False, sbert=None):
         """
         Args:
             max_length: max length of sentence
@@ -96,7 +96,7 @@ class BERTEncoder(nn.Module):
 
 
 class BERTEntityEncoder(nn.Module):
-    def __init__(self, max_length, pretrain_path, blank_padding=True, mask_entity=False):
+    def __init__(self, max_length, pretrain_path, blank_padding=True, mask_entity=False, sbert=None):
         """
         Args:
             max_length: max length of sentence
@@ -107,12 +107,13 @@ class BERTEntityEncoder(nn.Module):
         self.blank_padding = blank_padding
         self.hidden_size = 768 * 2
         self.mask_entity = mask_entity
+        self.sbert = sbert
         logging.info('Loading {} pre-trained checkpoint.'.format(pretrain_path.upper()))
         self.bert = AutoModel.from_pretrained(pretrain_path)
         self.tokenizer = AutoTokenizer.from_pretrained(pretrain_path)
         self.linear = nn.Linear(self.hidden_size, self.hidden_size)
 
-    def forward(self, token, att_mask, pos1, pos2):
+    def forward(self, token, att_mask, pos1, pos2, s_embedding):
         """
         Args:
             token: (B, L), index of tokens
@@ -130,7 +131,7 @@ class BERTEntityEncoder(nn.Module):
         onehot_tail = onehot_tail.scatter_(1, pos2, 1)
         head_hidden = (onehot_head.unsqueeze(2) * hidden).sum(1)  # (B, H)
         tail_hidden = (onehot_tail.unsqueeze(2) * hidden).sum(1)  # (B, H)
-        x = torch.cat([head_hidden, tail_hidden], 1)  # (B, 2H)
+        x = torch.cat([head_hidden, tail_hidden, s_embedding], 1)  # (B, 2H)
         x = self.linear(x)
         return x
 
@@ -159,6 +160,9 @@ class BERTEntityEncoder(nn.Module):
             rev = True
         else:
             rev = False
+            
+        sentence_embedding = self.sbert.encode(" ".join(sentence))
+        print(sentence_embedding[1].shape)
         
         if not is_token:
             sent0 = self.tokenizer.tokenize(sentence[:pos_min[0]])
@@ -199,12 +203,19 @@ class BERTEntityEncoder(nn.Module):
                 indexed_tokens.append(0)  # 0 is id for [PAD]
             indexed_tokens = indexed_tokens[:self.max_length]
         indexed_tokens = torch.tensor(indexed_tokens).long().unsqueeze(0)  # (1, L)
+        
+        # if self.elmo is not None:
+
+        #     word_ids = batch_to_word_ids(sentence, self.token2id)
+
+        #     embeddings = self.elmo(word_ids)
+        #     print(embeddings.shape)
 
         # Attention mask
         att_mask = torch.zeros(indexed_tokens.size()).long()  # (1, L)
         att_mask[0, :avai_len] = 1
 
-        return indexed_tokens, att_mask, pos1, pos2
+        return indexed_tokens, att_mask, pos1, pos2, sentence_embedding
 
 # class BERTHiddenStateEncoder(nn.Module):
 #     def __init__(self, max_length, pretrain_path, blank_padding=True, mask_entity=False):

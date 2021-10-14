@@ -10,6 +10,16 @@ import argparse
 import logging
 import random
 
+from sentence_transformers import SentenceTransformer
+
+from torch.multiprocessing import set_start_method
+
+try:
+     set_start_method('spawn')
+except RuntimeError:
+        print("Erro!")
+        pass
+
 def set_seed(seed):
     random.seed(seed)
     np.random.seed(seed)
@@ -18,7 +28,7 @@ def set_seed(seed):
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--pretrain_path', default='bert-base-uncased', 
+parser.add_argument('--pretrain_path', default="bert-base-uncased", 
         help='Pre-trained ckpt path / model name (hugginface)')
 parser.add_argument('--ckpt', default='', 
         help='Checkpoint name')
@@ -32,7 +42,7 @@ parser.add_argument('--mask_entity', action='store_true',
 # Data
 parser.add_argument('--metric', default='micro_f1', choices=['micro_f1', 'acc'],
         help='Metric for picking up best checkpoint')
-parser.add_argument('--dataset', default='none', choices=['none', 'semeval', 'wiki80', 'tacred'], 
+parser.add_argument('--dataset', default='none', choices=['none', 'semeval2010', 'semeval2018', 'semeval20181-1', 'semeval20181-2', 'ddi', 'wiki80', 'tacred'], 
         help='Dataset. If not none, the following args can be ignored')
 parser.add_argument('--train_file', default='', type=str,
         help='Training data file')
@@ -72,10 +82,10 @@ if len(args.ckpt) == 0:
 ckpt = 'ckpt/{}.pth.tar'.format(args.ckpt)
 
 if args.dataset != 'none':
-    opennre.download(args.dataset, root_path=root_path)
-    args.train_file = os.path.join(root_path, 'benchmark', args.dataset, '{}_train.txt'.format(args.dataset))
-    args.val_file = os.path.join(root_path, 'benchmark', args.dataset, '{}_val.txt'.format(args.dataset))
-    args.test_file = os.path.join(root_path, 'benchmark', args.dataset, '{}_test.txt'.format(args.dataset))
+    #opennre.download(args.dataset, root_path=root_path)
+    args.train_file = os.path.join(root_path, 'benchmark', args.dataset, 'original', '{}_train_original.txt'.format(args.dataset))
+    args.val_file = os.path.join(root_path, 'benchmark', args.dataset, 'original', '{}_val_original.txt'.format(args.dataset))
+    args.test_file = os.path.join(root_path, 'benchmark', args.dataset, 'original', '{}_test_original.txt'.format(args.dataset))
     if not os.path.exists(args.test_file):
         logging.warn("Test file {} does not exist! Use val file instead".format(args.test_file))
         args.test_file = args.val_file
@@ -94,18 +104,23 @@ for arg in vars(args):
 
 rel2id = json.load(open(args.rel2id_file))
 
+sbert = SentenceTransformer('all-MiniLM-L6-v2')
+#sbert = None
+
 # Define the sentence encoder
 if args.pooler == 'entity':
     sentence_encoder = opennre.encoder.BERTEntityEncoder(
         max_length=args.max_length, 
         pretrain_path=args.pretrain_path,
-        mask_entity=args.mask_entity
+        mask_entity=args.mask_entity,
+        sbert=sbert
     )
 elif args.pooler == 'cls':
     sentence_encoder = opennre.encoder.BERTEncoder(
         max_length=args.max_length, 
         pretrain_path=args.pretrain_path,
-        mask_entity=args.mask_entity
+        mask_entity=args.mask_entity,
+        sbert=sbert
     )
 else:
     raise NotImplementedError
@@ -132,11 +147,14 @@ if not args.only_test:
 
 # Test
 framework.load_state_dict(torch.load(ckpt)['state_dict'])
-result = framework.eval_model(framework.test_loader)
+result,ground_truth, pred = framework.eval_model(framework.test_loader)
+
+framework.test_set_results(ground_truth, pred, result, 'bert', 'scibert', '')
 
 # Print the result
-logging.info('Test set results:')
-logging.info('Accuracy: {}'.format(result['acc']))
-logging.info('Micro precision: {}'.format(result['micro_p']))
-logging.info('Micro recall: {}'.format(result['micro_r']))
-logging.info('Micro F1: {}'.format(result['micro_f1']))
+# logging.info('Test set results:')
+# logging.info('Accuracy: {}'.format(result['acc']))
+# logging.info('Micro precision: {}'.format(result['micro_p']))
+# logging.info('Micro recall: {}'.format(result['micro_r']))
+# logging.info('Micro F1: {}'.format(result['micro_f1']))
+# logging.info('Macro F1: {}'.format(result['macro_f1']))
