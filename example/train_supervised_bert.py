@@ -10,16 +10,6 @@ import argparse
 import logging
 import random
 
-from sentence_transformers import SentenceTransformer
-
-from torch.multiprocessing import set_start_method
-
-try:
-     set_start_method('spawn')
-except RuntimeError:
-        print("Erro!")
-        pass
-
 def set_seed(seed):
     random.seed(seed)
     np.random.seed(seed)
@@ -28,7 +18,7 @@ def set_seed(seed):
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--pretrain_path', default="bert-base-uncased", 
+parser.add_argument('--pretrain_path', default="deepset/sentence_bert", 
         help='Pre-trained ckpt path / model name (hugginface)')
 parser.add_argument('--ckpt', default='', 
         help='Checkpoint name')
@@ -104,23 +94,18 @@ for arg in vars(args):
 
 rel2id = json.load(open(args.rel2id_file))
 
-sbert = SentenceTransformer('all-MiniLM-L6-v2')
-#sbert = None
-
 # Define the sentence encoder
 if args.pooler == 'entity':
     sentence_encoder = opennre.encoder.BERTEntityEncoder(
         max_length=args.max_length, 
         pretrain_path=args.pretrain_path,
         mask_entity=args.mask_entity,
-        sbert=sbert
     )
 elif args.pooler == 'cls':
     sentence_encoder = opennre.encoder.BERTEncoder(
         max_length=args.max_length, 
         pretrain_path=args.pretrain_path,
         mask_entity=args.mask_entity,
-        sbert=sbert
     )
 else:
     raise NotImplementedError

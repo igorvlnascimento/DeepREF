@@ -282,7 +282,7 @@ if __name__ == "__main__":
     if opt.optimization_type == 'bo':
         preprocessing = 'original' #opt.preprocessing[hof_model["preprocessing"]]
         model = 'bert'#hof_model["model"]
-        embedding = 'bert-base-uncased' if opt.dataset == 'semeval2010' else 'allenai/scibert_scivocab_uncased'#hof_model["pretrain_bert"] if model == 'bert' else hof_model["embedding"]
+        embedding = 'bert-base-uncased' if opt.dataset == 'semeval2010' else 'deepset/sentence_bert'#hof_model["pretrain_bert"] if model == 'bert' else hof_model["embedding"]
         max_epoch = hof_model["max_epoch"]#hof_model["max_epoch_bert"] if model == 'bert' else hof_model["max_epoch"]
         batch_size = hof_model["batch_size"]#hof_model["batch_size_bert"] if model == 'bert' else hof_model["batch_size"]
         lr, max_length = hof_model["lr"], hof_model["max_length"]
