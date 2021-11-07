@@ -66,7 +66,7 @@ class SentenceREDataset(data.Dataset):
         pred_positive = 0
         gold_positive = 0
         neg = -1
-        for name in ['NA', 'na', 'no_relation', 'Other', 'Others']:
+        for name in ['NA', 'na', 'no_relation', 'Other', 'Others', 'none', 'None']:
             if name in self.rel2id:
                 if use_name:
                     neg = name
