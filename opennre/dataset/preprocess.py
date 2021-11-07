@@ -11,7 +11,7 @@ from ast import literal_eval
 from tqdm.auto import tqdm
 
 import nltk
-from nltk.corpus import stopwords
+from nltk.corpus import stopwords, wordnet as wn
 
 class Preprocess():
     def __init__(self, dataset_name, preprocessing_types, nlp, entity_name="ENTITY") -> None:
@@ -46,7 +46,7 @@ class Preprocess():
 
     # given an entity replacement dictionary like {'0:0': 'entity1'} 
     # provide more information related to the location of the entity
-    def entity_replacement_dict_with_entity_location(self, entity_replacement_dict, 
+    def entity_replacement_dict_with_entity_location(self, entity_replacement_dict, replacement_type,
                                                     only_e1_indexes, only_e2_indexes, common_indexes):
         def update_dict_with_indexes(new_entity_replacement_dict, only_indexes, start, end):
             for i in only_indexes:
@@ -59,14 +59,35 @@ class Preprocess():
         # below is just for initialization purposes, when start and end is none, means we are not 
         # inserting anything before or after those words in the sentence
         for key in entity_replacement_dict.keys():
-            new_entity_replacement_dict[key] = {'replace_by': entity_replacement_dict[key], 
-                                        'start': None, 'end': None}
+                new_entity_replacement_dict[key] = {'replace_by': entity_replacement_dict[key], 
+                                            'start': None, 'end': None}
         new_entity_replacement_dict = update_dict_with_indexes(new_entity_replacement_dict, only_e1_indexes,
                                                             self.entity1 + 'START', self.entity1 + 'END')
         new_entity_replacement_dict = update_dict_with_indexes(new_entity_replacement_dict, only_e2_indexes,
                                                             self.entity2 + 'START', self.entity2 + 'END')
         new_entity_replacement_dict = update_dict_with_indexes(new_entity_replacement_dict, common_indexes,
                                                             self.entity_either + 'START', self.entity_either + 'END')
+        return new_entity_replacement_dict
+    
+    # given an entity replacement dictionary like {'0:0': 'entity1'} 
+    # provide more information related to the location of the entity
+    def entity_replacement_dict_with_entity_location_embed(self, entity_replacement_dict, embed,
+                                                    only_e1_indexes, only_e2_indexes, common_indexes):
+        def update_dict_with_indexes(new_entity_replacement_dict, only_indexes):
+            for i in only_indexes:
+                key = str(i[0]) + ':' + str(i[-1])
+            return new_entity_replacement_dict
+            
+        new_entity_replacement_dict = {} 
+        # below is just for initialization purposes, when start and end is none, means we are not 
+        # inserting anything before or after those words in the sentence
+        for key in entity_replacement_dict.keys():
+            idx = int(key.split(':')[-1])
+            new_entity_replacement_dict[key] = {'replace_by': embed[idx], 
+                                        'start': None, 'end': None}
+        new_entity_replacement_dict = update_dict_with_indexes(new_entity_replacement_dict, only_e1_indexes)
+        new_entity_replacement_dict = update_dict_with_indexes(new_entity_replacement_dict, only_e2_indexes)
+        new_entity_replacement_dict = update_dict_with_indexes(new_entity_replacement_dict, common_indexes)
         return new_entity_replacement_dict
 
     ###
@@ -91,42 +112,111 @@ class Preprocess():
 
     # adapted from tag_sentence method in converter_ddi
     # note that white spaces are added in the new sentence on purpose
-    def replace_with_concept(self, row):
+    def replace_with_concept(self, row, replacement_type):
         sentence = row.tokenized_sentence.split(" ")
+        upos = row.upos_sentence.split(" ")
+        deps = row.deps_sentence.split(" ")
+        ner = row.ner_sentence.split(" ")
         e1_indexes = row.metadata['e1']['word_index']
         e2_indexes = row.metadata['e2']['word_index'] # assuming that within the same entity indexes, no overlap
         new_sentence = ''
+        new_upos = ''
+        new_deps = ''
+        new_ner = ''
         only_e1_indexes, only_e2_indexes, common_indexes = \
         self.get_common_and_separate_entities(e1_indexes, e2_indexes)
         
         entity_replacement_dict = row.metadata['entity_replacement'] # assuming no overlaps in replacement
         
-        new_entity_replacement_dict = self.entity_replacement_dict_with_entity_location(entity_replacement_dict, 
+        new_entity_replacement_dict = self.entity_replacement_dict_with_entity_location(entity_replacement_dict, replacement_type,
                                                                                 only_e1_indexes, only_e2_indexes, 
                                                                                 common_indexes)
         repl_dict = new_entity_replacement_dict # just using proxy because names are long
+        
+        new_entity_replacement_dict_upos = self.entity_replacement_dict_with_entity_location_embed(entity_replacement_dict, upos,
+                                                                                only_e1_indexes, only_e2_indexes, 
+                                                                                common_indexes)
+        repl_dict_upos = new_entity_replacement_dict_upos # just using proxy because names are long
+        
+        new_entity_replacement_dict_deps = self.entity_replacement_dict_with_entity_location_embed(entity_replacement_dict, deps,
+                                                                                only_e1_indexes, only_e2_indexes, 
+                                                                                common_indexes)
+        repl_dict_deps = new_entity_replacement_dict_deps # just using proxy because names are long
+        
+        new_entity_replacement_dict_ner = self.entity_replacement_dict_with_entity_location_embed(entity_replacement_dict, ner,
+                                                                                only_e1_indexes, only_e2_indexes, 
+                                                                                common_indexes)
+        repl_dict_ner = new_entity_replacement_dict_ner # just using proxy because names are long
         sorted_positions = self.sort_position_keys(new_entity_replacement_dict)
+        print("repl_dict:",repl_dict)
+        print("new_entity_replacement_dict_upos:",new_entity_replacement_dict_upos)
         for i in range(len(sorted_positions)):
             curr_pos = sorted_positions[i]
             curr_start_pos, curr_end_pos = self.parse_position(curr_pos)
             start_replace = '' if repl_dict[curr_pos]['start'] is None else repl_dict[curr_pos]['start'].upper()
             end_replace = '' if repl_dict[curr_pos]['end'] is None else repl_dict[curr_pos]['end'].upper()
-            between_replace = repl_dict[curr_pos]['replace_by'].upper() # between the entity replacement
+            between_replace = repl_dict[curr_pos]['replace_by'][replacement_type].upper() # between the entity replacement
+            
+            start_replace_other = ''
+            end_replace_other = ''
+            
+            between_replace_upos = repl_dict_upos[curr_pos]['replace_by'] # between the entity replacement
+            between_replace_deps = repl_dict_deps[curr_pos]['replace_by'] # between the entity replacement
+            between_replace_ner = repl_dict_ner[curr_pos]['replace_by'] # between the entity replacement
+            
+            
             if i == 0:
                 new_sentence += self.list_to_string(sentence[:curr_start_pos]) + ' ' + start_replace + ' ' + \
                 between_replace + ' ' + end_replace + ' '
+                
+                new_upos += self.list_to_string(upos[:curr_start_pos]) + ' ' + start_replace_other + ' ' + \
+                between_replace_upos + ' ' + end_replace_other + ' '
+                
+                new_deps += self.list_to_string(deps[:curr_start_pos]) + ' ' + start_replace_other + ' ' + \
+                between_replace_deps + ' ' + end_replace_other + ' '
+                
+                new_ner += self.list_to_string(ner[:curr_start_pos]) + ' ' + start_replace_other + ' ' + \
+                between_replace_ner + ' ' + end_replace_other + ' '
             else:
                 prev_pos = sorted_positions[i-1]
                 _, prev_end_pos = self.parse_position(prev_pos)
                 middle = self.list_to_string(sentence[prev_end_pos+1 : curr_start_pos]) # refers to middle between prev segment and the 
+                middle_upos = self.list_to_string(upos[prev_end_pos+1 : curr_start_pos]) # refers to middle between prev segment and the 
+                middle_deps = self.list_to_string(deps[prev_end_pos+1 : curr_start_pos]) # refers to middle between prev segment and the 
+                middle_ner = self.list_to_string(ner[prev_end_pos+1 : curr_start_pos]) # refers to middle between prev segment and the 
                 # current segment
                 if middle == '':
                     middle = ' '
                 new_sentence += middle + ' ' + start_replace + ' ' + between_replace + ' ' + end_replace + ' '
                 if i == len(sorted_positions) - 1 and curr_end_pos < len(sentence) - 1:
                     new_sentence += ' ' + self.list_to_string(sentence[curr_end_pos+1:])
+                    
+                if middle_upos == '':
+                    middle_upos = ' '
+                new_upos += middle_upos + ' ' + start_replace_other + ' ' + between_replace_upos + ' ' + end_replace_other + ' '
+                if i == len(sorted_positions) - 1 and curr_end_pos < len(upos) - 1:
+                    new_upos += ' ' + self.list_to_string(upos[curr_end_pos+1:])
+                    
+                if middle_deps == '':
+                    middle_deps = ' '
+                new_deps += middle_deps + ' ' + start_replace_other + ' ' + between_replace_deps + ' ' + end_replace_other + ' '
+                if i == len(sorted_positions) - 1 and curr_end_pos < len(deps) - 1:
+                    new_deps += ' ' + self.list_to_string(deps[curr_end_pos+1:])
+                    
+                if middle_ner == '':
+                    middle_ner = ' '
+                new_ner += middle_ner + ' ' + start_replace_other + ' ' + between_replace_ner + ' ' + end_replace_other + ' '
+                if i == len(sorted_positions) - 1 and curr_end_pos < len(ner) - 1:
+                    new_ner += ' ' + self.list_to_string(ner[curr_end_pos+1:])
         new_sentence = self.remove_whitespace(new_sentence)
-        return new_sentence
+        new_upos = self.remove_whitespace(new_upos)
+        new_deps = self.remove_whitespace(new_deps)
+        new_ner = self.remove_whitespace(new_ner)
+        # print(len(new_sentence.split()))
+        # print(new_upos.split())
+        # print(new_deps.split())
+        #assert len(new_deps.split()) + 4 == len(new_sentence.split()) == len(new_upos.split()) + 4 == len(new_ner.split()) + 4
+        return pd.Series([new_sentence, new_upos, new_deps, new_ner])
 
 
     '''
@@ -136,6 +226,7 @@ class Preprocess():
     def get_entity_location_dict(self, only_e1_indexes, only_e2_indexes, common_indexes):
         entity_location_dict = {}
         def update_dict_with_indexes(entity_location_dict, only_indexes, start, end):
+            print(only_indexes)
             for i in only_indexes:
                 key = str(i[0]) + ':' + str(i[-1])
                 entity_location_dict[key] = {'start': start, 'end': end}
@@ -183,24 +274,43 @@ class Preprocess():
     # and replace all digits
     # TODO: might be nice to give an option to specify whether to remove the stop words or not 
     # this is a low priority part though
-    def generate_new_sentence(self, sentence, index_dict):
+    def generate_new_sentence(self, sentence, upos, deps, ner, index_dict):
         new_sentence = []
-        #print("index_dict:",index_dict)
+        new_upos = []
+        new_deps = []
+        new_ner = []
         if isinstance(sentence, str):
             sentence = sentence.split(" ")
-        #print("sentence:",sentence)
+        idx = 0
+        entity_start_or_end = 0
         for i in range(len(sentence)):
             word = sentence[i]
             if word.endswith('END') or word.endswith('START'):
                 new_sentence.append(word)
+                entity_start_or_end += 1
                 continue
             if not index_dict[i]['keep']:
+                idx += 1
                 continue # don't append when it is a stop word or punctuation
             if index_dict[i]['replace_with'] is not None:
-                new_sentence.append(index_dict[i]['replace_with'])
+                words_length = len(index_dict[i]['replace_with'].split('_'))
+                new_sentence.extend(index_dict[i]['replace_with'].split('_'))
+                new_upos.extend([upos[idx]]*words_length)
+                new_deps.extend([deps[idx]]*words_length)
+                new_ner.extend([ner[idx]]*words_length)
+                idx += 1
                 continue
             new_sentence.append(word)
-        return self.list_to_string(new_sentence)
+            new_upos.append(upos[idx])
+            new_deps.append(deps[idx])
+            new_ner.append(ner[idx])
+            idx += 1
+        # print((new_sentence), (new_upos), (new_deps), (new_ner))
+        # print(len(new_sentence), len(new_upos), len(new_deps), len(new_ner))
+        assert len(new_sentence) == len(new_upos) + entity_start_or_end and \
+                len(new_sentence) == len(new_deps) + entity_start_or_end and \
+                len(new_sentence) == len(new_ner) + entity_start_or_end
+        return self.list_to_string(new_sentence), self.list_to_string(new_upos), self.list_to_string(new_deps), self.list_to_string(new_ner)
     
     def generate_tagged_sentence(self, row):
         sentence = row.tokenized_sentence.split(" ")
@@ -212,28 +322,43 @@ class Preprocess():
         
         return sentence
     
-    def replace_digit_punctuation_stop_word_brackets(self, row):
+    def replace_digit_punctuation_stop_word_brackets_wordnet_syntatic(self, row):
         if "tagged_sentence" in row:
             sentence = row.tagged_sentence.split(" ")
         else:
             sentence = row.tokenized_sentence.split(" ")
-        #print("sentence:",sentence)
+        upos = row.upos_sentence.split(" ")
+        deps = row.deps_sentence.split(" ")
+        ner = row.ner_sentence.split(" ")
+        print("sentence:",sentence)
+        print("sentence:",len(sentence))
+        print("upos:",len(upos))
+        print("upos:",upos)
+        print("deps:",len(deps))
+        #assert len(deps) == len(sentence) and len(deps) == len(upos)
         e1_indexes = row.metadata['e1']['word_index']
         e2_indexes = row.metadata['e2']['word_index']
         if not 'ESTART' in sentence and not 'EEND' in sentence:
             sentence = self.get_new_sentence_with_entity_replacement(sentence, e1_indexes, e2_indexes)
         
+        if isinstance(sentence,str):
+            sentence = sentence.split(" ")
+            
         # detection of stop words, punctuations and digits
         index_to_keep_dict = {} # index: {keep that token or not, replace_with}
         #tokenizedSentence = sentence.lower().split()
         #doc2 = nlpSpacy(nlpSpacy.vocab, words=tokenizedSentence)
-        doc = self.nlp(sentence)
+        #doc = self.nlp(sentence)
         #nlp.tagger(doc)
         #nlp.parser(doc)
         stop_words = set(stopwords.words('english'))
-        words = [word for sent in doc.sentences for word in sent.words]
+        stop_words.remove('o')
         brackets = False
-        for i, word in enumerate(words):
+        wordnet = self.preprocessing_types["wordnet"]
+        idx = 0
+        #print("sentence:",sentence)
+        for i, word in enumerate(sentence):
+            #print(word, idx, upos[idx], len(sentence))
             is_entity = False
             word_index = i
             for tup in e1_indexes:
@@ -245,53 +370,43 @@ class Preprocess():
                     is_entity = True
                     index_to_keep_dict[i] = {'keep': True, 'replace_with': None}
             if is_entity:
+                #idx += 1
                 continue
-            stop_word = word.text.lower() in stop_words and self.preprocessing_types["stopword"]
-            punct = word.upos == 'PUNCT' and self.preprocessing_types["punct"]
-            num = word.upos == "NUM" and self.preprocessing_types["digit"]
+            stop_word = word in stop_words and self.preprocessing_types["stopword"]
+            punct = not word.endswith('END') and upos[idx] == 'PUNCT' and self.preprocessing_types["punct"]
+            num = not word.endswith('END') and upos[idx] == "NUM" and self.preprocessing_types["digit"]
             if not brackets and self.preprocessing_types["brackets"]:
-                brackets = "(" == word.text or "[" == word.text
-        
+                brackets = "(" == word or "[" == word
             if stop_word:
                 index_to_keep_dict[word_index] = {'keep': False, 'replace_with': None}
             elif brackets:
                 index_to_keep_dict[word_index] = {'keep': False, 'replace_with': None}
-                brackets = not (")" == word.text) and not ("]" == word.text)
+                brackets = not (")" == word) and not ("]" == word)
             elif punct:
                 index_to_keep_dict[word_index] = {'keep': False, 'replace_with': None}
             elif num:
                 index_to_keep_dict[word_index] = {'keep': True, 'replace_with': 'NUMBER'}
+            elif not word.endswith('END') and wordnet and upos[idx] == 'NOUN':
+                synsets = wn.synsets(word, pos=wn.NOUN)
+                if len(synsets) > 0:
+                    hypernyms = synsets[0].hypernyms()
+                    if len(hypernyms) > 0:
+                        lemmas = hypernyms[0].lemmas()
+                        if len(lemmas) > 0:
+                            lemma_key = lemmas[0].key()        
+                            parent_hypernym = lemma_key[:lemma_key.find('%')]
+                            index_to_keep_dict[word_index] = {'keep': True, 'replace_with': parent_hypernym}
+                            continue
+                index_to_keep_dict[word_index] = {'keep': True, 'replace_with': None}
             else:
                 index_to_keep_dict[word_index] = {'keep': True, 'replace_with': None}
-                
-            #print("text:",word.text)
-            #print("stopword, punct, num, brackets:", stop_word, punct, num, brackets)
-            #print("index_to_keep_dict:",index_to_keep_dict)
-                
-            #print("index_to_keep:",index_to_keep_dict)
-    
-        # generation of the new sentence based on the above findings
-        #sentence = sentence.split(" ")
-        return self.generate_new_sentence(sentence, index_to_keep_dict)
-    
-    def get_pos_tags(self, row):
-        if "tagged_sentence" in row:
-            sentence = row.tagged_sentence.split(" ")
-        else:
-            sentence = row.tokenized_sentence.split(" ")
-        #print("sentence:",sentence)
-        e1_indexes = row.metadata['e1']['word_index']
-        e2_indexes = row.metadata['e2']['word_index']
-        if not 'ESTART' in sentence and not 'EEND' in sentence:
-            sentence = self.get_new_sentence_with_entity_replacement(sentence, e1_indexes, e2_indexes)
-        
-        doc = self.nlp(sentence)
-        pos_tags = []
-        words = [word for sent in doc.sentences for word in sent.words]
-        for word in enumerate(words):
-            pos_tags.append(word.upos)
             
-        return " ".join(pos_tags)
+            if not word.endswith('START') and not word.endswith('END') and idx < len(upos) - 1:
+                idx += 1
+        # generation of the new sentence based on the above findings
+        new_sentence, new_upos, new_deps, new_ner = self.generate_new_sentence(sentence, upos, deps, ner, index_to_keep_dict)
+        #assert len(new_sentence.split()) == (len(new_upos.split()) + 4) == (len(new_deps.split()) + 4) == (len(new_ner.split()) + 4)
+        return pd.Series([new_sentence, new_upos, new_deps, new_ner])
 
     '''
     Preprocessing Type 3 part 1: NER
@@ -371,19 +486,25 @@ class Preprocess():
     def get_ner_replacement_dictionary(self, only_e1_index, only_e2_index, common_indexes, ner_dict):
         #print("only_e1_index:",only_e1_index)
         #print("only_e2_index:",only_e2_index)
+        print(ner_dict)
         def update_dict_with_entity(e_index, ner_repl_dict, entity_name):
             for indexes in e_index:
+                print("e_index:",e_index)
+                #key = str(idx) + ':' + str(idx)
+                #key_start = str(idx) + ':' + str(idx) + ':' + entity_name + 'START'
                 key1 = str(indexes[0]) + ':' + str(indexes[0])# + ':' + entity_name + 'START'
                 key1start = str(indexes[0]) + ':' + str(indexes[0]) + ':' + entity_name + 'START'
-                #print("key1:", key1)
-                ner_repl_dict[key1] = {'replace_by': ner_dict[key1], 'insert': None}#entity_name + 'START'}
+                ner_repl_dict[key1] = {'replace_by': ner_dict[key1], 'insert': None}
                 ner_repl_dict[key1start] = {'replace_by': None, 'insert': entity_name + 'START'}
-                #ner_repl_dict[key1] = {'replace_by': ner_dict[key1], 'insert': None}
-                key2end = str(int(indexes[-1]) + 1) + ':' + str(int(indexes[-1]) + 1) + ':' + entity_name + 'END'
+                
+                key2 = str(int(indexes[-1]) - 1) + ':' + str(int(indexes[-1]) - 1)
+                key2end = str(int(indexes[-1]) - 1) + ':' + str(int(indexes[-1]) - 1) + ':' + entity_name + 'END'
+                
+                ner_repl_dict[key2] = {'replace_by': ner_dict[key2], 'insert': None}
                 ner_repl_dict[key2end] = {'replace_by': None, 'insert': entity_name + 'END'}
-                if len(e_index) > 1:
-                    key2 = str(int(indexes[-1]) + 1) + ':' + str(int(indexes[-1]) + 1)# + entity_name + 'END'
-                    ner_repl_dict[key2] = {'replace_by': ner_dict[key2], 'insert': None}#entity_name + 'END'}
+                # if len(e_index) > 1:
+                #     key2 = str(int(indexes[-1]) + 1) + ':' + str(int(indexes[-1]) + 1)# + entity_name + 'END'
+                #     ner_repl_dict[key2] = {'replace_by': ner_dict[key2], 'insert': None}#entity_name + 'END'}
                 #ner_repl_dict[key2] = {'replace_by': ner_dict[key2], 'insert': None}
             return ner_repl_dict
         # we are going to do something different: only spans for NER will be counted, but
@@ -418,22 +539,22 @@ class Preprocess():
         return sorted_positions
 
     # given a splitted sentence - make sure that the sentence is in list form
-    def get_ner_dict(self, sentence, nlp):
+    def get_ner_dict(self, ner_sentence):
         #nlp = spacy.load(spacy_model_name)
         
-        tokenizedSentence = sentence # in this case lowercasing is not helpful
+        ner_tokenized = ner_sentence.split(" ")
         #doc = Doc(nlp.vocab, words=tokenizedSentence)
-        doc = nlp(tokenizedSentence)
+        #doc = nlp(tokenizedSentence)
         #nlp.tagger(doc)
         #nlp.parser(doc)
         #nlp.entity(doc) # run NER
         ner_dict = {} # first test for overlaps within ner
-        tokens = [token for sent in doc.sentences for token in sent.tokens]
+        #tokens = [token for sent in doc.sentences for token in sent.tokens]
         #for sent in doc.sentences:
         #    print(sent.tokens)
-        for token in tokens:
-            key = str(tokens.index(token)) + ':' + str(tokens.index(token))
-            ner_dict[key] = token.ner
+        for i, ner in enumerate(ner_tokenized):
+            key = str(i) + ':' + str(i)
+            ner_dict[key] = ner
         return ner_dict
 
     def convert_indexes_to_int(self, e_idx):
@@ -446,6 +567,9 @@ class Preprocess():
     def replace_ner(self, row, check_ner_overlap=False): # similar to concept_replace, with some caveats
         #print("sentence:",row.tokenized_sentence)
         sentence = row.tokenized_sentence.split()
+        # upos = row.upos_sentence.split()
+        # deps = row.deps_sentence.split()
+        # ner = row.ner_sentence.split()
         e1_indexes = row.metadata['e1']['word_index']
         e2_indexes = row.metadata['e2']['word_index']
         e1_indexes = self.convert_indexes_to_int(e1_indexes)
@@ -454,7 +578,9 @@ class Preprocess():
         only_e1_indexes, only_e2_indexes, common_indexes = \
         self.get_common_and_separate_entities(e1_indexes, e2_indexes)
         #print("e1_indexes, e2_indexes:",e1_indexes, e2_indexes)
-        ner_dict = self.get_ner_dict(sentence, self.nlp)
+        ner_dict = self.get_ner_dict(row.ner_sentence)
+        print(sentence)
+        print("ner_dict:",ner_dict)
         if check_ner_overlap and self.check_for_overlap(ner_dict):
             print("There is overlap", ner_dict) # only need to check this once
         #Below code works only if there isn't overlap within ner_dict, so make sure that there isn't overlap
@@ -485,7 +611,12 @@ class Preprocess():
         ner_repl_dict = self.get_ner_replacement_dictionary(only_e1_indexes, only_e2_indexes, common_indexes,
                                                     ner_dict)
         sorted_positions = self.ner_sort_position_keys(ner_repl_dict)
-        new_sentence = '' # this below part is buggy, shouldn't be too bad to fix
+        # print("sorted_positions:",sorted_positions)
+        # print("ner_repl_dict:",ner_repl_dict)
+        new_sentence = ''
+        new_upos = ''
+        new_deps = ''
+        new_ner = ''
         #print("ner_repl_dict:",ner_repl_dict)
         #print("sorted_positions:",sorted_positions)
         for i in range(len(sorted_positions)):
@@ -510,8 +641,13 @@ class Preprocess():
                 if i == len(sorted_positions) - 1 and curr_end_pos < len(sentence) - 1:
                     position = curr_end_pos + 1 if curr_dict['insert'] is None else curr_end_pos
                     new_sentence += ' ' + self.list_to_string(sentence[position:])
+                    
         new_sentence = self.remove_whitespace(new_sentence)
-        #print("new_sentence:",new_sentence)
+        # doc = self.nlp(new_sentence)
+        # words = [word for sent in doc.sentences for word in sent.words]
+        # upos = [word.upos for word in words]
+        # deps = [word.deprel for word in words]
+        # print(new_sentence, upos, deps)
         return new_sentence
 
     '''
@@ -536,7 +672,7 @@ class Preprocess():
         new_tokens = []
         entity_start_seen = 0
         entity_end_seen = 0
-        for x in tokens:
+        for i, x in enumerate(tokens):
             if x == entity_start:
                 entity_start_seen += 1
             if x == entity_end:
@@ -560,7 +696,8 @@ class Preprocess():
             if token.endswith('START') and len(token) > len('START'):
                 ending_token = token[:-5] + 'END'
                 #print("tokens_for_indexing1:",tokens_for_indexing)
-                e_idx, tokens_for_indexing = self.get_entity_start_and_end(token, ending_token, tokens_for_indexing)
+                e_idx, tokens_for_indexing = \
+                    self.get_entity_start_and_end(token, ending_token, tokens_for_indexing)
                 #print("tokens_for_indexing2:",tokens_for_indexing)
                 if token == self.entity1 + 'START' or token == self.entity_either + 'START':
                     e1_idx.append(e_idx)
@@ -582,36 +719,19 @@ class Preprocess():
     def update_metadata_sentence(self, row):
         tagged_sentence = row.tagged_sentence
         #print("tagged_sentence:",tagged_sentence.split())
-        e1_idx, e2_idx, tokens_for_indexing = self.get_entity_positions_and_replacement_sentence(tagged_sentence.split())
+        e1_idx, e2_idx, tokens_for_indexing = \
+            self.get_entity_positions_and_replacement_sentence(tagged_sentence.split())
+        #print(e1_idx, e2_idx, tokens_for_indexing)
         new_sentence = self.list_to_string(tokens_for_indexing)
         metadata = row.metadata
         metadata['e1']['word_index'] = e1_idx
         metadata['e2']['word_index'] = e2_idx
+        metadata['e1']['word'] = " ".join(tokens_for_indexing[e1_idx[0][0]: e1_idx[0][1]+1])
+        metadata['e2']['word'] = " ".join(tokens_for_indexing[e2_idx[0][0]: e2_idx[0][1]+1])
         metadata.pop('entity_replacement', None) # remove the entity replacement dictionary from metadata
         row.tokenized_sentence = new_sentence
         row.metadata = metadata
         return row
-
-    # give this preprocessing function a method to read the dataframe, and the location of the original 
-    # dataframe to read so that it can do the preprocessing
-    # whether to do type 1 vs type 2 of the preprocessing
-    # 1: replace with all concepts in the sentence, 2: replace the stop words, punctuations and digits
-    # 3: replace only punctuations and digits
-    # def preprocess(self, read_dataframe, df_directory, type_to_do=1):
-    #     tqdm.pandas()
-    #     df = read_dataframe(df_directory)
-    #     if type_to_do == 1:
-    #         df['tagged_sentence'] = df.apply(self.replace_with_concept, axis=1) # along the column axis
-    #     elif type_to_do == 2:
-    #         df['tagged_sentence'] = df.apply(self.replace_digit_punctuation_stop_word, args=(self.nlp,True,), axis=1)
-    #     elif type_to_do == 3:
-    #         df['tagged_sentence'] = df.apply(self.replace_digit_punctuation_stop_word, args=(self.nlp,False,), axis=1)
-    #     elif type_to_do == 4:
-    #         df['tagged_sentence'] = df.apply(self.replace_ner, args=(nlp, True), axis=1)
-    #     df = df.apply(self.update_metadata_sentence, axis=1)
-    #     df = df.rename({'tokenized_sentence': 'preprocessed_sentence'}, axis=1)
-    #     df = df.drop(['tagged_sentence'], axis=1)
-    #     return df
     
     # to streamline the reading of the dataframe
     def read_dataframe(self, directory):
@@ -625,9 +745,12 @@ class Preprocess():
         # but in order to be treated as a dictionary it needs to be evaluated
         return df
     
-    
+    # give this preprocessing function a method to read the dataframe, and the location of the original 
+    # dataframe to read so that it can do the preprocessing
+    # whether to do type 1 vs type 2 of the preprocessing
+    # 1: replace with all concepts in the sentence, 2: replace the stop words, punctuations and digits
+    # 3: replace only punctuations and digits
     def preprocess(self, df_directory):
-        
         tqdm.pandas()
         df = self.read_dataframe(df_directory)
         
@@ -645,13 +768,13 @@ class Preprocess():
         else:
             if self.preprocessing_types["ner_blinding"]:
                 print("NER blinding preprocessing:")
-                df['tagged_sentence'] = df.progress_apply(self.replace_ner, axis=1)
+                df[['tagged_sentence', 'upos_sentence', 'deps_sentence', 'ner_sentence']] = df.progress_apply(self.replace_with_concept, replacement_type='ner', axis=1)
                 
                 print("Updating metadata sentence:")
                 df = df.progress_apply(self.update_metadata_sentence, axis=1)
             elif self.preprocessing_types["entity_blinding"]:
                 print("Entity blinding preprocessing:")
-                df['tagged_sentence'] = df.progress_apply(self.replace_with_concept, axis=1) # along the column axis
+                df[['tagged_sentence', 'upos_sentence', 'deps_sentence', 'ner_sentence']] = df.progress_apply(self.replace_with_concept, replacement_type='entity', axis=1) # along the column axis
                 
                 print("Updating metadata sentence:")
                 df = df.progress_apply(self.update_metadata_sentence, axis=1)
@@ -659,18 +782,15 @@ class Preprocess():
             if self.preprocessing_types["digit"] or \
                 self.preprocessing_types["punct"] or \
                 self.preprocessing_types["stopword"] or \
-                self.preprocessing_types["brackets"]:
-                print("Digit, punctuaction, brackets or stopword preprocessing:")
-                df['tagged_sentence'] = df.progress_apply(self.replace_digit_punctuation_stop_word_brackets, axis=1)
+                self.preprocessing_types["brackets"] or \
+                self.preprocessing_types["wordnet"]:
+                    print("Digit, punctuaction, brackets, stopword or wordnet preprocessing:")
+                    df[['tagged_sentence', 'upos_sentence', 'deps_sentence', 'ner_sentence']] = \
+                        df.progress_apply(self.replace_digit_punctuation_stop_word_brackets_wordnet_syntatic, axis=1)
+                    #print(df)
                 
-                print("Updating metadata sentence:")
-                df = df.progress_apply(self.update_metadata_sentence, axis=1)
-            if self.preprocessing_types["syntatic_features"]:
-                print("Syntatic features preprocessing:")
-                df['pos_tags'] = df.progress_apply(self.get_pos_tags, axis=1)
-                
-                print("Updating metadata sentence:")
-                df = df.progress_apply(self.update_metadata_sentence, axis=1)
+                    print("Updating metadata sentence:")
+                    df = df.progress_apply(self.update_metadata_sentence, axis=1)
             
         df = df.rename({'tokenized_sentence': 'preprocessed_sentence'}, axis=1)
         df = df.drop(['tagged_sentence'], axis=1)
@@ -714,6 +834,9 @@ class Preprocess():
                 dict["token"] = tokenized_sentence
                 dict["h"] = head
                 dict["t"] = tail
+                dict["pos"] = row.upos_sentence.split(" ")
+                dict["deps"] = row.deps_sentence.split(" ")
+                dict["ner"] = row.ner_sentence.split(" ")
                 dict["relation"] = row.relation_type
                 outfile.write(str(dict)+"\n")
             outfile.close()
