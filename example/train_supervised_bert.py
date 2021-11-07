@@ -34,6 +34,8 @@ parser.add_argument('--metric', default='micro_f1', choices=['micro_f1', 'acc'],
         help='Metric for picking up best checkpoint')
 parser.add_argument('--dataset', default='none', choices=['none', 'semeval2010', 'semeval2018', 'semeval20181-1', 'semeval20181-2', 'ddi', 'wiki80', 'tacred'], 
         help='Dataset. If not none, the following args can be ignored')
+parser.add_argument('--preprocessing', default='original', choices=['original', 'wn'], 
+        help='Preprocessing types')
 parser.add_argument('--train_file', default='', type=str,
         help='Training data file')
 parser.add_argument('--val_file', default='', type=str,
@@ -73,9 +75,9 @@ ckpt = 'ckpt/{}.pth.tar'.format(args.ckpt)
 
 if args.dataset != 'none':
     #opennre.download(args.dataset, root_path=root_path)
-    args.train_file = os.path.join(root_path, 'benchmark', args.dataset, 'original', '{}_train_original.txt'.format(args.dataset))
-    args.val_file = os.path.join(root_path, 'benchmark', args.dataset, 'original', '{}_val_original.txt'.format(args.dataset))
-    args.test_file = os.path.join(root_path, 'benchmark', args.dataset, 'original', '{}_test_original.txt'.format(args.dataset))
+    args.train_file = os.path.join(root_path, 'benchmark', args.dataset, args.preprocessing, '{}_train_{}.txt'.format(args.dataset, args.preprocessing))
+    args.val_file = os.path.join(root_path, 'benchmark', args.dataset, args.preprocessing, '{}_val_{}.txt'.format(args.dataset, args.preprocessing))
+    args.test_file = os.path.join(root_path, 'benchmark', args.dataset, args.preprocessing, '{}_test_{}.txt'.format(args.dataset, args.preprocessing))
     if not os.path.exists(args.test_file):
         logging.warn("Test file {} does not exist! Use val file instead".format(args.test_file))
         args.test_file = args.val_file
@@ -90,19 +92,26 @@ else:
 
 logging.info('Arguments:')
 for arg in vars(args):
-    logging.info('    {}: {}'.format(arg, getattr(args, arg)))
+    logging.info('{}: {}'.format(arg, getattr(args, arg)))
 
 rel2id = json.load(open(args.rel2id_file))
+
+upos2id = json.load(open(os.path.join(root_path, 'pretrain/upos2id.json')))
+deps2id = json.load(open(os.path.join(root_path, 'pretrain/deps2id.json')))
 
 # Define the sentence encoder
 if args.pooler == 'entity':
     sentence_encoder = opennre.encoder.BERTEntityEncoder(
+        upos2id=upos2id,
+        deps2id=deps2id,
         max_length=args.max_length, 
         pretrain_path=args.pretrain_path,
         mask_entity=args.mask_entity,
     )
 elif args.pooler == 'cls':
     sentence_encoder = opennre.encoder.BERTEncoder(
+        upos2id=upos2id,
+        deps2id=deps2id,
         max_length=args.max_length, 
         pretrain_path=args.pretrain_path,
         mask_entity=args.mask_entity,
@@ -134,7 +143,7 @@ if not args.only_test:
 framework.load_state_dict(torch.load(ckpt)['state_dict'])
 result,ground_truth, pred = framework.eval_model(framework.test_loader)
 
-framework.test_set_results(ground_truth, pred, result, 'bert', 'scibert', '')
+framework.test_set_results(ground_truth, pred, result, 'bert', args.pretrain_path, '')
 
 # Print the result
 # logging.info('Test set results:')
