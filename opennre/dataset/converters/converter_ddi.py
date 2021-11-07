@@ -30,8 +30,13 @@ class ConverterDDI(ConverterDataset):
             return tokenized
         elif model == "stanza":
             doc = self.nlp(sentence)
-            tokenized = [token.text for sent in doc.sentences for token in sent.tokens]
-            return tokenized
+            tokenized = [token.text for sent in doc.sentences for token in sent.words]
+            upos = [token.upos for sent in doc.sentences for token in sent.words]
+            deps = [token.deprel for sent in doc.sentences for token in sent.words]
+            ner = [token.ner for sent in doc.sentences for token in sent.tokens]
+            
+            assert len(tokenized) == len(upos) and len(tokenized) == len(deps) and len(tokenized) == len(ner) 
+            return tokenized, upos, deps, ner
         
     # given sentence dom in DDI corpus, get all the information related to the entities 
     # present in the dom
@@ -117,15 +122,18 @@ class ConverterDDI(ConverterDataset):
         return [value for key, value in entity_dict.items() if key not in blacklisted_set]
 
     # get the start and end of the entities 
-    def get_entity_start_and_end(self, entity_start, entity_end, tokens):
+    def get_entity_start_and_end(self, entity_start, entity_end, tokens, upos, deps, ner):
         e_start = tokens.index(entity_start)
         e_end = tokens.index(entity_end) - 2 # because 2 tags will be eliminated
         # only eliminate the entity_start and entity_end once because DRUGUNRELATEDSTART will get
         # eliminated many times
         new_tokens = []
+        new_upos = []
+        new_deps = []
+        new_ner = []
         entity_start_seen = 0
         entity_end_seen = 0
-        for x in tokens:
+        for i, x in enumerate(tokens):
             if x == entity_start:
                 entity_start_seen += 1
             if x == entity_end:
@@ -135,28 +143,41 @@ class ConverterDDI(ConverterDataset):
             if x == entity_end and entity_end_seen == 1:
                 continue
             new_tokens.append(x)
-        return (e_start, e_end), new_tokens
+            new_upos.append(upos[i])
+            new_deps.append(deps[i])
+            new_ner.append(ner[i])
+        assert len(new_tokens) == len(new_upos) == len(new_deps) == len(new_ner)
+        return (e_start, e_end), new_tokens, new_upos, new_deps, new_ner
 
     # from the tokenized sentence which contains the drug tags, extract the word positions
     # and replacement dictionary for blinding purposes
-    def get_entity_positions_and_replacement_dictionary(self, tokens):
+    def get_entity_positions_and_replacement_dictionary(self, tokens, upos, deps, ner):
         entity_replacement = {}
         e1_idx = []
         e2_idx = []
 
         tokens_for_indexing = tokens
+        upos_for_indexing = upos
+        deps_for_indexing = deps
+        ner_for_indexing = ner
         for token in tokens:
             if token.startswith('DRUG') and token.endswith('START'):
                 ending_token = token[:-5] + 'END'
-                e_idx, tokens_for_indexing = self.get_entity_start_and_end(token, ending_token, tokens_for_indexing)
+                e_idx, tokens_for_indexing, upos_for_indexing, deps_for_indexing, ner_for_indexing = \
+                    self.get_entity_start_and_end(token, ending_token, tokens_for_indexing, upos_for_indexing, deps_for_indexing, ner_for_indexing)
 
-                replace_by = token[:-5]
+                ner = None
+                for i in range(e_idx[-1], e_idx[0], -1):
+                    if ner_for_indexing[i] != 'O':
+                        ner = ner_for_indexing[i]
+                        
+                replace_by = {'entity': token[:-5], 'ner': (ner if ner is not None else 'O')}
                 entity_replacement = self.get_entity_replacement_dictionary(e_idx, entity_replacement, replace_by)
                 if token == 'DRUGSTART' or token == 'DRUGEITHERSTART':
                     e1_idx.append(e_idx)
                 if token == 'DRUGOTHERSTART' or token == 'DRUGEITHERSTART':
                     e2_idx.append(e_idx)
-        return e1_idx, e2_idx, entity_replacement, tokens_for_indexing
+        return e1_idx, e2_idx, entity_replacement, tokens_for_indexing, upos_for_indexing, deps_for_indexing, ner_for_indexing
 
     # TODO: need to edit this 
     def get_dataset_dataframe(self, directory=None, relation_extraction=True):
@@ -194,29 +215,36 @@ class ConverterDDI(ConverterDataset):
                 e2_data = entity_dict[e2_id]
                 
                 tagged_sentence = self.tag_sentence(sentence_text, e1_data, e2_data, other_entities)
-                tokens = self.tokenize(tagged_sentence, model="stanza")
+                tokens, upos, deps, ner = self.tokenize(tagged_sentence, model="stanza")
 
-                e1_idx, e2_idx, entity_replacement, tokens_for_indexing = \
-                        self.get_entity_positions_and_replacement_dictionary(tokens)
+                e1_idx, e2_idx, entity_replacement, tokens_for_indexing, upos_for_indexing, deps_for_indexing, ner_for_indexing = \
+                        self.get_entity_positions_and_replacement_dictionary(tokens, upos, deps, ner)
+                        
+                assert len(tokens_for_indexing) == len(upos_for_indexing) \
+                        and len(tokens_for_indexing) == len(deps_for_indexing) \
+                        and len(tokens_for_indexing) == len(ner_for_indexing)
                 # TODO (geeticka): for unifying purposes, can remove the e1_id and e2_id
                 metadata = {'e1': {'word': e1_data['word'], 'word_index': e1_idx, 'id': e1_id},
                             'e2': {'word': e2_data['word'], 'word_index': e2_idx, 'id': e2_id},
                             'entity_replacement': entity_replacement,
                             'sentence_id': sentence_id}
                 tokenized_sentence = " ".join(tokens_for_indexing)
+                new_upos = " ".join(upos_for_indexing)
+                new_deps = " ".join(deps_for_indexing)
+                new_ner = " ".join(ner_for_indexing)
 
                 if relation_extraction is True and ddi_flag == 'false':
                     relation_type = 'none'
                     data.append([sentence_text, e1_data['word'], e2_data['word'],
-                        relation_type, metadata, tokenized_sentence])
+                        relation_type, metadata, tokenized_sentence, new_upos, new_deps, new_ner])
                 if ddi_flag == 'true':
                     relation_type = pair.getAttribute('type')
                     if not not relation_type: # not of empty string is True, but we don't want to append
-                        data.append([str(sentence_text), str(e1_data['word']), str(e2_data['word']),
-                            str(relation_type), metadata, str(tokenized_sentence)])
+                        data.append([str(sentence_text).lower(), str(e1_data['word']), str(e2_data['word']),
+                            str(relation_type), metadata, str(tokenized_sentence).lower(), new_upos, new_deps, new_ner])
 
         df = pd.DataFrame(data,
-                columns='original_sentence,e1,e2,relation_type,metadata,tokenized_sentence'.split(','))
+                columns='original_sentence,e1,e2,relation_type,metadata,tokenized_sentence,upos_sentence,deps_sentence,ner_sentence'.split(','))
         return df
     
     # The goal here is to make sure that the df that is written into memory is the same one that is read
@@ -271,6 +299,9 @@ class ConverterDDI(ConverterDataset):
                 dict["token"] = tokenized_sentence
                 dict["h"] = head
                 dict["t"] = tail
+                dict["pos"] = row.upos_sentence.split(" ")
+                dict["deps"] = row.deps_sentence.split(" ")
+                dict["ner"] = row.ner_sentence.split(" ")
                 dict["relation"] = row.relation_type
                 outfile.write(str(dict)+"\n")
             outfile.close()
@@ -296,7 +327,7 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
     
-    stanza.download('en', package='craft', processors={'ner': 'bionlp13cg'})
+    #stanza.download('en', package='craft', processors={'ner': 'bionlp13cg'})
     nlp = stanza.Pipeline('en', package="craft", processors={"ner": "bionlp13cg"}, tokenize_no_ssplit=True)
     
     converter = ConverterDDI(nlp)
