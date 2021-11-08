@@ -17,8 +17,9 @@ class Optimizer():
         self.data = json.load(open(CONFIG_FILE_PATH))
         if not os.path.exists(BEST_HPARAMS_FILE_PATH):
             dict = {
-                "value": "",
-                "batch_size": 64,
+                "{}".format(self.metric): 0,
+                "batch_size": 16,
+                "preprocessing": "original",
                 "lr": 1e-5,
                 "max_length": 128,
                 "max_epoch": 3,
@@ -29,7 +30,7 @@ class Optimizer():
                 f.write(json_object)
         self.best_hparams = {}
         with open(BEST_HPARAMS_FILE_PATH.format(dataset), 'r') as f:
-            self.best_hparams = json.load(open(f))
+            self.best_hparams = json.load(f)
         
         self.study_model = optuna.create_study()
         self.study_params = optuna.create_study()
@@ -212,7 +213,7 @@ if __name__ == "__main__":
         print("hof_model:",hof_model)
         
         new_value = abs(opt.study_model.best_value)
-        json_value = best_hparams["value"]
+        json_value = float(best_hparams["{}".format(opt.metric)]) if best_hparams["{}".format(opt.metric)] else 0
         
         if new_value > json_value:
             synt_embeddings = opt.synt_embeddings[hof_model["synt_embeddings"]]
@@ -225,7 +226,7 @@ if __name__ == "__main__":
             best_hparams["batch_size"] = batch_size
             best_hparams["lr"] = lr
             best_hparams["max_length"] = max_length
-            best_hparams["value"] = abs(opt.study_model.best_value)
+            best_hparams["{}".format(opt.metric)] = abs(opt.study_model.best_value)
             json_object = json.dumps(best_hparams, indent=4)
             
             with open(BEST_HPARAMS_FILE_PATH.format(args.dataset), 'w') as out_f:
@@ -237,17 +238,18 @@ if __name__ == "__main__":
         preprocessing = opt.preprocessing[hof_preprocessing["preprocessing"]]
         
         new_value = abs(opt.study_model.best_value)
-        json_value = best_hparams["value"]
+        json_value = float(best_hparams["{}".format(opt.metric)]) if best_hparams["{}".format(opt.metric)] else 0
         
         if new_value > json_value:
             best_hparams["preprocessing"] = preprocessing
-            best_hparams["value"] = new_value
+            best_hparams["{}".format(opt.metric)] = new_value
             json_object = json.dumps(best_hparams, indent=4)
             
             with open(BEST_HPARAMS_FILE_PATH.format(args.dataset), 'w') as out_f:
                 out_f.write(json_object)
         
     model = 'bert'
+    preprocessing = best_hparams["preprocessing"]
     synt_embeddings = best_hparams["synt_embeddings"]
     embedding = 'deepset/sentence_bert' if opt.dataset == 'semeval2010' else 'allenai/scibert_scivocab_uncased'
     max_epoch = best_hparams["max_epoch"]
