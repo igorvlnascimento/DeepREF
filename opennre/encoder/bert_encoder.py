@@ -114,7 +114,7 @@ class BERTEntityEncoder(nn.Module):
         self.mask_entity = mask_entity
         logging.info('Loading {} pre-trained checkpoint.'.format(pretrain_path.upper()))
         self.bert = AutoModel.from_pretrained(pretrain_path)
-        self.tokenizer = AutoTokenizer.from_pretrained(pretrain_path)
+        self.tokenizer = AutoTokenizer.from_pretrained(pretrain_path, return_dict=False)
         self.linear = nn.Linear(self.hidden_size, self.hidden_size)
 
     def forward(self, token, att_mask, pos1, pos2, pos_tags, deps):
