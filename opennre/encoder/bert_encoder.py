@@ -16,7 +16,7 @@ class BERTEncoder(nn.Module):
         self.hidden_size = 768
         self.mask_entity = mask_entity
         logging.info('Loading {} pre-trained checkpoint.'.format(pretrain_path.upper()))
-        self.bert = AutoModel.from_pretrained(pretrain_path)
+        self.bert = AutoModel.from_pretrained(pretrain_path, return_dict=False)
         self.tokenizer = AutoTokenizer.from_pretrained(pretrain_path)
 
     def forward(self, token, att_mask):

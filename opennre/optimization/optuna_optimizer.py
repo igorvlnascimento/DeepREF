@@ -176,25 +176,25 @@ class Optimizer():
         return -(train.train())
 
     def optimize_model(self):
-        self.study_model.optimize(self.evaluate_model, n_trials=1)
+        self.study_model.optimize(self.evaluate_model, n_trials=50)
     
         params = self.study_model.best_params
         
         return params
     
     def optimize_preprocessing(self):
-        self.study_model.optimize(self.evaluate_preprocessing, n_trials=1)
+        self.study_model.optimize(self.evaluate_preprocessing, n_trials=50)
     
         params = self.study_model.best_params
         
         return params
         
-    def optimize_hyperparameters(self):
-        self.study_params.optimize(self.evaluate_hyperparameters, n_trials=50)
+    # def optimize_hyperparameters(self):
+    #     self.study_params.optimize(self.evaluate_hyperparameters, n_trials=50)
     
-        params = self.study_params.best_params
+    #     params = self.study_params.best_params
         
-        return params
+    #     return params
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
