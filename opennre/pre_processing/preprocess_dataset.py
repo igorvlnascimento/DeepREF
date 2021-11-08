@@ -34,7 +34,8 @@ class PreprocessDataset():
             "ner_blinding": False, 
             "reverse_sentences": False, 
             "semantic_features": False,
-            "syntatic_features": False
+            "syntatic_features": False,
+            "wordnet": False
         }
         
         if self.preprocessing_types is not None:
@@ -57,6 +58,8 @@ class PreprocessDataset():
                 preprocessing_types["syntatic_features"] = True
             if "sf" in self.preprocessing_types:
                 preprocessing_types["semantic_features"] = True
+            if "wn" in self.preprocessing_types:
+                preprocessing_types["wordnet"] = True
     
         preprocess = Preprocess(self.dataset_name, preprocessing_types, self.nlp)
 
@@ -69,10 +72,10 @@ class PreprocessDataset():
                 cmd = ['bash', 'benchmark/download_{}.sh'.format(self.dataset_name)]
                 proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
                 _, _ = proc.communicate()
-            #if not os.path.exists(self.out(original_df_name + '_{}.txt'.format(self.preprocessing_types_str))):
-            print("preprocessing_types_str:",self.preprocessing_types_str)
-            original_ds = preprocess.preprocess(os.path.join('benchmark', self.dataset_name, 'original', original_df_name + '_original.csv'))
-            preprocess.write_into_txt(original_ds, self.out(original_df_name + '_{}.txt'.format(self.preprocessing_types_str)))
+            if not os.path.exists(self.out(original_df_name + '_{}.txt'.format(self.preprocessing_types_str))):
+                print("preprocessing_types_str:",self.preprocessing_types_str)
+                original_ds = preprocess.preprocess(os.path.join('benchmark', self.dataset_name, 'original', original_df_name + '_original.csv'))
+                preprocess.write_into_txt(original_ds, self.out(original_df_name + '_{}.txt'.format(self.preprocessing_types_str)))
             
         for original_df_name in original_dataframe_names:
             print(self.output_file_length(os.path.join('benchmark', self.dataset_name, 'original', '{}_original.txt'.format(original_df_name))))
@@ -87,7 +90,7 @@ if __name__ == '__main__':
     
     args = parser.parse_args()
     
-    preprocessing = ["sw", "d", "b", "p", "eb","nb"]    
+    preprocessing = ["sw", "d", "b", "p", "eb","nb", "wn"]    
     combinations = []
     for i in range(len(preprocessing)):
         combinations.extend(itertools.combinations(preprocessing, i))
@@ -104,7 +107,7 @@ if __name__ == '__main__':
     
     if args.dataset_name == "semeval2010":
         stanza.download('en')
-        nlp = stanza.Pipeline(lang='en', processors="tokenize,ner,pos", tokenize_no_ssplit=True)
+        nlp = stanza.Pipeline(lang='en', processors="tokenize,ner,pos,depparse,lemma", tokenize_no_ssplit=True)
     else:
         stanza.download('en', package='craft', processors={'ner': 'bionlp13cg'})
         nlp = stanza.Pipeline('en', package="craft", processors={"ner": "bionlp13cg"}, tokenize_no_ssplit=True)
