@@ -63,7 +63,8 @@ class Optimizer():
         
         model = 'bert',#individual.suggest_categorical("model", self.data["model"])
         #preprocessing =  individual.suggest_int("preprocessing", 0, len(self.preprocessing)-1)
-        synt_embeddings = individual.suggest_int("synt_embeddings", 0, len(self.synt_embeddings)-1)
+        #synt_embeddings = individual.suggest_int("synt_embeddings", 0, len(self.synt_embeddings)-1)
+        synt_embeddings = self.best_hparams["synt_embeddings"]
         pretrain_bert = 'deepset/sentence_bert' if self.dataset == 'semeval2010' else 'allenai/scibert_scivocab_uncased'#individual.suggest_categorical("pretrain_bert", self.data["pretrain_bert"])
         
         #batch_size_bert =  individual.suggest_int("batch_size_bert", 32, 128, log=True)
@@ -80,7 +81,7 @@ class Optimizer():
             "metric": self.metric,
             "preprocessing": [],#self.preprocessing[preprocessing],
             "embedding": pretrain_bert,# if model == "bert" else embedding,
-            "synt_embeddings": self.synt_embeddings[synt_embeddings],
+            "synt_embeddings": synt_embeddings,
             "pooler": None,
             "opt": None,
             "batch_size": batch_size,#_bert if model == "bert" else batch_size,
@@ -105,7 +106,7 @@ class Optimizer():
         preprocessing =  individual.suggest_int("preprocessing", 0, len(self.preprocessing)-1)
         model = 'bert',#self.study_model.best_params["model"]
         pretrain_bert = 'deepset/sentence_bert' if self.dataset == 'semeval2010' else 'allenai/scibert_scivocab_uncased'#individual.suggest_categorical("pretrain_bert", self.data["pretrain_bert"])
-        synt_embeddings = self.best_hparams["synt_embeddings"]
+        synt_embeddings = individual.suggest_int("synt_embeddings", 0, len(self.synt_embeddings)-1)
 
         batch_size =  self.best_hparams["batch_size"]
         lr =  self.best_hparams["lr"]
@@ -118,7 +119,7 @@ class Optimizer():
             "metric": self.metric,
             "preprocessing": self.preprocessing[preprocessing],
             "embedding": pretrain_bert,
-            "synt_embeddings": synt_embeddings,
+            "synt_embeddings": self.synt_embeddings[synt_embeddings],
             "batch_size": batch_size,#batch_size_bert if model == 'bert' else batch_size,
             "lr": lr,
             "weight_decay": None,#weight_decay,
@@ -216,12 +217,11 @@ if __name__ == "__main__":
         json_value = float(best_hparams["{}".format(opt.metric)]) if best_hparams["{}".format(opt.metric)] else 0
         
         if new_value > json_value:
-            synt_embeddings = opt.synt_embeddings[hof_model["synt_embeddings"]]
             max_epoch = hof_model["max_epoch"]
             batch_size = hof_model["batch_size"]
             lr, max_length = hof_model["lr"], hof_model["max_length"]
             
-            best_hparams["synt_embeddings"] = synt_embeddings
+            #best_hparams["synt_embeddings"] = synt_embeddings
             best_hparams["max_epoch"] = max_epoch
             best_hparams["batch_size"] = batch_size
             best_hparams["lr"] = lr
@@ -234,7 +234,8 @@ if __name__ == "__main__":
     elif args.optimizer_type == 'preprocessing':
         hof_preprocessing = opt.optimize_preprocessing()
         print("hof_preprocessing:",hof_preprocessing)
-            
+        
+        synt_embeddings = opt.synt_embeddings[hof_preprocessing["synt_embeddings"]]            
         preprocessing = opt.preprocessing[hof_preprocessing["preprocessing"]]
         
         new_value = abs(opt.study_model.best_value)
@@ -242,6 +243,7 @@ if __name__ == "__main__":
         
         if new_value > json_value:
             best_hparams["preprocessing"] = preprocessing
+            best_hparams["synt_embeddings"] = synt_embeddings
             best_hparams["{}".format(opt.metric)] = new_value
             json_object = json.dumps(best_hparams, indent=4)
             
