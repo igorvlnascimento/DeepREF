@@ -19,7 +19,7 @@ class Training():
                 
                 self.dataset = "semeval2010" if parameters["dataset"] is None else parameters["dataset"]
                 self.preprocessing = None if len(parameters["preprocessing"]) == 0 else parameters["preprocessing"]
-                self.model = "cnn" if parameters["model"] is None else parameters["model"]
+                self.model = "cnn" if parameters["model"] is None else parameters["model"][0]
                 self.metric = "micro_f1" if parameters["metric"] is None else parameters["metric"]
                 self.max_length = 128 if parameters["max_length"] is None else parameters["max_length"]
                 self.pooler = "entity" if parameters["pooler"] is None else parameters["pooler"]
@@ -31,6 +31,7 @@ class Training():
                 
                 if self.model == "bert":
                         self.embedding = "bert-base-uncased" if parameters["embedding"] is None else parameters["embedding"]
+                        self.synt_embeddings = [0,0] if parameters["synt_embeddings"] is None else parameters["synt_embeddings"]
                         self.batch_size = 16 if parameters["batch_size"] is None else parameters["batch_size"]
                         self.lr = 2e-5 if parameters["lr"] is None else parameters["lr"]
                         self.max_epoch = 3 if parameters["max_epoch"] is None else parameters["max_epoch"]
@@ -112,8 +113,12 @@ class Training():
                 print("embedding:",self.embedding)
                 #opennre.download(self.embedding, root_path=root_path)
                 if self.model != 'bert':
+                        print(self.model)
                         word2id, word2vec = WordEmbeddingLoader(self.embedding).load_embedding()
                         word_dim = word2vec.shape[1]
+                        
+                upos2id = json.load(open(os.path.join(root_path, 'pretrain/upos2id.json')))
+                deps2id = json.load(open(os.path.join(root_path, 'pretrain/deps2id.json')))
 
                 # Define the sentence encoder
                 if self.model == "cnn":
@@ -231,9 +236,13 @@ class Training():
                 elif self.model == "bert":
                         if self.pooler == 'entity':
                                 sentence_encoder = opennre.encoder.BERTEntityEncoder(
+                                        upos2id=upos2id,
+                                        deps2id=deps2id,
                                         max_length=self.max_length, 
                                         pretrain_path=self.embedding,
-                                        mask_entity=self.mask_entity
+                                        mask_entity=self.mask_entity,
+                                        pos_tags_embedding=self.synt_embeddings[0],
+                                        deps_embedding=self.synt_embeddings[1]
                                 )
                         elif self.pooler == 'cls':
                                 sentence_encoder = opennre.encoder.BERTEncoder(
