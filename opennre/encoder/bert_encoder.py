@@ -3,7 +3,9 @@ import torch
 import torch.nn as nn
 from ..utils.semantic_knowledge import SemanticKNWL
 from transformers import AutoTokenizer, AutoModel
+
 import nltk
+nltk.download('wordnet')
 
 class BERTEncoder(nn.Module):
     def __init__(self, max_length, pretrain_path, blank_padding=True, mask_entity=False, sbert=None):
@@ -105,7 +107,6 @@ class BERTEntityEncoder(nn.Module):
             pretrain_path: path of pretrain model
         """
         super().__init__()
-        nltk.download('wordnet')
         self.upos2id = upos2id
         self.deps2id = deps2id
         self.max_length = max_length
@@ -116,7 +117,7 @@ class BERTEntityEncoder(nn.Module):
         self.hidden_size = 768 * hidden_times
         self.mask_entity = mask_entity
         logging.info('Loading {} pre-trained checkpoint.'.format(pretrain_path.upper()))
-        self.bert = AutoModel.from_pretrained(pretrain_path)
+        self.bert = AutoModel.from_pretrained(pretrain_path, return_dict=False)
         self.tokenizer = AutoTokenizer.from_pretrained(pretrain_path)
         self.linear = nn.Linear(self.hidden_size, self.hidden_size)
 
