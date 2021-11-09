@@ -113,7 +113,7 @@ class BERTEntityEncoder(nn.Module):
         self.blank_padding = blank_padding
         self.pos_tags_embedding = pos_tags_embedding
         self.deps_embedding = deps_embedding
-        hidden_times = (self.pos_tags_embedding + self.deps_embedding + 1) * 2
+        hidden_times = (self.pos_tags_embedding + self.deps_embedding + 2) * 2
         self.hidden_size = 768 * hidden_times
         self.mask_entity = mask_entity
         logging.info('Loading {} pre-trained checkpoint.'.format(pretrain_path.upper()))
