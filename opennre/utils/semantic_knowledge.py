@@ -8,6 +8,7 @@ from nltk.corpus import wordnet
 class SemanticKNWL:
     def __init__(self):
         self.vocabulary = []
+        nltk.download('wordnet')
 
     def extract(self, entities):
         ent_dict = []

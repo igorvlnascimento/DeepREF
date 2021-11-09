@@ -238,7 +238,7 @@ if __name__ == "__main__":
             with open(BEST_HPARAMS_FILE_PATH.format(args.dataset), 'w') as out_f:
                 out_f.write(json_object)
     elif args.optimizer_type == 'preprocessing':
-        type, new_value = opt.optimize_preprocessing()
+        type, new_value = opt.evaluate_preprocessing()
         #print("hof_preprocessing:",preprocessing)
         
         #synt_embeddings = opt.synt_embeddings[hof_preprocessing["synt_embeddings"]]            
