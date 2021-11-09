@@ -100,7 +100,7 @@ class Optimizer():
         
         return -(train.train())
         
-    def evaluate_preprocessing(self, individual):
+    def evaluate_preprocessing(self):
     
         model = 'bert',#self.study_model.best_params["model"]
         pretrain_bert = 'deepset/sentence_bert' if self.dataset == 'semeval2010' else 'allenai/scibert_scivocab_uncased'#individual.suggest_categorical("pretrain_bert", self.data["pretrain_bert"])
