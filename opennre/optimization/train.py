@@ -63,9 +63,9 @@ class Training():
 
                 root_path = '.'
                 sys.path.append(root_path)
-                # if not os.path.exists('ckpt'):
-                #         os.mkdir('ckpt')
-                # if len(args.ckpt) == 0:
+                if not os.path.exists('ckpt'):
+                        os.mkdir('ckpt')
+                #if len(args.ckpt) == 0:
                 ckpt = '{}_{}'.format(self.dataset, self.model)
                 self.ckpt = 'ckpt/{}.pth.tar'.format(ckpt)
                 
