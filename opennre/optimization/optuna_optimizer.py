@@ -19,7 +19,7 @@ class Optimizer():
             dict = {
                 "{}".format(self.metric): 0,
                 "batch_size": 16,
-                "preprocessing": "original",
+                "preprocessing": 0,
                 "lr": 1e-5,
                 "max_length": 128,
                 "max_epoch": 3
