@@ -299,7 +299,7 @@ class Training():
                                 return 0
                         
                 # Test
-                framework.load_state_dict(torch.load(self.ckpt)['state_dict'])
+                #framework.load_state_dict(torch.load(self.ckpt)['state_dict'])
                 result, pred, ground_truth = framework.eval_model(framework.test_loader)
                 
                 #framework.get_confusion_matrix(ground_truth, pred, self.model, self.embedding)
