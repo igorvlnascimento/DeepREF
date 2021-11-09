@@ -64,7 +64,7 @@ class Optimizer():
         preprocessing =  self.best_hparams["preprocessing"]
         #synt_embeddings = individual.suggest_int("synt_embeddings", 0, len(self.synt_embeddings)-1)
         #synt_embeddings = self.best_hparams["synt_embeddings"]
-        pretrain_bert = 'deepset/sentence_bert' if self.dataset == 'semeval2010' else 'allenai/scibert_scivocab_uncased'#individual.suggest_categorical("pretrain_bert", self.data["pretrain_bert"])
+        pretrain_bert = 'bert-base-uncased' if self.dataset == 'semeval2010' else 'allenai/scibert_scivocab_uncased'#individual.suggest_categorical("pretrain_bert", self.data["pretrain_bert"])
         
         #batch_size_bert =  individual.suggest_int("batch_size_bert", 32, 128, log=True)
         batch_size =  individual.suggest_int("batch_size", 32, 128, log=True)
@@ -103,7 +103,7 @@ class Optimizer():
     def evaluate_preprocessing(self):
     
         model = 'bert',#self.study_model.best_params["model"]
-        pretrain_bert = 'deepset/sentence_bert' if self.dataset == 'semeval2010' else 'allenai/scibert_scivocab_uncased'#individual.suggest_categorical("pretrain_bert", self.data["pretrain_bert"])
+        pretrain_bert = 'bert-base-uncased' if self.dataset == 'semeval2010' else 'allenai/scibert_scivocab_uncased'#individual.suggest_categorical("pretrain_bert", self.data["pretrain_bert"])
         #synt_embeddings = individual.suggest_int("synt_embeddings", 0, len(self.synt_embeddings)-1)
 
         batch_size =  self.best_hparams["batch_size"]
@@ -148,7 +148,7 @@ class Optimizer():
         #preprocessing = self.preprocessing[self.study.best_params["preprocessing"]]
         model = 'bert',#self.study_model.best_params["model"]
         #embedding = self.study_model.best_params["pretrain_bert"] if model == 'bert' else self.study_model.best_params["embedding"]
-        pretrain_bert = 'deepset/sentence_bert' if self.dataset == 'semeval2010' else 'allenai/scibert_scivocab_uncased'#individual.suggest_categorical("pretrain_bert", self.data["pretrain_bert"])
+        pretrain_bert = 'bert-base-uncased' if self.dataset == 'semeval2010' else 'allenai/scibert_scivocab_uncased'#individual.suggest_categorical("pretrain_bert", self.data["pretrain_bert"])
         
         #preprocessing =  individual.suggest_int("preprocessing", 0, len(self.preprocessing)-1)
         #batch_size_bert =  individual.suggest_int("batch_size_bert", 32, 128, log=True)
@@ -259,7 +259,7 @@ if __name__ == "__main__":
     model = 'bert'
     preprocessing = best_hparams["preprocessing"]
     #synt_embeddings = best_hparams["synt_embeddings"]
-    embedding = 'deepset/sentence_bert' if opt.dataset == 'semeval2010' else 'allenai/scibert_scivocab_uncased'
+    embedding = 'bert-base-uncased' if opt.dataset == 'semeval2010' else 'allenai/scibert_scivocab_uncased'
     max_epoch = best_hparams["max_epoch"]
     batch_size = best_hparams["batch_size"]
     lr, max_length = best_hparams["lr"], best_hparams["max_length"]

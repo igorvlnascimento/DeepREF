@@ -3,6 +3,7 @@ import torch
 import torch.nn as nn
 from ..utils.semantic_knowledge import SemanticKNWL
 from transformers import AutoTokenizer, AutoModel
+import nltk
 
 class BERTEncoder(nn.Module):
     def __init__(self, max_length, pretrain_path, blank_padding=True, mask_entity=False, sbert=None):
@@ -104,6 +105,7 @@ class BERTEntityEncoder(nn.Module):
             pretrain_path: path of pretrain model
         """
         super().__init__()
+        nltk.download('wordnet')
         self.upos2id = upos2id
         self.deps2id = deps2id
         self.max_length = max_length
@@ -114,7 +116,7 @@ class BERTEntityEncoder(nn.Module):
         self.hidden_size = 768 * hidden_times
         self.mask_entity = mask_entity
         logging.info('Loading {} pre-trained checkpoint.'.format(pretrain_path.upper()))
-        self.bert = AutoModel.from_pretrained(pretrain_path, return_dict=False)
+        self.bert = AutoModel.from_pretrained(pretrain_path)
         self.tokenizer = AutoTokenizer.from_pretrained(pretrain_path)
         self.linear = nn.Linear(self.hidden_size, self.hidden_size)
 
@@ -142,22 +144,22 @@ class BERTEntityEncoder(nn.Module):
         tail_hidden = (onehot_tail.unsqueeze(2) * hidden).sum(1)  # (B, H)
         
         #SK1
-        #onehot_head_sk1 = torch.zeros(hidden_sk1.size()[:2]).float().to(hidden_sk1.device)  # (B, L)
-        #onehot_tail_sk2 = torch.zeros(hidden_sk1.size()[:2]).float().to(hidden_sk1.device)  # (B, L)
+        onehot_head_sk1 = torch.zeros(hidden_sk1.size()[:2]).float().to(hidden_sk1.device)  # (B, L)
+        onehot_tail_sk2 = torch.zeros(hidden_sk1.size()[:2]).float().to(hidden_sk1.device)  # (B, L)
         # onehot_head_sk1 = onehot_head_sk1.scatter_(1, pos1, 1)
         # onehot_tail_sk2 = onehot_tail_sk2.scatter_(1, pos2, 1)
         
-        #head_hidden_sk1 = (onehot_head_sk1.unsqueeze(2) * hidden_sk1).sum(1)  # (B, H)
-        #tail_hidden_sk1 = (onehot_tail_sk2.unsqueeze(2) * hidden_sk1).sum(1)  # (B, H)
+        head_hidden_sk1 = (onehot_head_sk1.unsqueeze(2) * hidden_sk1).sum(1)  # (B, H)
+        tail_hidden_sk1 = (onehot_tail_sk2.unsqueeze(2) * hidden_sk1).sum(1)  # (B, H)
         
         #SK2
-        #onehot_head_sk2 = torch.zeros(hidden_sk2.size()[:2]).float().to(hidden_sk2.device)  # (B, L)
-        #onehot_tail_sk2 = torch.zeros(hidden_sk2.size()[:2]).float().to(hidden_sk2.device)  # (B, L)
+        onehot_head_sk2 = torch.zeros(hidden_sk2.size()[:2]).float().to(hidden_sk2.device)  # (B, L)
+        onehot_tail_sk2 = torch.zeros(hidden_sk2.size()[:2]).float().to(hidden_sk2.device)  # (B, L)
         # onehot_head_sk2 = onehot_head_sk2.scatter_(1, pos1, 1)
         # onehot_tail_sk2 = onehot_tail_sk2.scatter_(1, pos2, 1)
         
-        #head_hidden_sk2 = (onehot_head_sk2.unsqueeze(2) * hidden_sk2).sum(1)  # (B, H)
-        #tail_hidden_sk2 = (onehot_tail_sk2.unsqueeze(2) * hidden_sk2).sum(1)  # (B, H)
+        head_hidden_sk2 = (onehot_head_sk2.unsqueeze(2) * hidden_sk2).sum(1)  # (B, H)
+        tail_hidden_sk2 = (onehot_tail_sk2.unsqueeze(2) * hidden_sk2).sum(1)  # (B, H)
         
         if self.pos_tags_embedding:
             hidden_pos, _ = self.bert(pos_tags, attention_mask=att_mask)
@@ -181,8 +183,11 @@ class BERTEntityEncoder(nn.Module):
             deps_head_hidden = (onehot_head_deps.unsqueeze(2) * hidden_deps).sum(1)  # (B, H)
             deps_tail_hidden = (onehot_tail_deps.unsqueeze(2) * hidden_deps).sum(1)  # (B, H)
             
-        concat_list = [head_hidden, tail_hidden] + ([pos_head_hidden, pos_tail_hidden] if self.pos_tags_embedding else []) \
-            + ([deps_head_hidden, deps_tail_hidden] if self.deps_embedding else [])
+        concat_list = [head_hidden, tail_hidden] \
+                + [head_hidden_sk1, tail_hidden_sk1] \
+                + [head_hidden_sk2, tail_hidden_sk2] \
+                + ([pos_head_hidden, pos_tail_hidden] if self.pos_tags_embedding else []) \
+                + ([deps_head_hidden, deps_tail_hidden] if self.deps_embedding else [])
             
         
         x = torch.cat(concat_list, 1)  # (B, XH)

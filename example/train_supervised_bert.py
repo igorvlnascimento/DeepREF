@@ -18,7 +18,7 @@ def set_seed(seed):
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--pretrain_path', default="deepset/sentence_bert", 
+parser.add_argument('--pretrain_path', default="bert-base-uncased", 
         help='Pre-trained ckpt path / model name (hugginface)')
 parser.add_argument('--ckpt', default='', 
         help='Checkpoint name')
@@ -104,8 +104,8 @@ if args.pooler == 'entity':
     sentence_encoder = opennre.encoder.BERTEntityEncoder(
         upos2id=upos2id,
         deps2id=deps2id,
-        pos_tags_embedding=True,
-        deps_embedding=True,
+         pos_tags_embedding=True,
+        # deps_embedding=True,
         max_length=args.max_length, 
         pretrain_path=args.pretrain_path,
         mask_entity=args.mask_entity,
