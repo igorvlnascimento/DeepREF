@@ -36,7 +36,7 @@ class Optimizer():
     
         self.final_combinations = []
         
-        #self.preprocessing = self.data["preprocessing"]
+        self.preprocessing = self.data["preprocessing"]
         self.preprocessing = self.combine_preprocessing(self.preprocessing)
         
         #self.synt_embeddings = [[0,0], [0,1], [1,0], [1,1]]
