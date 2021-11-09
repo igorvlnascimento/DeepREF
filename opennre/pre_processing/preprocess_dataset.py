@@ -58,8 +58,8 @@ class PreprocessDataset():
                 preprocessing_types["syntatic_features"] = True
             if "sf" in self.preprocessing_types:
                 preprocessing_types["semantic_features"] = True
-            if "wn" in self.preprocessing_types:
-                preprocessing_types["wordnet"] = True
+            # if "wn" in self.preprocessing_types:
+            #     preprocessing_types["wordnet"] = True
     
         preprocess = Preprocess(self.dataset_name, preprocessing_types, self.nlp)
 
@@ -90,7 +90,7 @@ if __name__ == '__main__':
     
     args = parser.parse_args()
     
-    preprocessing = ["sw", "d", "b", "p", "eb","nb", "wn"]    
+    preprocessing = ["sw", "d", "b", "p", "eb","nb"]    
     combinations = []
     for i in range(len(preprocessing)):
         combinations.extend(itertools.combinations(preprocessing, i))

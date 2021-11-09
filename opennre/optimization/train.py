@@ -31,7 +31,7 @@ class Training():
                 
                 if self.model == "bert":
                         self.embedding = "bert-base-uncased" if parameters["embedding"] is None else parameters["embedding"]
-                        self.synt_embeddings = [0,0] if parameters["synt_embeddings"] is None else parameters["synt_embeddings"]
+                        #self.synt_embeddings = [0,0] if parameters["synt_embeddings"] is None else parameters["synt_embeddings"]
                         self.batch_size = 16 if parameters["batch_size"] is None else parameters["batch_size"]
                         self.lr = 2e-5 if parameters["lr"] is None else parameters["lr"]
                         self.max_epoch = 3 if parameters["max_epoch"] is None else parameters["max_epoch"]
@@ -241,8 +241,8 @@ class Training():
                                         max_length=self.max_length, 
                                         pretrain_path=self.embedding,
                                         mask_entity=self.mask_entity,
-                                        pos_tags_embedding=self.synt_embeddings[0],
-                                        deps_embedding=self.synt_embeddings[1]
+                                        pos_tags_embedding=True,
+                                        #deps_embedding=self.synt_embeddings[1]
                                 )
                         elif self.pooler == 'cls':
                                 sentence_encoder = opennre.encoder.BERTEncoder(

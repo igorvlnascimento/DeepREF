@@ -322,7 +322,7 @@ class Preprocess():
         
         return sentence
     
-    def replace_digit_punctuation_stop_word_brackets_wordnet_syntatic(self, row):
+    def replace_digit_punctuation_stop_word_brackets(self, row):
         if "tagged_sentence" in row:
             sentence = row.tagged_sentence.split(" ")
         else:
@@ -330,11 +330,11 @@ class Preprocess():
         upos = row.upos_sentence.split(" ")
         deps = row.deps_sentence.split(" ")
         ner = row.ner_sentence.split(" ")
-        print("sentence:",sentence)
-        print("sentence:",len(sentence))
-        print("upos:",len(upos))
-        print("upos:",upos)
-        print("deps:",len(deps))
+        # print("sentence:",sentence)
+        # print("sentence:",len(sentence))
+        # print("upos:",len(upos))
+        # print("upos:",upos)
+        # print("deps:",len(deps))
         #assert len(deps) == len(sentence) and len(deps) == len(upos)
         e1_indexes = row.metadata['e1']['word_index']
         e2_indexes = row.metadata['e2']['word_index']
@@ -386,18 +386,6 @@ class Preprocess():
                 index_to_keep_dict[word_index] = {'keep': False, 'replace_with': None}
             elif num:
                 index_to_keep_dict[word_index] = {'keep': True, 'replace_with': 'NUMBER'}
-            elif not word.endswith('END') and wordnet and upos[idx] == 'NOUN':
-                synsets = wn.synsets(word, pos=wn.NOUN)
-                if len(synsets) > 0:
-                    hypernyms = synsets[0].hypernyms()
-                    if len(hypernyms) > 0:
-                        lemmas = hypernyms[0].lemmas()
-                        if len(lemmas) > 0:
-                            lemma_key = lemmas[0].key()        
-                            parent_hypernym = lemma_key[:lemma_key.find('%')]
-                            index_to_keep_dict[word_index] = {'keep': True, 'replace_with': parent_hypernym}
-                            continue
-                index_to_keep_dict[word_index] = {'keep': True, 'replace_with': None}
             else:
                 index_to_keep_dict[word_index] = {'keep': True, 'replace_with': None}
             
@@ -405,7 +393,6 @@ class Preprocess():
                 idx += 1
         # generation of the new sentence based on the above findings
         new_sentence, new_upos, new_deps, new_ner = self.generate_new_sentence(sentence, upos, deps, ner, index_to_keep_dict)
-        #assert len(new_sentence.split()) == (len(new_upos.split()) + 4) == (len(new_deps.split()) + 4) == (len(new_ner.split()) + 4)
         return pd.Series([new_sentence, new_upos, new_deps, new_ner])
 
     '''
@@ -782,11 +769,10 @@ class Preprocess():
             if self.preprocessing_types["digit"] or \
                 self.preprocessing_types["punct"] or \
                 self.preprocessing_types["stopword"] or \
-                self.preprocessing_types["brackets"] or \
-                self.preprocessing_types["wordnet"]:
+                self.preprocessing_types["brackets"]:
                     print("Digit, punctuaction, brackets, stopword or wordnet preprocessing:")
                     df[['tagged_sentence', 'upos_sentence', 'deps_sentence', 'ner_sentence']] = \
-                        df.progress_apply(self.replace_digit_punctuation_stop_word_brackets_wordnet_syntatic, axis=1)
+                        df.progress_apply(self.replace_digit_punctuation_stop_word_brackets, axis=1)
                     #print(df)
                 
                     print("Updating metadata sentence:")
