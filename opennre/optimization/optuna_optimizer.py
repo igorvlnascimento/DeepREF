@@ -15,10 +15,10 @@ class Optimizer():
         self.dataset = dataset
         self.metric = metric
         self.data = json.load(open(CONFIG_FILE_PATH))
-        if not os.path.exists(BEST_HPARAMS_FILE_PATH):
+        if not os.path.exists(BEST_HPARAMS_FILE_PATH.format(dataset)):
             dict = {
                 "{}".format(self.metric): 0,
-                "batch_size": 16,
+                "batch_size": 64,
                 "preprocessing": 0,
                 "lr": 1e-5,
                 "max_length": 128,
@@ -139,9 +139,9 @@ class Optimizer():
             new_value = train.train()
             
             if new_value > preprocessing_value:
-                preproceeing_type, preprocessing_value = i, new_value 
+                preprocessing_type, preprocessing_value = i, new_value 
             
-        return preproceeing_type, preprocessing_value
+        return preprocessing_type, preprocessing_value
     
     def evaluate_hyperparameters(self, individual):
         
@@ -256,17 +256,17 @@ if __name__ == "__main__":
             with open(BEST_HPARAMS_FILE_PATH.format(args.dataset), 'w') as out_f:
                 out_f.write(json_object)
         
-    model = 'bert'
-    preprocessing = best_hparams["preprocessing"]
-    #synt_embeddings = best_hparams["synt_embeddings"]
-    embedding = 'bert-base-uncased' if opt.dataset == 'semeval2010' else 'allenai/scibert_scivocab_uncased'
-    max_epoch = best_hparams["max_epoch"]
-    batch_size = best_hparams["batch_size"]
-    lr, max_length = best_hparams["lr"], best_hparams["max_length"]
+    # model = 'bert'
+    # preprocessing = best_hparams["preprocessing"]
+    # #synt_embeddings = best_hparams["synt_embeddings"]
+    # embedding = 'bert-base-uncased' if opt.dataset == 'semeval2010' else 'allenai/scibert_scivocab_uncased'
+    # max_epoch = best_hparams["max_epoch"]
+    # batch_size = best_hparams["batch_size"]
+    # lr, max_length = best_hparams["lr"], best_hparams["max_length"]
     
-    print("Optimized parameters for dataset {}:".format(args.dataset))
-    print("Preprocessing - {}; Model - {}; Embedding - {}".format(preprocessing, model, embedding))
-    print("Batch size - {};".format(batch_size))
-    print("Learning rate - {}; Max Length - {}; Max epoch - {}.".format(lr, max_length, max_epoch))
-    print("Best {}:".format(opt.metric, abs(opt.study_model.best_value)))
+    # print("Optimized parameters for dataset {}:".format(args.dataset))
+    # print("Preprocessing - {}; Model - {}; Embedding - {}".format(preprocessing, model, embedding))
+    # print("Batch size - {};".format(batch_size))
+    # print("Learning rate - {}; Max Length - {}; Max epoch - {}.".format(lr, max_length, max_epoch))
+    # print("Best {}:".format(opt.metric, abs(opt.study_model.best_value)))
     
