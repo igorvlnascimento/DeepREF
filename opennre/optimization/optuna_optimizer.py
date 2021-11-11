@@ -18,7 +18,7 @@ class Optimizer():
         if not os.path.exists(BEST_HPARAMS_FILE_PATH.format(dataset)):
             dict = {
                 "{}".format(self.metric): 0,
-                "batch_size": 64,
+                "batch_size": 8,
                 "preprocessing": 0,
                 "lr": 1e-5,
                 "max_length": 128,
@@ -67,7 +67,7 @@ class Optimizer():
         pretrain_bert = 'bert-base-uncased' if self.dataset == 'semeval2010' else 'allenai/scibert_scivocab_uncased'#individual.suggest_categorical("pretrain_bert", self.data["pretrain_bert"])
         
         #batch_size_bert =  individual.suggest_int("batch_size_bert", 32, 128, log=True)
-        batch_size =  individual.suggest_int("batch_size", 32, 128, log=True)
+        batch_size =  individual.suggest_int("batch_size", 2, 64, log=True)
         lr =  individual.suggest_float("lr", 1e-6, 1e-1, log=True)
         #weight_decay =  individual.suggest_float("weight_decay", 1e-6, 1e-1, log=True)
         max_length =  individual.suggest_int("max_length", 32, 256, log=True)
