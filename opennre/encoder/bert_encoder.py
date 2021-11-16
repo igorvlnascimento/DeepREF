@@ -118,7 +118,7 @@ class BERTEntityEncoder(nn.Module):
         self.hidden_size = 768 * hidden_times
         self.mask_entity = mask_entity
         logging.info('Loading {} pre-trained checkpoint.'.format(pretrain_path.upper()))
-        self.bert = AutoModel.from_pretrained(pretrain_path)
+        self.bert = AutoModel.from_pretrained(pretrain_path, return_dict=False)
         self.tokenizer = AutoTokenizer.from_pretrained(pretrain_path)
         self.linear = nn.Linear(self.hidden_size, self.hidden_size)
 
