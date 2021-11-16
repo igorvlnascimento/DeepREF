@@ -114,7 +114,7 @@ class BERTEntityEncoder(nn.Module):
         self.sk_embedding = sk_embedding
         self.pos_tags_embedding = pos_tags_embedding
         self.deps_embedding = deps_embedding
-        hidden_times = (self.pos_tags_embedding + self.deps_embedding + 3) * 2
+        hidden_times = (self.pos_tags_embedding + self.deps_embedding + (self.sk_embedding * 2) + 1) * 2
         self.hidden_size = 768 * hidden_times
         self.mask_entity = mask_entity
         logging.info('Loading {} pre-trained checkpoint.'.format(pretrain_path.upper()))
@@ -146,6 +146,8 @@ class BERTEntityEncoder(nn.Module):
         head_hidden = (onehot_head.unsqueeze(2) * hidden).sum(1)  # (B, H)
         tail_hidden = (onehot_tail.unsqueeze(2) * hidden).sum(1)  # (B, H)
         
+        concat_list = [head_hidden, tail_hidden]
+        
         if self.sk_embedding:
             #SK1
             onehot_head_sk1 = torch.zeros(hidden_sk1.size()[:2]).float().to(hidden_sk1.device)  # (B, L)
@@ -164,6 +166,8 @@ class BERTEntityEncoder(nn.Module):
             
             head_hidden_sk2 = (onehot_head_sk2.unsqueeze(2) * hidden_sk2).sum(1)  # (B, H)
             tail_hidden_sk2 = (onehot_tail_sk2.unsqueeze(2) * hidden_sk2).sum(1)  # (B, H)
+            
+            concat_list.extend([head_hidden_sk1, tail_hidden_sk1, head_hidden_sk2, tail_hidden_sk2])
         
         if self.pos_tags_embedding:
             hidden_pos, _ = self.bert(pos_tags, attention_mask=att_mask)
@@ -176,6 +180,8 @@ class BERTEntityEncoder(nn.Module):
             pos_head_hidden = (onehot_head_pos.unsqueeze(2) * hidden_pos).sum(1)  # (B, H)
             pos_tail_hidden = (onehot_tail_pos.unsqueeze(2) * hidden_pos).sum(1)  # (B, H)
             
+            concat_list.extend([pos_head_hidden, pos_tail_hidden])
+            
         # if self.deps_embedding:
         #     hidden_deps, _ = self.bert(deps, attention_mask=att_mask)
             
@@ -186,14 +192,6 @@ class BERTEntityEncoder(nn.Module):
         
         #     deps_head_hidden = (onehot_head_deps.unsqueeze(2) * hidden_deps).sum(1)  # (B, H)
         #     deps_tail_hidden = (onehot_tail_deps.unsqueeze(2) * hidden_deps).sum(1)  # (B, H)
-            
-        concat_list = [head_hidden, tail_hidden] \
-            + [head_hidden_sk1, tail_hidden_sk1] \
-            + [head_hidden_sk2, tail_hidden_sk2] \
-            + ([pos_head_hidden, pos_tail_hidden] if self.pos_tags_embedding else []) \
-                 #+ ([pos_head_hidden, pos_tail_hidden] if self.pos_tags_embedding else []) \
-                # + ([deps_head_hidden, deps_tail_hidden] if self.deps_embedding else [])
-            
         
         x = torch.cat(concat_list, 1)  # (B, XH)
         x = self.linear(x)
