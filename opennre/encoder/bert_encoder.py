@@ -100,7 +100,7 @@ class BERTEncoder(nn.Module):
 
 
 class BERTEntityEncoder(nn.Module):
-    def __init__(self, upos2id, deps2id, max_length, pretrain_path, blank_padding=True, mask_entity=False, pos_tags_embedding=False, deps_embedding=False):
+    def __init__(self, upos2id, deps2id, max_length, pretrain_path, blank_padding=True, mask_entity=False, sk_embedding=False, pos_tags_embedding=False, deps_embedding=False):
         """
         Args:
             max_length: max length of sentence
@@ -111,17 +111,18 @@ class BERTEntityEncoder(nn.Module):
         self.deps2id = deps2id
         self.max_length = max_length
         self.blank_padding = blank_padding
+        self.sk_embedding = sk_embedding
         self.pos_tags_embedding = pos_tags_embedding
         self.deps_embedding = deps_embedding
         hidden_times = (self.pos_tags_embedding + self.deps_embedding + 3) * 2
         self.hidden_size = 768 * hidden_times
         self.mask_entity = mask_entity
         logging.info('Loading {} pre-trained checkpoint.'.format(pretrain_path.upper()))
-        self.bert = AutoModel.from_pretrained(pretrain_path, return_dict=False)
+        self.bert = AutoModel.from_pretrained(pretrain_path)
         self.tokenizer = AutoTokenizer.from_pretrained(pretrain_path)
         self.linear = nn.Linear(self.hidden_size, self.hidden_size)
 
-    def forward(self, token, att_mask, pos1, pos2, sk1, sk2, pos_tags, deps):
+    def forward(self, token, att_mask, pos1, pos2, pos_tags, sk1, sk2):
         """
         Args:
             token: (B, L), index of tokens
@@ -132,8 +133,9 @@ class BERTEntityEncoder(nn.Module):
             (B, 2H), representations for sentences
         """
         hidden, _ = self.bert(token, attention_mask=att_mask)
-        hidden_sk1, _ = self.bert(sk1, attention_mask=att_mask)
-        hidden_sk2, _ = self.bert(sk2, attention_mask=att_mask)
+        if self.sk_embedding:
+            hidden_sk1, _ = self.bert(sk1, attention_mask=att_mask)
+            hidden_sk2, _ = self.bert(sk2, attention_mask=att_mask)
         
         # Get entity start hidden state
         onehot_head = torch.zeros(hidden.size()[:2]).float().to(hidden.device)  # (B, L)
@@ -144,23 +146,24 @@ class BERTEntityEncoder(nn.Module):
         head_hidden = (onehot_head.unsqueeze(2) * hidden).sum(1)  # (B, H)
         tail_hidden = (onehot_tail.unsqueeze(2) * hidden).sum(1)  # (B, H)
         
-        #SK1
-        onehot_head_sk1 = torch.zeros(hidden_sk1.size()[:2]).float().to(hidden_sk1.device)  # (B, L)
-        onehot_tail_sk2 = torch.zeros(hidden_sk1.size()[:2]).float().to(hidden_sk1.device)  # (B, L)
-        # onehot_head_sk1 = onehot_head_sk1.scatter_(1, pos1, 1)
-        # onehot_tail_sk2 = onehot_tail_sk2.scatter_(1, pos2, 1)
-        
-        head_hidden_sk1 = (onehot_head_sk1.unsqueeze(2) * hidden_sk1).sum(1)  # (B, H)
-        tail_hidden_sk1 = (onehot_tail_sk2.unsqueeze(2) * hidden_sk1).sum(1)  # (B, H)
-        
-        #SK2
-        onehot_head_sk2 = torch.zeros(hidden_sk2.size()[:2]).float().to(hidden_sk2.device)  # (B, L)
-        onehot_tail_sk2 = torch.zeros(hidden_sk2.size()[:2]).float().to(hidden_sk2.device)  # (B, L)
-        # onehot_head_sk2 = onehot_head_sk2.scatter_(1, pos1, 1)
-        # onehot_tail_sk2 = onehot_tail_sk2.scatter_(1, pos2, 1)
-        
-        head_hidden_sk2 = (onehot_head_sk2.unsqueeze(2) * hidden_sk2).sum(1)  # (B, H)
-        tail_hidden_sk2 = (onehot_tail_sk2.unsqueeze(2) * hidden_sk2).sum(1)  # (B, H)
+        if self.sk_embedding:
+            #SK1
+            onehot_head_sk1 = torch.zeros(hidden_sk1.size()[:2]).float().to(hidden_sk1.device)  # (B, L)
+            onehot_tail_sk2 = torch.zeros(hidden_sk1.size()[:2]).float().to(hidden_sk1.device)  # (B, L)
+            # # onehot_head_sk1 = onehot_head_sk1.scatter_(1, pos1, 1)
+            # # onehot_tail_sk2 = onehot_tail_sk2.scatter_(1, pos2, 1)
+            
+            head_hidden_sk1 = (onehot_head_sk1.unsqueeze(2) * hidden_sk1).sum(1)  # (B, H)
+            tail_hidden_sk1 = (onehot_tail_sk2.unsqueeze(2) * hidden_sk1).sum(1)  # (B, H)
+            
+            # #SK2
+            onehot_head_sk2 = torch.zeros(hidden_sk2.size()[:2]).float().to(hidden_sk2.device)  # (B, L)
+            onehot_tail_sk2 = torch.zeros(hidden_sk2.size()[:2]).float().to(hidden_sk2.device)  # (B, L)
+            # # onehot_head_sk2 = onehot_head_sk2.scatter_(1, pos1, 1)
+            # # onehot_tail_sk2 = onehot_tail_sk2.scatter_(1, pos2, 1)
+            
+            head_hidden_sk2 = (onehot_head_sk2.unsqueeze(2) * hidden_sk2).sum(1)  # (B, H)
+            tail_hidden_sk2 = (onehot_tail_sk2.unsqueeze(2) * hidden_sk2).sum(1)  # (B, H)
         
         if self.pos_tags_embedding:
             hidden_pos, _ = self.bert(pos_tags, attention_mask=att_mask)
@@ -173,22 +176,23 @@ class BERTEntityEncoder(nn.Module):
             pos_head_hidden = (onehot_head_pos.unsqueeze(2) * hidden_pos).sum(1)  # (B, H)
             pos_tail_hidden = (onehot_tail_pos.unsqueeze(2) * hidden_pos).sum(1)  # (B, H)
             
-        if self.deps_embedding:
-            hidden_deps, _ = self.bert(deps, attention_mask=att_mask)
+        # if self.deps_embedding:
+        #     hidden_deps, _ = self.bert(deps, attention_mask=att_mask)
             
-            onehot_head_deps = torch.zeros(hidden_deps.size()[:2]).float().to(hidden_deps.device)  # (B, L)
-            onehot_tail_deps = torch.zeros(hidden_deps.size()[:2]).float().to(hidden_deps.device)  # (B, L)
-            onehot_head_deps = onehot_head_deps.scatter_(1, pos1, 1)
-            onehot_tail_deps = onehot_tail_deps.scatter_(1, pos2, 1) 
+        #     onehot_head_deps = torch.zeros(hidden_deps.size()[:2]).float().to(hidden_deps.device)  # (B, L)
+        #     onehot_tail_deps = torch.zeros(hidden_deps.size()[:2]).float().to(hidden_deps.device)  # (B, L)
+        #     onehot_head_deps = onehot_head_deps.scatter_(1, pos1, 1)
+        #     onehot_tail_deps = onehot_tail_deps.scatter_(1, pos2, 1) 
         
-            deps_head_hidden = (onehot_head_deps.unsqueeze(2) * hidden_deps).sum(1)  # (B, H)
-            deps_tail_hidden = (onehot_tail_deps.unsqueeze(2) * hidden_deps).sum(1)  # (B, H)
+        #     deps_head_hidden = (onehot_head_deps.unsqueeze(2) * hidden_deps).sum(1)  # (B, H)
+        #     deps_tail_hidden = (onehot_tail_deps.unsqueeze(2) * hidden_deps).sum(1)  # (B, H)
             
         concat_list = [head_hidden, tail_hidden] \
-                + [head_hidden_sk1, tail_hidden_sk1] \
-                + [head_hidden_sk2, tail_hidden_sk2] \
-                + ([pos_head_hidden, pos_tail_hidden] if self.pos_tags_embedding else []) \
-                + ([deps_head_hidden, deps_tail_hidden] if self.deps_embedding else [])
+            + [head_hidden_sk1, tail_hidden_sk1] \
+            + [head_hidden_sk2, tail_hidden_sk2] \
+            + ([pos_head_hidden, pos_tail_hidden] if self.pos_tags_embedding else []) \
+                 #+ ([pos_head_hidden, pos_tail_hidden] if self.pos_tags_embedding else []) \
+                # + ([deps_head_hidden, deps_tail_hidden] if self.deps_embedding else [])
             
         
         x = torch.cat(concat_list, 1)  # (B, XH)
@@ -267,8 +271,8 @@ class BERTEntityEncoder(nn.Module):
         for pos in pos_tags:
             indexed_pos.append(self.upos2id[pos])
             
-        for dep in deps:
-            indexed_deps.append(self.deps2id[dep])
+        # for dep in deps:
+        #     indexed_deps.append(self.deps2id[dep])
 
         # Position
         pos1 = torch.tensor([[pos1]]).long()
@@ -284,21 +288,21 @@ class BERTEntityEncoder(nn.Module):
                 indexed_tokens_sk2.append(0)  # 0 is id for [PAD]
             while len(indexed_pos) < self.max_length and self.pos_tags_embedding:
                 indexed_pos.append(0)  # 0 is id for [PAD]
-            while len(indexed_deps) < self.max_length and self.deps_embedding:
-                indexed_deps.append(0)  # 0 is id for [PAD]
+            # while len(indexed_deps) < self.max_length and self.deps_embedding:
+            #     indexed_deps.append(0)  # 0 is id for [PAD]
             indexed_tokens = indexed_tokens[:self.max_length]
             indexed_tokens_sk1 = indexed_tokens[:self.max_length]
             indexed_tokens_sk2 = indexed_tokens[:self.max_length]
             indexed_pos = indexed_pos[:self.max_length]
-            indexed_deps = indexed_deps[:self.max_length]
+            # indexed_deps = indexed_deps[:self.max_length]
         indexed_tokens = torch.tensor(indexed_tokens).long().unsqueeze(0)  # (1, L)
         indexed_tokens_sk1 = torch.tensor(indexed_tokens_sk1).long().unsqueeze(0)  # (1, L)
         indexed_tokens_sk2 = torch.tensor(indexed_tokens_sk2).long().unsqueeze(0)  # (1, L)
         indexed_pos = torch.tensor(indexed_pos).long().unsqueeze(0)  # (1, L)
-        indexed_deps = torch.tensor(indexed_deps).long().unsqueeze(0)  # (1, L)
+        # indexed_deps = torch.tensor(indexed_deps).long().unsqueeze(0)  # (1, L)
 
         # Attention mask
         att_mask = torch.zeros(indexed_tokens.size()).long()  # (1, L)
         att_mask[0, :avai_len] = 1
 
-        return indexed_tokens, att_mask, pos1, pos2, indexed_tokens_sk1, indexed_tokens_sk2, indexed_pos, indexed_deps
+        return indexed_tokens, att_mask, pos1, pos2, indexed_pos, indexed_tokens_sk1, indexed_tokens_sk2#, indexed_tokens_sk1, indexed_tokens_sk2, indexed_pos, indexed_deps
