@@ -242,6 +242,7 @@ class Training():
                                         pretrain_path=self.embedding,
                                         mask_entity=self.mask_entity,
                                         pos_tags_embedding=True,
+                                        sk_embedding=True,
                                         #deps_embedding=self.synt_embeddings[1]
                                 )
                         elif self.pooler == 'cls':
