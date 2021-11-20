@@ -270,8 +270,9 @@ class BERTEntityEncoder(nn.Module):
         indexed_pos = []
         indexed_deps = []
         
-        for pos in pos_tags:
-            indexed_pos.append(self.upos2id[pos])
+        if self.pos_tags_embedding:
+            for pos in pos_tags:
+                indexed_pos.append(self.upos2id[pos])
             
         # for dep in deps:
         #     indexed_deps.append(self.deps2id[dep])
