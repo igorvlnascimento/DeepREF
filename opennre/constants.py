@@ -28,5 +28,4 @@ CLASSES_SEM_EVAL_2018 = ['usage', 'result', 'model-feature', 'part_whole', 'topi
 CLASSES_DDI = ['advise',
             'effect',
             'mechanism',
-            'int',
-            'none']
+            'int']

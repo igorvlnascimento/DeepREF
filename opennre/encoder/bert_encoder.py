@@ -133,9 +133,6 @@ class BERTEntityEncoder(nn.Module):
             (B, 2H), representations for sentences
         """
         hidden, _ = self.bert(token, attention_mask=att_mask)
-        if self.sk_embedding:
-            hidden_sk1, _ = self.bert(sk1, attention_mask=att_mask)
-            hidden_sk2, _ = self.bert(sk2, attention_mask=att_mask)
         
         # Get entity start hidden state
         onehot_head = torch.zeros(hidden.size()[:2]).float().to(hidden.device)  # (B, L)
@@ -149,6 +146,8 @@ class BERTEntityEncoder(nn.Module):
         concat_list = [head_hidden, tail_hidden]
         
         if self.sk_embedding:
+            hidden_sk1, _ = self.bert(sk1, attention_mask=att_mask)
+            hidden_sk2, _ = self.bert(sk2, attention_mask=att_mask)
             #SK1
             onehot_head_sk1 = torch.zeros(hidden_sk1.size()[:2]).float().to(hidden_sk1.device)  # (B, L)
             onehot_tail_sk2 = torch.zeros(hidden_sk1.size()[:2]).float().to(hidden_sk1.device)  # (B, L)
@@ -214,8 +213,10 @@ class BERTEntityEncoder(nn.Module):
         pos_head = item['h']['pos']
         pos_tail = item['t']['pos']
         
-        pos_tags = item['pos'] if self.pos_tags_embedding else []
-        deps = item['deps'] if self.deps_embedding else []
+        if self.pos_tags_embedding:
+            pos_tags = item['pos'] if self.pos_tags_embedding else []
+        if self.deps_embedding:
+            deps = item['deps'] if self.deps_embedding else []
 
         pos_min = pos_head
         pos_max = pos_tail
@@ -256,10 +257,13 @@ class BERTEntityEncoder(nn.Module):
         indexed_tokens = self.tokenizer.convert_tokens_to_ids(re_tokens)
         avai_len = len(indexed_tokens)
         
-        sk_ents = SemanticKNWL().extract([sentence[pos_head[0]:pos_head[1]][-1], sentence[pos_tail[0]:pos_tail[1]][-1]])
+        indexed_tokens_sk1 = []
+        indexed_tokens_sk2 = []
+        if self.sk_embedding:
+            sk_ents = SemanticKNWL().extract([sentence[pos_head[0]:pos_head[1]][-1], sentence[pos_tail[0]:pos_tail[1]][-1]])
         
-        indexed_tokens_sk1 = self.tokenizer.convert_tokens_to_ids(['#'] + sk_ents["ses1"])
-        indexed_tokens_sk2 = self.tokenizer.convert_tokens_to_ids(['#'] + sk_ents["ses2"])
+            indexed_tokens_sk1 = self.tokenizer.convert_tokens_to_ids(['#'] + sk_ents["ses1"])
+            indexed_tokens_sk2 = self.tokenizer.convert_tokens_to_ids(['#'] + sk_ents["ses2"])
         
         #indexed_tokens += indexed_tokens_sk1 + indexed_tokens_sk2
         
@@ -280,17 +284,17 @@ class BERTEntityEncoder(nn.Module):
         if self.blank_padding:
             while len(indexed_tokens) < self.max_length:
                 indexed_tokens.append(0)  # 0 is id for [PAD]
-            while len(indexed_tokens_sk1) < self.max_length:
+            while len(indexed_tokens_sk1) < self.max_length and self.sk_embedding:
                 indexed_tokens_sk1.append(0)  # 0 is id for [PAD]
-            while len(indexed_tokens_sk2) < self.max_length:
+            while len(indexed_tokens_sk2) < self.max_length and self.sk_embedding:
                 indexed_tokens_sk2.append(0)  # 0 is id for [PAD]
             while len(indexed_pos) < self.max_length and self.pos_tags_embedding:
                 indexed_pos.append(0)  # 0 is id for [PAD]
             # while len(indexed_deps) < self.max_length and self.deps_embedding:
             #     indexed_deps.append(0)  # 0 is id for [PAD]
             indexed_tokens = indexed_tokens[:self.max_length]
-            indexed_tokens_sk1 = indexed_tokens[:self.max_length]
-            indexed_tokens_sk2 = indexed_tokens[:self.max_length]
+            indexed_tokens_sk1 = indexed_tokens_sk1[:self.max_length]
+            indexed_tokens_sk2 = indexed_tokens_sk2[:self.max_length]
             indexed_pos = indexed_pos[:self.max_length]
             # indexed_deps = indexed_deps[:self.max_length]
         indexed_tokens = torch.tensor(indexed_tokens).long().unsqueeze(0)  # (1, L)

@@ -10,7 +10,7 @@ from tqdm import tqdm
 
 from opennre.dataset.converters.converter import ConverterDataset
 
-relation_dict = {0: 'advise', 1: 'effect', 2: 'mechanism', 3: 'int', 4: 'none'}
+relation_dict = {0: 'advise', 1: 'effect', 2: 'mechanism', 3: 'int'}
 rev_relation_dict = {val: key for key, val in relation_dict.items()}
 
 class ConverterDDI(ConverterDataset):
@@ -180,7 +180,7 @@ class ConverterDDI(ConverterDataset):
         return e1_idx, e2_idx, entity_replacement, tokens_for_indexing, upos_for_indexing, deps_for_indexing, ner_for_indexing
 
     # TODO: need to edit this 
-    def get_dataset_dataframe(self, directory=None, relation_extraction=True):
+    def get_dataset_dataframe(self, directory=None, relation_extraction=False):
         '''
         If relation_extraction is True, then we don't care whether the ddi flag is true or false
         '''

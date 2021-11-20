@@ -241,7 +241,7 @@ class Training():
                                         max_length=self.max_length, 
                                         pretrain_path=self.embedding,
                                         mask_entity=self.mask_entity,
-                                        pos_tags_embedding=True,
+                                        #pos_tags_embedding=True,
                                         sk_embedding=True,
                                         #deps_embedding=self.synt_embeddings[1]
                                 )
