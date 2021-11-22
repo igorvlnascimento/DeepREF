@@ -104,21 +104,14 @@ if __name__ == '__main__':
             combinations[j] = list(comb)
     
     final_combinations = [comb for n, comb in enumerate(combinations) if comb not in combinations[:n]]
-    
-    if args.dataset_name == "semeval2010":
-        stanza.download('en')
-        nlp = stanza.Pipeline(lang='en', processors="tokenize,ner,pos,depparse,lemma", tokenize_no_ssplit=True)
-    else:
-        stanza.download('en', package='craft', processors={'ner': 'bionlp13cg'})
-        nlp = stanza.Pipeline('en', package="craft", processors={"ner": "bionlp13cg"}, tokenize_no_ssplit=True)
         
     if args.preprocessing_types is not None:
-        preprocess_dataset = PreprocessDataset(args.dataset_name, args.preprocessing_types, nlp)
+        preprocess_dataset = PreprocessDataset(args.dataset_name, args.preprocessing_types)
         preprocess_dataset.preprocess_dataset()
     else:
         for comb in final_combinations:
             print("comb:",comb)
-            preprocess_dataset = PreprocessDataset(args.dataset_name, comb, nlp)
+            preprocess_dataset = PreprocessDataset(args.dataset_name, comb)
             preprocess_dataset.preprocess_dataset()
 
 
