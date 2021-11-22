@@ -14,10 +14,9 @@ import nltk
 from nltk.corpus import stopwords, wordnet as wn
 
 class Preprocess():
-    def __init__(self, dataset_name, preprocessing_types, nlp, entity_name="ENTITY") -> None:
+    def __init__(self, dataset_name, preprocessing_types, entity_name="ENTITY") -> None:
         self.dataset_name = dataset_name
         self.preprocessing_types = preprocessing_types
-        self.nlp = nlp
         # important global variables for identifying the location of entities
         self.entity1 = 'E'
         self.entity2 = 'EOTHER'
