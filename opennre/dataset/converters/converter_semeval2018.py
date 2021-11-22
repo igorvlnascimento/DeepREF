@@ -41,6 +41,7 @@ class ConverterSemEval2018(ConverterDataset):
     # given sentence dom in DDI corpus, get all the information related to the entities 
     # present in the dom
     def get_entity_dict(self, sentence):
+        ## error on sentence in test dataset from semeval 2018 subtask 1.1 where there is 'topicality' word
         sentence = sentence.replace("<SectionTitle></SectionTitle>", "")
         if '<abstract>' in sentence:
             abstract_start = sentence.find('<abstract>')
@@ -105,7 +106,7 @@ class ConverterSemEval2018(ConverterDataset):
         entity_list = [key for key in entity_dict]
         for entity in entity_list:
             if entity in entity_pairs:
-                pairs.append((entity_pairs[entity]['relation'], entity, entity_pairs[entity]['e2'], entity_pairs[entity]['reverse']))
+                pairs.append((entity_pairs[entity]['relation'], entity, entity_pairs[entity]['e2']))
         return pairs
     
     # given the metadata, get the individual positions in the sentence and know what to replace them by
@@ -277,11 +278,11 @@ class ConverterSemEval2018(ConverterDataset):
                 if 'REVERSE' in line:
                     e2_id = line[line.find('(')+1:line.find(',')]
                     e1_id = line[line.find(',')+1:line.find(',REVERSE)')]
-                    entity_pairs[e1_id] = {'relation':type, 'e2':e2_id, 'reverse':True}
+                    entity_pairs[e1_id] = {'relation':type, 'e2':e2_id}
                 else:
                     e1_id = line[line.find('(')+1:line.find(',')]
                     e2_id = line[line.find(',')+1:line.find(')')]
-                    entity_pairs[e1_id] = {'relation':type, 'e2':e2_id, 'reverse': False}
+                    entity_pairs[e1_id] = {'relation':type, 'e2':e2_id}
         
         data = []
         total_files_to_read = glob.glob(directory + '**/*.xml', recursive=True)
@@ -302,7 +303,7 @@ class ConverterSemEval2018(ConverterDataset):
                         
                         pairs = self.get_pairs(entity_dict,entity_pairs)
                         
-                        # print("entity_dict:",entity_dict)
+                        #print("entity_dict:",entity_dict)
                         # print("sentence:",sentence)
                         # print("pairs:",pairs)
                         
@@ -311,18 +312,18 @@ class ConverterSemEval2018(ConverterDataset):
                         for pair in pairs:
                             e1_id = pair[1]
                             e2_id = pair[2]
-                            reverse = pair[3]
                             
                             other_entities = self.get_other_entities(entity_dict, e1_id, e2_id)
                             
-                            try:
+                            if e1_id in entity_dict and e2_id in entity_dict:
                                 e1_data = entity_dict[e1_id]
                                 e2_data = entity_dict[e2_id]
-                            except KeyError:
-                                # TODO: tratar os coreference resolution
-                                key_error += 1
-                                print("key_error:",key_error)
-                                print("sentence:",sentence)
+                            else:
+                                # print("key_error:",key_error)
+                                # print("sentence:",sentence)
+                                # print("entity_dict:",entity_dict)
+                                # print("e1_id:",e1_id)
+                                # print("e2_id:",e2_id)
                                 continue
                             
                             tagged_sentence = self.tag_sentence(sentence, e1_data, e2_data, other_entities)
