@@ -213,6 +213,8 @@ class BERTEntityEncoder(nn.Module):
         pos_head = item['h']['pos']
         pos_tail = item['t']['pos']
         
+        pos_tags = []
+        deps = []
         if self.pos_tags_embedding:
             pos_tags = item['pos'] if self.pos_tags_embedding else []
         if self.deps_embedding:
@@ -270,12 +272,11 @@ class BERTEntityEncoder(nn.Module):
         indexed_pos = []
         indexed_deps = []
         
-        if self.pos_tags_embedding:
-            for pos in pos_tags:
-                indexed_pos.append(self.upos2id[pos])
+        for pos in pos_tags:
+            indexed_pos.append(self.upos2id[pos])
             
-        # for dep in deps:
-        #     indexed_deps.append(self.deps2id[dep])
+        for dep in deps:
+            indexed_deps.append(self.deps2id[dep])
 
         # Position
         pos1 = torch.tensor([[pos1]]).long()
