@@ -121,8 +121,11 @@ class BERTEntityEncoder(nn.Module):
         self.bert = AutoModel.from_pretrained(pretrain_path, return_dict=False)
         self.tokenizer = AutoTokenizer.from_pretrained(pretrain_path)
         self.linear = nn.Linear(self.hidden_size, self.hidden_size)
+        print("pos-tag:",self.pos_tags_embedding)
+        print("deps:",self.deps_embedding)
+        print("sk:",self.sk_embedding)
 
-    def forward(self, token, att_mask, pos1, pos2, pos_tags, sk1, sk2):
+    def forward(self, token, att_mask, pos1, pos2, pos_tags, deps, sk1, sk2):
         """
         Args:
             token: (B, L), index of tokens
@@ -181,16 +184,18 @@ class BERTEntityEncoder(nn.Module):
             
             concat_list.extend([pos_head_hidden, pos_tail_hidden])
             
-        # if self.deps_embedding:
-        #     hidden_deps, _ = self.bert(deps, attention_mask=att_mask)
+        if self.deps_embedding:
+            hidden_deps, _ = self.bert(deps, attention_mask=att_mask)
             
-        #     onehot_head_deps = torch.zeros(hidden_deps.size()[:2]).float().to(hidden_deps.device)  # (B, L)
-        #     onehot_tail_deps = torch.zeros(hidden_deps.size()[:2]).float().to(hidden_deps.device)  # (B, L)
-        #     onehot_head_deps = onehot_head_deps.scatter_(1, pos1, 1)
-        #     onehot_tail_deps = onehot_tail_deps.scatter_(1, pos2, 1) 
+            onehot_head_deps = torch.zeros(hidden_deps.size()[:2]).float().to(hidden_deps.device)  # (B, L)
+            onehot_tail_deps = torch.zeros(hidden_deps.size()[:2]).float().to(hidden_deps.device)  # (B, L)
+            onehot_head_deps = onehot_head_deps.scatter_(1, pos1, 1)
+            onehot_tail_deps = onehot_tail_deps.scatter_(1, pos2, 1) 
         
-        #     deps_head_hidden = (onehot_head_deps.unsqueeze(2) * hidden_deps).sum(1)  # (B, H)
-        #     deps_tail_hidden = (onehot_tail_deps.unsqueeze(2) * hidden_deps).sum(1)  # (B, H)
+            deps_head_hidden = (onehot_head_deps.unsqueeze(2) * hidden_deps).sum(1)  # (B, H)
+            deps_tail_hidden = (onehot_tail_deps.unsqueeze(2) * hidden_deps).sum(1)  # (B, H)
+            
+            concat_list.extend([deps_head_hidden, deps_tail_hidden])
         
         x = torch.cat(concat_list, 1)  # (B, XH)
         x = self.linear(x)
@@ -292,21 +297,21 @@ class BERTEntityEncoder(nn.Module):
                 indexed_tokens_sk2.append(0)  # 0 is id for [PAD]
             while len(indexed_pos) < self.max_length and self.pos_tags_embedding:
                 indexed_pos.append(0)  # 0 is id for [PAD]
-            # while len(indexed_deps) < self.max_length and self.deps_embedding:
-            #     indexed_deps.append(0)  # 0 is id for [PAD]
+            while len(indexed_deps) < self.max_length and self.deps_embedding:
+                indexed_deps.append(0)  # 0 is id for [PAD]
             indexed_tokens = indexed_tokens[:self.max_length]
             indexed_tokens_sk1 = indexed_tokens_sk1[:self.max_length]
             indexed_tokens_sk2 = indexed_tokens_sk2[:self.max_length]
             indexed_pos = indexed_pos[:self.max_length]
-            # indexed_deps = indexed_deps[:self.max_length]
+            indexed_deps = indexed_deps[:self.max_length]
         indexed_tokens = torch.tensor(indexed_tokens).long().unsqueeze(0)  # (1, L)
         indexed_tokens_sk1 = torch.tensor(indexed_tokens_sk1).long().unsqueeze(0)  # (1, L)
         indexed_tokens_sk2 = torch.tensor(indexed_tokens_sk2).long().unsqueeze(0)  # (1, L)
         indexed_pos = torch.tensor(indexed_pos).long().unsqueeze(0)  # (1, L)
-        # indexed_deps = torch.tensor(indexed_deps).long().unsqueeze(0)  # (1, L)
+        indexed_deps = torch.tensor(indexed_deps).long().unsqueeze(0)  # (1, L)
 
         # Attention mask
         att_mask = torch.zeros(indexed_tokens.size()).long()  # (1, L)
         att_mask[0, :avai_len] = 1
 
-        return indexed_tokens, att_mask, pos1, pos2, indexed_pos, indexed_tokens_sk1, indexed_tokens_sk2#, indexed_tokens_sk1, indexed_tokens_sk2, indexed_pos, indexed_deps
+        return indexed_tokens, att_mask, pos1, pos2, indexed_pos, indexed_deps, indexed_tokens_sk1, indexed_tokens_sk2#, indexed_tokens_sk1, indexed_tokens_sk2, indexed_pos, indexed_deps

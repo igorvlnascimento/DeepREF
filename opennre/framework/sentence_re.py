@@ -10,6 +10,12 @@ from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
 import matplotlib.pyplot as plt
 import numpy as np
 
+import optuna
+from optuna.visualization import plot_optimization_history
+from optuna.visualization import plot_parallel_coordinate
+from optuna.visualization import plot_param_importances
+from optuna.visualization import plot_slice
+
 from opennre import constants
 
 class SentenceRE(nn.Module):
@@ -46,6 +52,8 @@ class SentenceRE(nn.Module):
             self.classes = constants.CLASSES_SEM_EVAL_2018
         elif self.dataset_name == 'ddi':
             self.classes = constants.CLASSES_DDI
+            
+        print("classes:",self.classes)
 
         if train_path != None:
             self.train_loader = SentenceRELoader(
@@ -239,7 +247,6 @@ class SentenceRE(nn.Module):
         logging.info('Micro precision: {}'.format(result['micro_p']))
         logging.info('Micro recall: {}'.format(result['micro_r']))
         logging.info('Micro F1: {}'.format(result['micro_f1']))
-        logging.info('Macro F1: {}'.format(result['macro_f1']))
         #max_length_classes = max([len(w) for w in self.classes])
         os.makedirs('results/', exist_ok=True)
         if os.path.isfile(file_path):
@@ -261,7 +268,6 @@ class SentenceRE(nn.Module):
         file.write('Micro precision: {}\n'.format(result['micro_p']))
         file.write('Micro recall: {}\n'.format(result['micro_r']))
         file.write('Micro F1: {}\n\n'.format(result['micro_f1']))
-        file.write('Macro F1: {}\n\n'.format(result['macro_f1']))
 
 
     def load_state_dict(self, state_dict):

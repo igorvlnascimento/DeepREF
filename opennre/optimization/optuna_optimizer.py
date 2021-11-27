@@ -15,12 +15,22 @@ class Optimizer():
         self.dataset = dataset
         self.metric = metric
         self.data = json.load(open(CONFIG_FILE_PATH))
+        synt_embeddings = [0,0,0]
+        if dataset == 'semeval2010':
+            synt_embeddings = [1,1,1]
+        if dataset == 'ddi':
+            synt_embeddings = [1,0,1]
+        elif dataset == 'semeval20181-1':
+            synt_embeddings = [1,1,0]
+        elif dataset == 'semeval20181-2':
+            synt_embeddings = [1,0,1]
         if not os.path.exists(BEST_HPARAMS_FILE_PATH.format(dataset)):
             dict = {
                 "{}".format(self.metric): 0,
                 "batch_size": 8,
                 "preprocessing": 0,
                 "lr": 1e-5,
+                "synt_embeddings": synt_embeddings,
                 "max_length": 128,
                 "max_epoch": 3
             }
@@ -63,7 +73,7 @@ class Optimizer():
         model = 'bert',#individual.suggest_categorical("model", self.data["model"])
         preprocessing =  self.best_hparams["preprocessing"]
         #synt_embeddings = individual.suggest_int("synt_embeddings", 0, len(self.synt_embeddings)-1)
-        #synt_embeddings = self.best_hparams["synt_embeddings"]
+        synt_embeddings = self.best_hparams["synt_embeddings"]
         pretrain_bert = 'bert-base-uncased' if self.dataset == 'semeval2010' else 'allenai/scibert_scivocab_uncased'#individual.suggest_categorical("pretrain_bert", self.data["pretrain_bert"])
         
         #batch_size_bert =  individual.suggest_int("batch_size_bert", 32, 128, log=True)
@@ -80,7 +90,7 @@ class Optimizer():
             "metric": self.metric,
             "preprocessing": self.preprocessing[preprocessing],#self.preprocessing[preprocessing],
             "embedding": pretrain_bert,# if model == "bert" else embedding,
-            #"synt_embeddings": synt_embeddings,
+            "synt_embeddings": synt_embeddings,
             "pooler": None,
             "opt": None,
             "batch_size": batch_size,#_bert if model == "bert" else batch_size,
@@ -104,7 +114,7 @@ class Optimizer():
     
         model = 'bert',#self.study_model.best_params["model"]
         pretrain_bert = 'bert-base-uncased' if self.dataset == 'semeval2010' else 'allenai/scibert_scivocab_uncased'#individual.suggest_categorical("pretrain_bert", self.data["pretrain_bert"])
-        #synt_embeddings = individual.suggest_int("synt_embeddings", 0, len(self.synt_embeddings)-1)
+        synt_embeddings = self.best_hparams["synt_embeddings"]
 
         batch_size =  self.best_hparams["batch_size"]
         lr =  self.best_hparams["lr"]
@@ -121,6 +131,7 @@ class Optimizer():
                 "metric": self.metric,
                 "preprocessing": self.preprocessing[i],
                 "embedding": pretrain_bert,
+                "synt_embeddings": synt_embeddings,
                 "batch_size": batch_size,#batch_size_bert if model == 'bert' else batch_size,
                 "lr": lr,
                 "weight_decay": None,#weight_decay,
