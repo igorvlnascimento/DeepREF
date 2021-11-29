@@ -16,8 +16,10 @@ class Optimizer():
         self.metric = metric
         self.data = json.load(open(CONFIG_FILE_PATH))
         synt_embeddings = [0,0,0]
+        preprocessing = 0
         if dataset == 'semeval2010':
             synt_embeddings = [1,1,1]
+            preprocessing = 12
         if dataset == 'ddi':
             synt_embeddings = [1,0,1]
         elif dataset == 'semeval20181-1':
@@ -28,7 +30,7 @@ class Optimizer():
             dict = {
                 "{}".format(self.metric): 0,
                 "batch_size": 8,
-                "preprocessing": 0,
+                "preprocessing": preprocessing,
                 "lr": 1e-5,
                 "synt_embeddings": synt_embeddings,
                 "max_length": 128,
