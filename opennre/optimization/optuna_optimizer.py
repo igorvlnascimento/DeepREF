@@ -27,7 +27,7 @@ class Optimizer():
             synt_embeddings = [1,1,0]
         elif dataset == 'semeval20181-2':
             synt_embeddings = [1,0,1]
-            preprocessing = 36
+            preprocessing = 37
         if not os.path.exists(BEST_HPARAMS_FILE_PATH.format(dataset)):
             dict = {
                 "{}".format(self.metric): 0,
