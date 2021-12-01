@@ -7,12 +7,11 @@ import itertools
 from opennre.dataset.preprocess import Preprocess
 
 class PreprocessDataset():
-    def __init__(self, dataset_name, preprocessing_types, nlp):
+    def __init__(self, dataset_name, preprocessing_types):
         self.dataset_name = dataset_name
         self.preprocessing_types = None if preprocessing_types is None else sorted(preprocessing_types)
         self.preprocessing_types_str = 'original' if preprocessing_types is None else "_".join(self.preprocessing_types)
         self.output_path = os.path.join('benchmark', dataset_name, self.preprocessing_types_str)
-        self.nlp = nlp
 
     def out(self, path): return os.path.join(self.output_path, path)
     
@@ -61,7 +60,7 @@ class PreprocessDataset():
             # if "wn" in self.preprocessing_types:
             #     preprocessing_types["wordnet"] = True
     
-        preprocess = Preprocess(self.dataset_name, preprocessing_types, self.nlp)
+        preprocess = Preprocess(self.dataset_name, preprocessing_types)
 
         original_dataframe_names = [self.dataset_name + '_train', self.dataset_name + '_val', self.dataset_name + '_test']
         self.makedir()
