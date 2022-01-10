@@ -28,7 +28,7 @@ class PreprocessOptimization():
         if not os.path.exists(BEST_HPARAMS_FILE_PATH.format(dataset)):
             dict = {
                 "{}".format(self.metric): 0,
-                "batch_size": 8,
+                "batch_size": 2,
                 "preprocessing": 0,
                 "lr": 2e-5,
                 "synt_embeddings": synt_embeddings,
