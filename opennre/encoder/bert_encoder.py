@@ -153,12 +153,12 @@ class BERTEntityEncoder(nn.Module):
             hidden_sk2, _ = self.bert(sk2, attention_mask=att_mask)
             #SK1
             onehot_head_sk1 = torch.zeros(hidden_sk1.size()[:2]).float().to(hidden_sk1.device)  # (B, L)
-            onehot_tail_sk2 = torch.zeros(hidden_sk1.size()[:2]).float().to(hidden_sk1.device)  # (B, L)
+            onehot_tail_sk1 = torch.zeros(hidden_sk1.size()[:2]).float().to(hidden_sk1.device)  # (B, L)
             # # onehot_head_sk1 = onehot_head_sk1.scatter_(1, pos1, 1)
             # # onehot_tail_sk2 = onehot_tail_sk2.scatter_(1, pos2, 1)
             
             head_hidden_sk1 = (onehot_head_sk1.unsqueeze(2) * hidden_sk1).sum(1)  # (B, H)
-            tail_hidden_sk1 = (onehot_tail_sk2.unsqueeze(2) * hidden_sk1).sum(1)  # (B, H)
+            tail_hidden_sk1 = (onehot_tail_sk1.unsqueeze(2) * hidden_sk1).sum(1)  # (B, H)
             
             # #SK2
             onehot_head_sk2 = torch.zeros(hidden_sk2.size()[:2]).float().to(hidden_sk2.device)  # (B, L)
