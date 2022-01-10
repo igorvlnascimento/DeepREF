@@ -19,15 +19,12 @@ class Optimizer():
         preprocessing = 0
         if dataset == 'semeval2010':
             synt_embeddings = [1,1,1]
-            preprocessing = 12
-        if dataset == 'ddi':
+        elif dataset == 'ddi':
             synt_embeddings = [1,0,1]
         elif dataset == 'semeval20181-1':
-            preprocessing = 2
             synt_embeddings = [1,1,0]
         elif dataset == 'semeval20181-2':
             synt_embeddings = [1,0,1]
-            preprocessing = 37
         if not os.path.exists(BEST_HPARAMS_FILE_PATH.format(dataset)):
             dict = {
                 "{}".format(self.metric): 0,
@@ -48,29 +45,29 @@ class Optimizer():
         self.study_model = optuna.create_study()
         self.study_params = optuna.create_study()
     
-        self.final_combinations = []
+        #self.final_combinations = []
         
-        self.preprocessing = self.data["preprocessing"]
-        self.preprocessing = self.combine_preprocessing(self.preprocessing)
+        #self.preprocessing = self.data["preprocessing"]
+        #self.preprocessing = self.combine_preprocessing(self.preprocessing)
         
         #self.synt_embeddings = [[0,0], [0,1], [1,0], [1,1]]
         
-    def combine_preprocessing(self, preprocessing):
-        combinations = []
-        for i in range(len(preprocessing)):
-            combinations.extend(itertools.combinations(preprocessing, i))
+    # def combine_preprocessing(self, preprocessing):
+    #     combinations = []
+    #     for i in range(len(preprocessing)):
+    #         combinations.extend(itertools.combinations(preprocessing, i))
             
-        for j, comb in enumerate(combinations):
-            if 'eb' in comb and 'nb' in comb:
-                comb = list(comb)
-                comb.remove('eb')
-                combinations[j] = comb
-            else:
-                combinations[j] = list(comb)
+    #     for j, comb in enumerate(combinations):
+    #         if 'eb' in comb and 'nb' in comb:
+    #             comb = list(comb)
+    #             comb.remove('eb')
+    #             combinations[j] = comb
+    #         else:
+    #             combinations[j] = list(comb)
         
-        self.final_combinations = [comb for n, comb in enumerate(combinations) if comb not in combinations[:n]]
-        print(self.final_combinations)
-        return self.final_combinations
+    #     self.final_combinations = [comb for n, comb in enumerate(combinations) if comb not in combinations[:n]]
+    #     print(self.final_combinations)
+    #     return self.final_combinations
 
     def evaluate_model(self, individual):
         
@@ -84,7 +81,7 @@ class Optimizer():
         batch_size =  individual.suggest_int("batch_size", 2, 64, log=True)
         lr =  individual.suggest_float("lr", 1e-6, 1e-1, log=True)
         #weight_decay =  individual.suggest_float("weight_decay", 1e-6, 1e-1, log=True)
-        max_length =  individual.suggest_int("max_length", 32, 256, log=True)
+        max_length =  individual.suggest_int("max_length", 16, 256, log=True)
         #max_epoch_bert =  individual.suggest_int("max_epoch_bert", 2, 8, log=True)
         max_epoch = individual.suggest_int("max_epoch", 2, 8)
     
@@ -92,8 +89,8 @@ class Optimizer():
             "dataset": self.dataset,
             "model": model,
             "metric": self.metric,
-            "preprocessing": self.preprocessing[preprocessing],#self.preprocessing[preprocessing],
-            "embedding": pretrain_bert,# if model == "bert" else embedding,
+            "preprocessing": preprocessing,
+            "embedding": pretrain_bert,
             "synt_embeddings": synt_embeddings,
             "pooler": None,
             "opt": None,
@@ -114,49 +111,49 @@ class Optimizer():
         
         return -(train.train())
         
-    def evaluate_preprocessing(self):
+    # def evaluate_preprocessing(self):
     
-        model = 'bert',#self.study_model.best_params["model"]
-        pretrain_bert = 'bert-base-uncased' if self.dataset == 'semeval2010' else 'allenai/scibert_scivocab_uncased'#individual.suggest_categorical("pretrain_bert", self.data["pretrain_bert"])
-        synt_embeddings = self.best_hparams["synt_embeddings"]
+    #     model = 'bert',#self.study_model.best_params["model"]
+    #     pretrain_bert = 'bert-base-uncased' if self.dataset == 'semeval2010' else 'allenai/scibert_scivocab_uncased'#individual.suggest_categorical("pretrain_bert", self.data["pretrain_bert"])
+    #     synt_embeddings = self.best_hparams["synt_embeddings"]
 
-        batch_size =  self.best_hparams["batch_size"]
-        lr =  self.best_hparams["lr"]
-        max_length =  self.best_hparams["max_length"]
-        max_epoch = self.best_hparams["max_epoch"]
+    #     batch_size =  self.best_hparams["batch_size"]
+    #     lr =  self.best_hparams["lr"]
+    #     max_length =  self.best_hparams["max_length"]
+    #     max_epoch = self.best_hparams["max_epoch"]
         
-        preprocessing_type, preprocessing_value = 0, 0
+    #     preprocessing_type, preprocessing_value = 0, 0
         
-        for i in range(len(self.preprocessing)):
+    #     for i in range(len(self.preprocessing)):
         
-            parameters = {
-                "dataset": self.dataset,
-                "model": model,
-                "metric": self.metric,
-                "preprocessing": self.preprocessing[i],
-                "embedding": pretrain_bert,
-                "synt_embeddings": synt_embeddings,
-                "batch_size": batch_size,#batch_size_bert if model == 'bert' else batch_size,
-                "lr": lr,
-                "weight_decay": None,#weight_decay,
-                "max_length": max_length,
-                "max_epoch": max_epoch,#max_epoch_bert if model == 'bert' else max_epoch,
-                "pooler": None,
-                "opt": None,
-                "mask_entity": None,
-                "hidden_size": None,
-                "position_size": None,
-                "dropout": None,
-            }
+    #         parameters = {
+    #             "dataset": self.dataset,
+    #             "model": model,
+    #             "metric": self.metric,
+    #             "preprocessing": self.preprocessing[i],
+    #             "embedding": pretrain_bert,
+    #             "synt_embeddings": synt_embeddings,
+    #             "batch_size": batch_size,#batch_size_bert if model == 'bert' else batch_size,
+    #             "lr": lr,
+    #             "weight_decay": None,#weight_decay,
+    #             "max_length": max_length,
+    #             "max_epoch": max_epoch,#max_epoch_bert if model == 'bert' else max_epoch,
+    #             "pooler": None,
+    #             "opt": None,
+    #             "mask_entity": None,
+    #             "hidden_size": None,
+    #             "position_size": None,
+    #             "dropout": None,
+    #         }
             
-            train = Training(parameters)
+    #         train = Training(parameters)
             
-            new_value = train.train()
+    #         new_value = train.train()
             
-            if new_value > preprocessing_value:
-                preprocessing_type, preprocessing_value = i, new_value 
+    #         if new_value > preprocessing_value:
+    #             preprocessing_type, preprocessing_value = i, new_value 
             
-        return preprocessing_type, preprocessing_value
+    #     return preprocessing_type, preprocessing_value
     
     def evaluate_hyperparameters(self, individual):
         
@@ -224,52 +221,34 @@ if __name__ == "__main__":
                 help='Dataset')
     parser.add_argument('-m','--metric', default="micro_f1", choices=["micro_f1", "macro_f1", "acc"], 
                 help='Metric to optimize')
-    parser.add_argument('-t', '--optimizer_type', default='hyperparams', choices=['hyperparams', 'preprocessing'])
+    #parser.add_argument('-t', '--optimizer_type', default='hyperparams', choices=['hyperparams', 'preprocessing'])
     
     args = parser.parse_args()
     
     opt = Optimizer(args.dataset, args.metric)
     best_hparams = opt.best_hparams
-    if args.optimizer_type == 'hyperparams':
-        hof_model = opt.optimize_model()
-        print("hof_model:",hof_model)
+    
+    hof_model = opt.optimize_model()
+    print("hof_model:",hof_model)
+    
+    new_value = abs(opt.study_model.best_value)
+    json_value = float(best_hparams["{}".format(opt.metric)]) if best_hparams["{}".format(opt.metric)] else 0
+    
+    if new_value > json_value:
+        max_epoch = hof_model["max_epoch"]
+        batch_size = hof_model["batch_size"]
+        lr, max_length = hof_model["lr"], hof_model["max_length"]
         
-        new_value = abs(opt.study_model.best_value)
-        json_value = float(best_hparams["{}".format(opt.metric)]) if best_hparams["{}".format(opt.metric)] else 0
+        #best_hparams["synt_embeddings"] = synt_embeddings
+        best_hparams["max_epoch"] = max_epoch
+        best_hparams["batch_size"] = batch_size
+        best_hparams["lr"] = lr
+        best_hparams["max_length"] = max_length
+        best_hparams["{}".format(opt.metric)] = abs(opt.study_model.best_value)
+        json_object = json.dumps(best_hparams, indent=4)
         
-        if new_value > json_value:
-            max_epoch = hof_model["max_epoch"]
-            batch_size = hof_model["batch_size"]
-            lr, max_length = hof_model["lr"], hof_model["max_length"]
-            
-            #best_hparams["synt_embeddings"] = synt_embeddings
-            best_hparams["max_epoch"] = max_epoch
-            best_hparams["batch_size"] = batch_size
-            best_hparams["lr"] = lr
-            best_hparams["max_length"] = max_length
-            best_hparams["{}".format(opt.metric)] = abs(opt.study_model.best_value)
-            json_object = json.dumps(best_hparams, indent=4)
-            
-            with open(BEST_HPARAMS_FILE_PATH.format(args.dataset), 'w') as out_f:
-                out_f.write(json_object)
-    elif args.optimizer_type == 'preprocessing':
-        type, new_value = opt.evaluate_preprocessing()
-        #print("hof_preprocessing:",preprocessing)
-        
-        #synt_embeddings = opt.synt_embeddings[hof_preprocessing["synt_embeddings"]]            
-        preprocessing = type
-        
-        #new_value = abs(opt.study_model.best_value)
-        json_value = float(best_hparams["{}".format(opt.metric)]) if best_hparams["{}".format(opt.metric)] else 0
-        
-        if new_value > json_value:
-            best_hparams["preprocessing"] = preprocessing
-            #best_hparams["synt_embeddings"] = synt_embeddings
-            best_hparams["{}".format(opt.metric)] = new_value
-            json_object = json.dumps(best_hparams, indent=4)
-            
-            with open(BEST_HPARAMS_FILE_PATH.format(args.dataset), 'w') as out_f:
-                out_f.write(json_object)
+        with open(BEST_HPARAMS_FILE_PATH.format(args.dataset), 'w') as out_f:
+            out_f.write(json_object)
         
     # model = 'bert'
     # preprocessing = best_hparams["preprocessing"]

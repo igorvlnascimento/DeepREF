@@ -1,9 +1,11 @@
 import itertools
 import json
+import os
 
 from train import Training
 
 CONFIG_FILE_PATH = "opennre/optimization/config_params.json"
+BEST_HPARAMS_FILE_PATH = "opennre/optimization/best_hparams_{}.json"
 
 class PreprocessOptimization():
     def __init__(self, dataset, metric):
@@ -12,6 +14,33 @@ class PreprocessOptimization():
         self.data = json.load(open(CONFIG_FILE_PATH))
         self.preprocessing = self.data["preprocessing"]
         self.preprocess_combination = self.combine_preprocessing(self.preprocessing)
+        
+        synt_embeddings = [0,0,0]
+        if dataset == 'semeval2010':
+            synt_embeddings = [1,1,1]
+        elif dataset == 'ddi':
+            synt_embeddings = [1,0,1]
+        elif dataset == 'semeval20181-1':
+            synt_embeddings = [1,1,0]
+        elif dataset == 'semeval20181-2':
+            synt_embeddings = [1,0,1]
+        
+        if not os.path.exists(BEST_HPARAMS_FILE_PATH.format(dataset)):
+            dict = {
+                "{}".format(self.metric): 0,
+                "batch_size": 8,
+                "preprocessing": 0,
+                "lr": 2e-5,
+                "synt_embeddings": synt_embeddings,
+                "max_length": 128,
+                "max_epoch": 3
+            }
+            json_object = json.dumps(dict, indent=4)
+            with open(BEST_HPARAMS_FILE_PATH.format(dataset), 'w') as f:
+                f.write(json_object)
+        self.best_hparams = {}
+        with open(BEST_HPARAMS_FILE_PATH.format(dataset), 'r') as f:
+            self.best_hparams = json.load(f)
 
     def combine_preprocessing(self, preprocessing):
             combinations = []
@@ -33,16 +62,16 @@ class PreprocessOptimization():
     def preprocessing_training(self):
         model = 'bert',#self.study_model.best_params["model"]
         pretrain_bert = 'bert-base-uncased' if self.dataset == 'semeval2010' else 'allenai/scibert_scivocab_uncased'#individual.suggest_categorical("pretrain_bert", self.data["pretrain_bert"])
-        synt_embeddings = [1,1,1]
+        synt_embeddings = self.best_hparams["synt_embeddings"]
 
         batch_size =  2
-        lr =  2e-5
-        max_length =  128
-        max_epoch = 3
+        lr =  self.best_hparams["lr"]
+        max_length = self.best_hparams["max_length"]
+        max_epoch = self.best_hparams["max_epoch"]
         
         preprocessing_type, preprocessing_value = 0, 0
         
-        for i in range(len(self.preprocessing)):
+        for i in range(len(self.preprocess_combination)):
         
             parameters = {
                 "dataset": self.dataset,
@@ -69,7 +98,7 @@ class PreprocessOptimization():
             new_value = train.train()
             
             if new_value > preprocessing_value:
-                preprocessing_type, preprocessing_value = self.preprocess_combination[i], new_value 
+                preprocessing_type, preprocessing_value = i, new_value 
             
         return preprocessing_type, preprocessing_value
     
@@ -79,7 +108,24 @@ class PreprocessOptimization():
 
     
 if __name__ == '__main__':
-    prep = PreprocessOptimization('semeval2010', 'micro-f1')
-    type, value = prep.preprocessing_training()
-    print("Type:", type, "Value:", value)
+    dataset = "semeval2010"
+    metric = "micro_f1"
+    prep = PreprocessOptimization(dataset, metric)
+    preprocessing, new_value = prep.preprocessing_training()
+    print("Type:", prep.preprocess_combination[preprocessing], "Value:", new_value)
+    
+    best_hparams = {}
+    with open(BEST_HPARAMS_FILE_PATH.format(dataset), 'r') as f:
+        best_hparams = json.load(f)
+        
+    json_value = float(best_hparams["{}".format(metric)]) if best_hparams["{}".format(metric)] else 0
+    
+    if new_value > json_value:
+        best_hparams["preprocessing"] = preprocessing
+        #best_hparams["synt_embeddings"] = synt_embeddings
+        best_hparams["{}".format(metric)] = new_value
+        json_object = json.dumps(best_hparams, indent=4)
+        
+        with open(BEST_HPARAMS_FILE_PATH.format(dataset), 'w') as out_f:
+            out_f.write(json_object)
     #print(preprocessing[30])
