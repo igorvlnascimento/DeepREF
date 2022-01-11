@@ -1,4 +1,5 @@
 import itertools
+import argparse
 import json
 import os
 
@@ -16,19 +17,21 @@ class PreprocessOptimization():
         self.preprocess_combination = self.combine_preprocessing(self.preprocessing)
         
         synt_embeddings = [0,0,0]
+        batch_size = 32
         if dataset == 'semeval2010':
-            synt_embeddings = [1,1,1]
-        elif dataset == 'ddi':
-            synt_embeddings = [1,0,1]
-        elif dataset == 'semeval20181-1':
-            synt_embeddings = [1,1,0]
-        elif dataset == 'semeval20181-2':
-            synt_embeddings = [1,0,1]
+            batch_size = 16
+        #     synt_embeddings = [1,1,1]
+        # elif dataset == 'ddi':
+        #     synt_embeddings = [1,0,1]
+        # elif dataset == 'semeval20181-1':
+        #     synt_embeddings = [1,1,0]
+        # elif dataset == 'semeval20181-2':
+        #     synt_embeddings = [1,0,1]
         
         if not os.path.exists(BEST_HPARAMS_FILE_PATH.format(dataset)):
             dict = {
                 "{}".format(self.metric): 0,
-                "batch_size": 2,
+                "batch_size": batch_size,
                 "preprocessing": 0,
                 "lr": 2e-5,
                 "synt_embeddings": synt_embeddings,
@@ -64,7 +67,7 @@ class PreprocessOptimization():
         pretrain_bert = 'bert-base-uncased' if self.dataset == 'semeval2010' else 'allenai/scibert_scivocab_uncased'#individual.suggest_categorical("pretrain_bert", self.data["pretrain_bert"])
         synt_embeddings = self.best_hparams["synt_embeddings"]
 
-        batch_size =  2
+        batch_size =  self.best_hparams["batch_size"]
         lr =  self.best_hparams["lr"]
         max_length = self.best_hparams["max_length"]
         max_epoch = self.best_hparams["max_epoch"]
@@ -108,8 +111,14 @@ class PreprocessOptimization():
 
     
 if __name__ == '__main__':
-    dataset = "semeval2010"
-    metric = "micro_f1"
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-d','--dataset', default="semeval2010", choices=["semeval2010", "semeval2018", "semeval20181-1", "semeval20181-2", "ddi"], 
+                help='Dataset')
+    parser.add_argument('-m','--metric', default="micro_f1", choices=["micro_f1", "macro_f1", "acc"], 
+                help='Metric to optimize')
+    args = parser.parse_args()
+    dataset = args.dataset
+    metric = args.metric
     prep = PreprocessOptimization(dataset, metric)
     preprocessing, new_value = prep.preprocessing_training()
     print("Type:", prep.preprocess_combination[preprocessing], "Value:", new_value)
