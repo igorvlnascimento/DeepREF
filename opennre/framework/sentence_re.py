@@ -11,10 +11,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 import optuna
-from optuna.visualization import plot_optimization_history
-from optuna.visualization import plot_parallel_coordinate
-from optuna.visualization import plot_param_importances
-from optuna.visualization import plot_slice
 
 from opennre import constants
 
@@ -26,15 +22,17 @@ class SentenceRE(nn.Module):
                  val_path, 
                  test_path,
                  ckpt, 
+                 trial,
                  batch_size=32, 
                  max_epoch=100, 
                  lr=0.1, 
                  weight_decay=1e-5, 
                  warmup_step=300,
                  opt='sgd',
-                 criterion=None):
+                 criterion=None,):
     
         super().__init__()
+        self.trial = trial
         self.max_epoch = max_epoch
         # Load data
         self.train_path = train_path
@@ -173,6 +171,11 @@ class SentenceRE(nn.Module):
             logging.info("=== Epoch %d val ===" % epoch)
             result, _, _ = self.eval_model(self.val_loader)
             logging.info('Metric {} current / best: {} / {}'.format(metric, result[metric], best_metric))
+            if self.trial is not None:
+                self.trial.report(result[metric],epoch)
+                if self.trial.should_prune():
+                    raise optuna.exceptions.TrialPruned()
+            
             if result[metric] > best_metric:
                 logging.info("Best ckpt and saved.")
                 folder_path = '/'.join(self.ckpt.split('/')[:-1])
@@ -240,7 +243,7 @@ class SentenceRE(nn.Module):
         logging.info('Trained with dataset {}, model {}, embedding {} and preprocessing {}:\n'.format(self.dataset_name, model, embedding, self.preprocessing))
         logging.info('Hyperparams: {}'.format(hyper_params))
         file_path = 'results/ResultsOpenNRE++_{}.txt'.format(self.dataset_name)
-        report = metrics.classification_report(ground_truth, pred, target_names=self.classes, digits=5)
+        report = metrics.classification_report(ground_truth, pred, target_names=self.classes, digits=5, zero_division=1)
         confusion_matrix = metrics.confusion_matrix(ground_truth, pred)
         logging.info(report)
         logging.info('Accuracy: {}'.format(result['acc']))

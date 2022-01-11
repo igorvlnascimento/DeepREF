@@ -15,10 +15,11 @@ import random
 SEED = 42
 
 class Training():
-        def __init__(self, parameters):
+        def __init__(self, parameters, trial):
+                self.trial = trial
                 
                 self.dataset = "semeval2010" if parameters["dataset"] is None else parameters["dataset"]
-                self.preprocessing = None if len(parameters["preprocessing"]) == 0 else parameters["preprocessing"]
+                self.preprocessing = None if parameters["preprocessing"] else parameters["preprocessing"]
                 self.model = "cnn" if parameters["model"] is None else parameters["model"][0]
                 self.metric = "micro_f1" if parameters["metric"] is None else parameters["metric"]
                 self.max_length = 128 if parameters["max_length"] is None else parameters["max_length"]
@@ -284,6 +285,7 @@ class Training():
                         weight_decay=self.weight_decay,
                         opt=self.opt,
                         criterion=self.criterion,
+                        trial=self.trial,
                 )
 
                 # Train the model

@@ -104,9 +104,9 @@ if args.pooler == 'entity':
     sentence_encoder = opennre.encoder.BERTEntityEncoder(
         upos2id=upos2id,
         deps2id=deps2id,
-        pos_tags_embedding=True,
-        sk_embedding=True,
-        deps_embedding=True,
+        pos_tags_embedding=False,
+        sk_embedding=False,
+        deps_embedding=False,
         max_length=args.max_length, 
         pretrain_path=args.pretrain_path,
         mask_entity=args.mask_entity,
@@ -135,7 +135,8 @@ framework = opennre.framework.SentenceRE(
     batch_size=args.batch_size,
     max_epoch=args.max_epoch,
     lr=args.lr,
-    opt='adamw'
+    opt='adamw',
+    trial=None
 )
 
 # Train the model
