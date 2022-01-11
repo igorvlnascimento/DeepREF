@@ -1,4 +1,4 @@
-import itertools
+import argparse
 import json
 import os
 
@@ -54,7 +54,7 @@ class EmbeddingOptimization():
         pretrain_bert = 'bert-base-uncased' if self.dataset == 'semeval2010' else 'allenai/scibert_scivocab_uncased'#individual.suggest_categorical("pretrain_bert", self.data["pretrain_bert"])
         synt_embeddings = self.best_hparams["synt_embeddings"]
 
-        batch_size =  2
+        batch_size =  self.best_hparams["batch_size"]
         lr =  self.best_hparams["lr"]
         max_length = self.best_hparams["max_length"]
         max_epoch = self.best_hparams["max_epoch"]
@@ -98,8 +98,14 @@ class EmbeddingOptimization():
 
     
 if __name__ == '__main__':
-    dataset = "semeval2010"
-    metric = "micro_f1"
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-d','--dataset', default="semeval2010", choices=["semeval2010", "semeval2018", "semeval20181-1", "semeval20181-2", "ddi"], 
+                help='Dataset')
+    parser.add_argument('-m','--metric', default="micro_f1", choices=["micro_f1", "macro_f1", "acc"], 
+                help='Metric to optimize')
+    args = parser.parse_args()
+    dataset = args.dataset
+    metric = args.metric
     embed = EmbeddingOptimization(dataset, metric)
     embedding, new_value = embed.embedding_training()
     print("Type:", embedding, "Value:", new_value)
