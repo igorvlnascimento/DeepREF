@@ -147,8 +147,8 @@ class Preprocess():
                                                                                 common_indexes)
         repl_dict_ner = new_entity_replacement_dict_ner # just using proxy because names are long
         sorted_positions = self.sort_position_keys(new_entity_replacement_dict)
-        print("repl_dict:",repl_dict)
-        print("new_entity_replacement_dict_upos:",new_entity_replacement_dict_upos)
+        #print("repl_dict:",repl_dict)
+        #print("new_entity_replacement_dict_upos:",new_entity_replacement_dict_upos)
         for i in range(len(sorted_positions)):
             curr_pos = sorted_positions[i]
             curr_start_pos, curr_end_pos = self.parse_position(curr_pos)
@@ -225,7 +225,7 @@ class Preprocess():
     def get_entity_location_dict(self, only_e1_indexes, only_e2_indexes, common_indexes):
         entity_location_dict = {}
         def update_dict_with_indexes(entity_location_dict, only_indexes, start, end):
-            print(only_indexes)
+            #print(only_indexes)
             for i in only_indexes:
                 key = str(i[0]) + ':' + str(i[-1])
                 entity_location_dict[key] = {'start': start, 'end': end}
@@ -353,7 +353,6 @@ class Preprocess():
         stop_words = set(stopwords.words('english'))
         stop_words.remove('o')
         brackets = False
-        wordnet = self.preprocessing_types["wordnet"]
         idx = 0
         #print("sentence:",sentence)
         for i, word in enumerate(sentence):
@@ -472,10 +471,10 @@ class Preprocess():
     def get_ner_replacement_dictionary(self, only_e1_index, only_e2_index, common_indexes, ner_dict):
         #print("only_e1_index:",only_e1_index)
         #print("only_e2_index:",only_e2_index)
-        print(ner_dict)
+        #print(ner_dict)
         def update_dict_with_entity(e_index, ner_repl_dict, entity_name):
             for indexes in e_index:
-                print("e_index:",e_index)
+                #print("e_index:",e_index)
                 #key = str(idx) + ':' + str(idx)
                 #key_start = str(idx) + ':' + str(idx) + ':' + entity_name + 'START'
                 key1 = str(indexes[0]) + ':' + str(indexes[0])# + ':' + entity_name + 'START'
@@ -565,8 +564,8 @@ class Preprocess():
         self.get_common_and_separate_entities(e1_indexes, e2_indexes)
         #print("e1_indexes, e2_indexes:",e1_indexes, e2_indexes)
         ner_dict = self.get_ner_dict(row.ner_sentence)
-        print(sentence)
-        print("ner_dict:",ner_dict)
+        #print(sentence)
+        #print("ner_dict:",ner_dict)
         if check_ner_overlap and self.check_for_overlap(ner_dict):
             print("There is overlap", ner_dict) # only need to check this once
         #Below code works only if there isn't overlap within ner_dict, so make sure that there isn't overlap

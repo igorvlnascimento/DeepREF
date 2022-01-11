@@ -18,7 +18,7 @@ def set_seed(seed):
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--pretrain_path', default="bert-base-uncased", 
+parser.add_argument('--pretrain_path', default="bert-base-uncased", choices=["bert-base-uncased", "allenai/scibert_scivocab_uncased"],
         help='Pre-trained ckpt path / model name (hugginface)')
 parser.add_argument('--ckpt', default='', 
         help='Checkpoint name')
@@ -34,7 +34,7 @@ parser.add_argument('--metric', default='micro_f1', choices=['micro_f1', 'acc'],
         help='Metric for picking up best checkpoint')
 parser.add_argument('--dataset', default='none', choices=['none', 'semeval', 'semeval2010', 'semeval2018', 'semeval20181-1', 'semeval20181-2', 'ddi', 'wiki80', 'tacred'], 
         help='Dataset. If not none, the following args can be ignored')
-parser.add_argument('--preprocessing', default='original', choices=['original'], 
+parser.add_argument('--preprocessing', default='original', choices=['original', "d", "b_d_p"], 
         help='Preprocessing types')
 parser.add_argument('--train_file', default='', type=str,
         help='Training data file')
@@ -106,7 +106,7 @@ if args.pooler == 'entity':
         deps2id=deps2id,
         pos_tags_embedding=True,
         sk_embedding=True,
-        # deps_embedding=True,
+        deps_embedding=True,
         max_length=args.max_length, 
         pretrain_path=args.pretrain_path,
         mask_entity=args.mask_entity,
