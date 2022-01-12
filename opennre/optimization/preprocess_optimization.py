@@ -109,32 +109,32 @@ class PreprocessOptimization():
 
     
 if __name__ == '__main__':
-    prep = PreprocessOptimization("","")
-    prep.combine_preprocessing()
-    # parser = argparse.ArgumentParser()
-    # parser.add_argument('-d','--dataset', default="semeval2010", choices=["semeval2010", "semeval2018", "semeval20181-1", "semeval20181-2", "ddi"], 
-    #             help='Dataset')
-    # parser.add_argument('-m','--metric', default="micro_f1", choices=["micro_f1", "macro_f1", "acc"], 
-    #             help='Metric to optimize')
-    # args = parser.parse_args()
-    # dataset = args.dataset
-    # metric = args.metric
-    # prep = PreprocessOptimization(dataset, metric)
-    # preprocessing, new_value = prep.preprocessing_training()
-    # print("Type:", prep.preprocess_combination[preprocessing], "Value:", new_value)
+    #prep = PreprocessOptimization("","")
+    #prep.combine_preprocessing()
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-d','--dataset', default="semeval2010", choices=["semeval2010", "semeval2018", "semeval20181-1", "semeval20181-2", "ddi"], 
+                help='Dataset')
+    parser.add_argument('-m','--metric', default="micro_f1", choices=["micro_f1", "macro_f1", "acc"], 
+                help='Metric to optimize')
+    args = parser.parse_args()
+    dataset = args.dataset
+    metric = args.metric
+    prep = PreprocessOptimization(dataset, metric)
+    preprocessing, new_value = prep.preprocessing_training()
+    print("Type:", prep.preprocess_combination[preprocessing], "Value:", new_value)
     
-    # best_hparams = {}
-    # with open(BEST_HPARAMS_FILE_PATH.format(dataset), 'r') as f:
-    #     best_hparams = json.load(f)
+    best_hparams = {}
+    with open(BEST_HPARAMS_FILE_PATH.format(dataset), 'r') as f:
+        best_hparams = json.load(f)
         
-    # json_value = float(best_hparams["{}".format(metric)]) if best_hparams["{}".format(metric)] else 0
+    json_value = float(best_hparams["{}".format(metric)]) if best_hparams["{}".format(metric)] else 0
     
-    # if new_value > json_value:
-    #     best_hparams["preprocessing"] = preprocessing
-    #     #best_hparams["synt_embeddings"] = synt_embeddings
-    #     best_hparams["{}".format(metric)] = new_value
-    #     json_object = json.dumps(best_hparams, indent=4)
+    if new_value > json_value:
+        best_hparams["preprocessing"] = preprocessing
+        #best_hparams["synt_embeddings"] = synt_embeddings
+        best_hparams["{}".format(metric)] = new_value
+        json_object = json.dumps(best_hparams, indent=4)
         
-    #     with open(BEST_HPARAMS_FILE_PATH.format(dataset), 'w') as out_f:
-    #         out_f.write(json_object)
+        with open(BEST_HPARAMS_FILE_PATH.format(dataset), 'w') as out_f:
+            out_f.write(json_object)
     #print(preprocessing[30])
