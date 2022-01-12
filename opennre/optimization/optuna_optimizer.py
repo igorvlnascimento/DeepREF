@@ -21,17 +21,17 @@ class Optimizer():
             synt_embeddings = [1,1,1]
             preprocessing = 16
         elif dataset == 'ddi':
-            synt_embeddings = [1,0,1]
+            synt_embeddings = [1,0,0]
         elif dataset == 'semeval20181-1':
-            synt_embeddings = [1,1,0]
+            synt_embeddings = [0,0,1]
         elif dataset == 'semeval20181-2':
-            synt_embeddings = [1,0,1]
+            synt_embeddings = [1,0,0]
         if not os.path.exists(BEST_HPARAMS_FILE_PATH.format(dataset)):
             dict = {
                 "{}".format(self.metric): 0,
                 "batch_size": 16,
                 "preprocessing": preprocessing,
-                "lr": 1e-5,
+                "lr": 2e-5,
                 "synt_embeddings": synt_embeddings,
                 "max_length": 128,
                 "max_epoch": 3
@@ -43,8 +43,8 @@ class Optimizer():
         with open(BEST_HPARAMS_FILE_PATH.format(dataset), 'r') as f:
             self.best_hparams = json.load(f)
         
-        self.study_model = optuna.create_study()
-        self.study_params = optuna.create_study()
+        self.study_model = optuna.create_study(direction="maximize")
+        self.study_params = optuna.create_study(direction="maximize")
     
         #self.final_combinations = []
         
@@ -110,7 +110,7 @@ class Optimizer():
         
         train = Training(parameters, individual)
         
-        return -(train.train())
+        return train.train()
         
     # def evaluate_preprocessing(self):
     
