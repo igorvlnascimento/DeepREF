@@ -19,6 +19,7 @@ class Optimizer():
         preprocessing = 0
         if dataset == 'semeval2010':
             synt_embeddings = [1,1,1]
+            preprocessing = 16
         elif dataset == 'ddi':
             synt_embeddings = [1,0,1]
         elif dataset == 'semeval20181-1':
@@ -28,7 +29,7 @@ class Optimizer():
         if not os.path.exists(BEST_HPARAMS_FILE_PATH.format(dataset)):
             dict = {
                 "{}".format(self.metric): 0,
-                "batch_size": 8,
+                "batch_size": 16,
                 "preprocessing": preprocessing,
                 "lr": 1e-5,
                 "synt_embeddings": synt_embeddings,

@@ -17,21 +17,19 @@ class PreprocessOptimization():
         self.preprocess_combination = self.combine_preprocessing(self.preprocessing)
         
         synt_embeddings = [0,0,0]
-        batch_size = 32
         if dataset == 'semeval2010':
-            batch_size = 16
-        #     synt_embeddings = [1,1,1]
-        # elif dataset == 'ddi':
-        #     synt_embeddings = [1,0,1]
-        # elif dataset == 'semeval20181-1':
-        #     synt_embeddings = [1,1,0]
-        # elif dataset == 'semeval20181-2':
-        #     synt_embeddings = [1,0,1]
+            synt_embeddings = [1,1,1]
+        elif dataset == 'ddi':
+            synt_embeddings = [1,0,0]
+        elif dataset == 'semeval20181-1':
+            synt_embeddings = [0,1,0]
+        elif dataset == 'semeval20181-2':
+            synt_embeddings = [1,0,0]
         
         if not os.path.exists(BEST_HPARAMS_FILE_PATH.format(dataset)):
             dict = {
                 "{}".format(self.metric): 0,
-                "batch_size": batch_size,
+                "batch_size": 16,
                 "preprocessing": 0,
                 "lr": 2e-5,
                 "synt_embeddings": synt_embeddings,
@@ -96,7 +94,7 @@ class PreprocessOptimization():
                 "dropout": None,
             }
             
-            train = Training(parameters)
+            train = Training(parameters,None)
             
             new_value = train.train()
             
@@ -111,30 +109,32 @@ class PreprocessOptimization():
 
     
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-    parser.add_argument('-d','--dataset', default="semeval2010", choices=["semeval2010", "semeval2018", "semeval20181-1", "semeval20181-2", "ddi"], 
-                help='Dataset')
-    parser.add_argument('-m','--metric', default="micro_f1", choices=["micro_f1", "macro_f1", "acc"], 
-                help='Metric to optimize')
-    args = parser.parse_args()
-    dataset = args.dataset
-    metric = args.metric
-    prep = PreprocessOptimization(dataset, metric)
-    preprocessing, new_value = prep.preprocessing_training()
-    print("Type:", prep.preprocess_combination[preprocessing], "Value:", new_value)
+    prep = PreprocessOptimization("","")
+    prep.combine_preprocessing()
+    # parser = argparse.ArgumentParser()
+    # parser.add_argument('-d','--dataset', default="semeval2010", choices=["semeval2010", "semeval2018", "semeval20181-1", "semeval20181-2", "ddi"], 
+    #             help='Dataset')
+    # parser.add_argument('-m','--metric', default="micro_f1", choices=["micro_f1", "macro_f1", "acc"], 
+    #             help='Metric to optimize')
+    # args = parser.parse_args()
+    # dataset = args.dataset
+    # metric = args.metric
+    # prep = PreprocessOptimization(dataset, metric)
+    # preprocessing, new_value = prep.preprocessing_training()
+    # print("Type:", prep.preprocess_combination[preprocessing], "Value:", new_value)
     
-    best_hparams = {}
-    with open(BEST_HPARAMS_FILE_PATH.format(dataset), 'r') as f:
-        best_hparams = json.load(f)
+    # best_hparams = {}
+    # with open(BEST_HPARAMS_FILE_PATH.format(dataset), 'r') as f:
+    #     best_hparams = json.load(f)
         
-    json_value = float(best_hparams["{}".format(metric)]) if best_hparams["{}".format(metric)] else 0
+    # json_value = float(best_hparams["{}".format(metric)]) if best_hparams["{}".format(metric)] else 0
     
-    if new_value > json_value:
-        best_hparams["preprocessing"] = preprocessing
-        #best_hparams["synt_embeddings"] = synt_embeddings
-        best_hparams["{}".format(metric)] = new_value
-        json_object = json.dumps(best_hparams, indent=4)
+    # if new_value > json_value:
+    #     best_hparams["preprocessing"] = preprocessing
+    #     #best_hparams["synt_embeddings"] = synt_embeddings
+    #     best_hparams["{}".format(metric)] = new_value
+    #     json_object = json.dumps(best_hparams, indent=4)
         
-        with open(BEST_HPARAMS_FILE_PATH.format(dataset), 'w') as out_f:
-            out_f.write(json_object)
+    #     with open(BEST_HPARAMS_FILE_PATH.format(dataset), 'w') as out_f:
+    #         out_f.write(json_object)
     #print(preprocessing[30])
