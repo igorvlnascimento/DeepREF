@@ -22,7 +22,7 @@ class PreprocessOptimization():
         elif dataset == 'ddi':
             synt_embeddings = [1,0,0]
         elif dataset == 'semeval20181-1':
-            synt_embeddings = [0,1,0]
+            synt_embeddings = [0,0,1]
         elif dataset == 'semeval20181-2':
             synt_embeddings = [1,0,0]
         
@@ -72,13 +72,14 @@ class PreprocessOptimization():
         
         preprocessing_type, preprocessing_value = 0, 0
         
-        for i in range(len(self.preprocess_combination)):
+        for p in self.preprocess_combination:
+            print(p)
         
             parameters = {
                 "dataset": self.dataset,
                 "model": model,
                 "metric": self.metric,
-                "preprocessing": self.preprocess_combination[i],
+                "preprocessing": p,
                 "embedding": pretrain_bert,
                 "synt_embeddings": synt_embeddings,
                 "batch_size": batch_size,#batch_size_bert if model == 'bert' else batch_size,
@@ -99,7 +100,7 @@ class PreprocessOptimization():
             new_value = train.train()
             
             if new_value > preprocessing_value:
-                preprocessing_type, preprocessing_value = i, new_value 
+                preprocessing_type, preprocessing_value = p, new_value 
             
         return preprocessing_type, preprocessing_value
     
