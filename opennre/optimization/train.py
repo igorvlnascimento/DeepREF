@@ -19,7 +19,7 @@ class Training():
                 self.trial = trial
                 
                 self.dataset = "semeval2010" if parameters["dataset"] is None else parameters["dataset"]
-                self.preprocessing = None if parameters["preprocessing"] else parameters["preprocessing"]
+                self.preprocessing = None if len(parameters["preprocessing"]) == 0 else parameters["preprocessing"]
                 self.model = "cnn" if parameters["model"] is None else parameters["model"][0]
                 self.metric = "micro_f1" if parameters["metric"] is None else parameters["metric"]
                 self.max_length = 128 if parameters["max_length"] is None else parameters["max_length"]
@@ -46,8 +46,8 @@ class Training():
                 
                 self.preprocessing_str = 'original'
                 if self.preprocessing is not None:
-                        print(self.preprocessing)
                         self.preprocessing_str = "_".join(sorted(self.preprocessing))
+                        print(self.preprocessing_str)
                         
                 self.hyper_params = {
                         "max_length": self.max_length,
@@ -61,6 +61,9 @@ class Training():
                         "lr": self.lr,
                         "weight_decay": self.weight_decay,
                 }
+                
+                # Set random seed
+                self.set_seed(SEED)
 
                 root_path = '.'
                 sys.path.append(root_path)
@@ -204,7 +207,6 @@ class Training():
                         # Define the model
                         self.model_opennre = opennre.model.SoftmaxNN(sentence_encoder, len(rel2id), rel2id)
                 elif self.model == "lstm":
-                        print()
                         sentence_encoder = opennre.encoder.LSTMEncoder(
                                 token2id=word2id,
                                 max_length=self.max_length,
@@ -260,9 +262,6 @@ class Training():
                         
                 
                 self.criterion = opennre.model.PairwiseRankingLoss() if self.model == 'crcnn' else None
-                
-                # Set random seed
-                self.set_seed(SEED)
                 
         def set_seed(self, seed):
                 random.seed(seed)

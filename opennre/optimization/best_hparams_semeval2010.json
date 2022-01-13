@@ -1,0 +1,9 @@
+{
+    "micro_f1": 0.8946792204948544,
+    "batch_size": 16,
+    "preprocessing": 16,
+    "lr": 2e-05,
+    "max_length": 128,
+    "max_epoch": 3,
+    "synt_embeddings": [1,1,1]
+}
