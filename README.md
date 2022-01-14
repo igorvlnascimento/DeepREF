@@ -1,6 +1,6 @@
 # OpenNRE++
 
-A more complete 
+A more complete framework for relation classification tasks
 
 ## What is Relation Extraction
 
@@ -35,13 +35,9 @@ python setup.py install
 
 ## Training
 
-Make sure you have installed OpenNRE as instructed above. Then import our package and load pre-trained models.
+Make sure you have installed OpenNRE++ as instructed above. Then import our package and load pre-trained models.
 
-This code below train all the inputs. It can take several hours and you need a very good GPU:
-```
-python example/parser.py
-```
-Or you can use the notebook `framework_test_colab.ipynb` on Colab to test it.
+
 
 You can see the results in the file `results/ResultsOpenNRE++.txt`
 

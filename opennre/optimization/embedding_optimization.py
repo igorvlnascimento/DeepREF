@@ -83,7 +83,7 @@ class EmbeddingOptimization():
                 "dropout": None,
             }
             
-            train = Training(parameters)
+            train = Training(parameters,None)
             
             new_value = train.train()
             

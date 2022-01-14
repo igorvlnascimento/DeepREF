@@ -2,32 +2,70 @@ import os
 import json
 from ast import literal_eval
 
+import subprocess
+import stanza
+import spacy
+
 import pandas as pd
+
+from opennre import constants
 
 class ConverterDataset():
     
-    def __init__(self, dataset_name, nlp, entity_name="ENTITY"):
+    def __init__(self, dataset_name, nlp_tool="stanza", nlp_tool_type="general", entity_name="ENTITY"):
         
         self.dataset_name = dataset_name
         self.entity_name = entity_name
         
-        self.nlp = nlp
+        with open(constants.NLP_CONFIG, 'r') as f:
+            self.nlp_config = json.load(f)
+            
+        self.nlp_tool = nlp_tool
+            
+        nlp_info = self.nlp_config[nlp_tool][nlp_tool_type]
+        
+        if nlp_tool == 'stanza':
+            if nlp_tool_type == 'general':
+                stanza.download('en')
+                self.nlp = stanza.Pipeline(lang=nlp_info["language_model"], processors="tokenize,ner,depparse,pos,lemma", tokenize_no_ssplit=True)
+            else:
+                stanza.download('en', package=nlp_info["package"], processors={'ner': nlp_info["ner_model"]})
+                self.nlp = stanza.Pipeline(nlp_info["language_model"], package=nlp_info["package"], processors={"ner": nlp_info["ner_model"]}, tokenize_no_ssplit=True)
+        elif nlp_tool == 'spacy':
+                subprocess.call(["python", "-m", "spacy", "download", nlp_info["package"]])
+                self.nlp = spacy.load(nlp_info["package"])
+                
+        with open(constants.RELATIONS_TYPE, 'r') as f:
+            relations_type = json.load(f)
+                
+        os.makedirs(os.path.join('benchmark', self.dataset_name), exist_ok=True)
+        
+        self.write_relations_json(self.dataset_name, relations_type[self.dataset_name])
+                
         
     def write_relations_json(self, dataset_name, relation_dict):
         json_file = open('benchmark/{}/{}_rel2id.json'.format(dataset_name, dataset_name), 'w')
         json.dump(relation_dict, json_file)
 
-    def tokenize(self, sentence, model="spacy"):
-        if model == "spacy":
-            doc = self.nlp(sentence)
-            tokenized = []
-            for token in doc:
-                tokenized.append(token.text)
-            return tokenized
-        elif model == "stanza":
-            doc = self.nlp(sentence)
-            tokenized = [token.text for sent in doc.sentences for token in sent.tokens]
-            return tokenized
+    def tokenize(self, tag_sentence):
+        if self.nlp_tool == "spacy":
+            doc = self.nlp(tag_sentence)
+            tokenized = [token.text for token in doc]
+            upos = [token.pos_ for token in doc]
+            deps = [token.dep_ for token in doc]
+            ner = ["O"] * len(tokenized)
+            for ent in doc.ents:
+                for i in range(ent.start, ent.end):
+                    ner[i] = ent.label_
+        elif self.nlp_tool == "stanza":
+            #tag_sentence_tokenized = tag_sentence.split()
+            doc = self.nlp(tag_sentence)
+            tokenized = [token.text for sent in doc.sentences for token in sent.words]
+            upos = [token.upos for sent in doc.sentences for token in sent.words]
+            deps = [token.deprel for sent in doc.sentences for token in sent.words]
+            ner = [token.ner for sent in doc.sentences for token in sent.tokens]
+        assert len(tokenized) == len(upos) == len(deps) == len(ner) 
+        return tokenized, upos, deps, ner
 
     # remove any additional whitespace within a line
     def remove_whitespace(self, line):
@@ -143,7 +181,7 @@ class ConverterDataset():
             
         self.dataset_name = output_path.split('/')[1]
             
-        original_df_names = [self.dataset_name + '_{}_original.csv'.format(split) for split in ['train', 'val', 'test']]
+        #original_df_names = [self.dataset_name + '_{}_original.csv'.format(split) for split in ['train', 'val', 'test']]
 
         #for df_name in original_df_names:
         if not os.path.exists(os.path.join(output_path, self.dataset_name + '_train_original.csv')):

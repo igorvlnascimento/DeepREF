@@ -1,7 +1,9 @@
 import os
 import glob
 import argparse
+import subprocess
 import stanza
+import spacy
 
 import pandas as pd
 from nltk.tokenize.punkt import PunktSentenceTokenizer, PunktParameters
@@ -9,34 +11,27 @@ from tqdm import tqdm
 
 from opennre.dataset.converters.converter import ConverterDataset
 
-relation_dict = {0: 'usage', 1: 'result', 2: 'model-feature', 3: 'part_whole', 4: 'topic', 5: 'compare'}
-rev_relation_dict = {val: key for key, val in relation_dict.items()}
-
 class ConverterSemEval2018(ConverterDataset):
-    def __init__(self, nlp) -> None:
-        super().__init__(dataset_name="semeval2018", entity_name="ENTITY", nlp=nlp)
+    def __init__(self, nlp_tool, nlp_tool_type) -> None:
+        super().__init__(dataset_name="semeval2018", entity_name="ENTITY", nlp_tool=nlp_tool, nlp_tool_type=nlp_tool_type)
         
-        os.makedirs(os.path.join('benchmark', self.dataset_name), exist_ok=True)
-        
-        self.write_relations_json(self.dataset_name, rev_relation_dict)
-        
-    def tokenize(self, tag_sentence, model="spacy"):
-        if model == "spacy":
-            doc = self.nlp(tag_sentence)
-            tokenized = []
-            for token in doc:
-                tokenized.append(token.text)
-            return tokenized
-        elif model == "stanza":
-            #tag_sentence_tokenized = tag_sentence.split()
-            doc = self.nlp(tag_sentence)
-            tokenized = [token.text for sent in doc.sentences for token in sent.words]
-            upos = [token.upos for sent in doc.sentences for token in sent.words]
-            deps = [token.deprel for sent in doc.sentences for token in sent.words]
-            ner = [token.ner for sent in doc.sentences for token in sent.tokens]
+    # def tokenize(self, tag_sentence):
+    #     if self.nlp_name == "spacy":
+    #         doc = self.nlp(tag_sentence)
+    #         tokenized = [token.text for token in doc]
+    #         upos = [token.pos_ for token in doc]
+    #         deps = [token.dep_ for token in doc]
+    #         ner = [ent.label_ for ent in doc.ents]
+    #     elif self.nlp_name == "stanza":
+    #         #tag_sentence_tokenized = tag_sentence.split()
+    #         doc = self.nlp(tag_sentence)
+    #         tokenized = [token.text for sent in doc.sentences for token in sent.words]
+    #         upos = [token.upos for sent in doc.sentences for token in sent.words]
+    #         deps = [token.deprel for sent in doc.sentences for token in sent.words]
+    #         ner = [token.ner for sent in doc.sentences for token in sent.tokens]
             
-            assert len(tokenized) == len(upos) and len(tokenized) == len(deps) and len(tokenized) == len(ner) 
-            return tokenized, upos, deps, ner
+    #     assert len(tokenized) == len(upos) and len(tokenized) == len(deps) and len(tokenized) == len(ner) 
+    #     return tokenized, upos, deps, ner
 
     # given sentence dom in DDI corpus, get all the information related to the entities 
     # present in the dom
@@ -327,7 +322,7 @@ class ConverterSemEval2018(ConverterDataset):
                                 continue
                             
                             tagged_sentence = self.tag_sentence(sentence, e1_data, e2_data, other_entities)
-                            tokens, upos, deps, ner = self.tokenize(tagged_sentence, model="stanza")
+                            tokens, upos, deps, ner = self.tokenize(tagged_sentence)
                             
                             # rev_tokens = self.reverse_sentence(tokens)
                             # rev_tokens_copy = rev_tokens.copy()
@@ -443,10 +438,21 @@ class ConverterSemEval2018(ConverterDataset):
             outfile.close()
     
 if __name__ == '__main__':
-    stanza.download('en', package='craft', processors={'ner': 'bionlp13cg'})
-    nlp = stanza.Pipeline('en', package="craft", processors={"ner": "bionlp13cg"}, tokenize_no_ssplit=True)
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--train_input_file', default='benchmark/raw_semeval2010/TRAIN_FILE.TXT', 
+        help='Input path of training examples')
+    parser.add_argument('--test_input_file', default='benchmark/raw_semeval2010/TEST_FILE_FULL.TXT', 
+        help='Input path of training examples')
+    parser.add_argument('--output_path', default='benchmark/semeval2010/original', 
+        help='Input path of training examples')
+    parser.add_argument('--nlp_tool', default='stanza', choices=['stanza', 'spacy'],
+        help='NLP tool name')
+    parser.add_argument('--nlp_tool_type', default='general', choices=['general', 'scientific'],
+        help='NLP tool type name')
     
-    converter = ConverterSemEval2018(nlp)
+    args = parser.parse_args()
+    
+    converter = ConverterSemEval2018(args.nlp_tool, args.nlp_tool_type)
     
     converter.write_split_dataframes('benchmark/semeval20181-1/original', 'benchmark/raw_semeval20181-1/Train/', 'benchmark/raw_semeval20181-1/Test/')
     converter.write_split_dataframes('benchmark/semeval20181-2/original', 'benchmark/raw_semeval20181-2/Train/', 'benchmark/raw_semeval20181-2/Test/')

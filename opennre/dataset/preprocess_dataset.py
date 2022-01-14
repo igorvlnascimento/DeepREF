@@ -1,8 +1,7 @@
 import os
 import argparse
-import stanza
 import subprocess
-import itertools
+from opennre import constants
 
 from opennre.dataset.preprocess import Preprocess
 
@@ -30,11 +29,7 @@ class PreprocessDataset():
             "punct": False, 
             "stopword": False, 
             "brackets": False,
-            "ner_blinding": False, 
-            "reverse_sentences": False, 
-            "semantic_features": False,
-            "syntatic_features": False,
-            "wordnet": False
+            "ner_blinding": False
         }
         
         if self.preprocessing_types is not None:
@@ -51,14 +46,6 @@ class PreprocessDataset():
                 preprocessing_types["stopword"] = True
             if "b" in self.preprocessing_types:
                 preprocessing_types["brackets"] = True
-            if "rs" in self.preprocessing_types:
-                preprocessing_types["reverse_sentences"] = True
-            if "syf" in self.preprocessing_types:
-                preprocessing_types["syntatic_features"] = True
-            if "sf" in self.preprocessing_types:
-                preprocessing_types["semantic_features"] = True
-            # if "wn" in self.preprocessing_types:
-            #     preprocessing_types["wordnet"] = True
     
         preprocess = Preprocess(self.dataset_name, preprocessing_types)
 
@@ -82,33 +69,18 @@ class PreprocessDataset():
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('-d', '--dataset_name', type=str, required=True,
+    parser.add_argument('-d', '--dataset_name', type=str, required=True, choices=constants.DATASETS,
         help='Dataset name')
-    parser.add_argument('-p', '--preprocessing_types', nargs="+",
+    parser.add_argument('-p', '--preprocessing_types', nargs="+", choices=constants.PREPROCESSING_TYPES,
         help='Preprocessing types')
     
     args = parser.parse_args()
-    
-    preprocessing = ["sw", "d", "b", "p", "eb","nb"]    
-    combinations = []
-    for i in range(len(preprocessing)):
-        combinations.extend(itertools.combinations(preprocessing, i))
-        
-    for j, comb in enumerate(combinations):
-        if 'eb' in comb and 'nb' in comb:
-            comb = list(comb)
-            comb.remove('eb')
-            combinations[j] = comb
-        else:
-            combinations[j] = list(comb)
-    
-    final_combinations = [comb for n, comb in enumerate(combinations) if comb not in combinations[:n]]
         
     if args.preprocessing_types is not None:
         preprocess_dataset = PreprocessDataset(args.dataset_name, args.preprocessing_types)
         preprocess_dataset.preprocess_dataset()
     else:
-        for comb in final_combinations:
+        for comb in constants.preprocessing_choices:
             print("comb:",comb)
             preprocess_dataset = PreprocessDataset(args.dataset_name, comb)
             preprocess_dataset.preprocess_dataset()

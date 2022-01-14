@@ -3,6 +3,8 @@ import glob
 from pyexpat import ExpatError
 from xml.dom import minidom
 import argparse
+import subprocess
+import spacy
 import stanza
 
 import pandas as pd
@@ -10,33 +12,9 @@ from tqdm import tqdm
 
 from opennre.dataset.converters.converter import ConverterDataset
 
-relation_dict = {0: 'advise', 1: 'effect', 2: 'mechanism', 3: 'int'}
-rev_relation_dict = {val: key for key, val in relation_dict.items()}
-
 class ConverterDDI(ConverterDataset):
-    def __init__(self, nlp):
-        super().__init__(dataset_name="ddi", entity_name="DRUG", nlp=nlp)
-        
-        os.makedirs(os.path.join('benchmark', self.dataset_name), exist_ok=True)
-        
-        self.write_relations_json(self.dataset_name, rev_relation_dict)
-        
-    def tokenize(self, sentence, model="spacy"):
-        if model == "spacy":
-            doc = self.nlp(sentence)
-            tokenized = []
-            for token in doc:
-                tokenized.append(token.text)
-            return tokenized
-        elif model == "stanza":
-            doc = self.nlp(sentence)
-            tokenized = [token.text for sent in doc.sentences for token in sent.words]
-            upos = [token.upos for sent in doc.sentences for token in sent.words]
-            deps = [token.deprel for sent in doc.sentences for token in sent.words]
-            ner = [token.ner for sent in doc.sentences for token in sent.tokens]
-            
-            assert len(tokenized) == len(upos) and len(tokenized) == len(deps) and len(tokenized) == len(ner) 
-            return tokenized, upos, deps, ner
+    def __init__(self, nlp_tool, nlp_tool_type):
+        super().__init__(dataset_name="ddi", entity_name="DRUG", nlp=nlp, nlp_tool=nlp_tool, nlp_tool_type=nlp_tool_type)
         
     # given sentence dom in DDI corpus, get all the information related to the entities 
     # present in the dom
@@ -324,12 +302,18 @@ if __name__ == '__main__':
         help='Input path of training examples')
     parser.add_argument('--output_path', default='benchmark/ddi/original', 
         help='Input path of training examples')
+    parser.add_argument('--nlp_tool', default='stanza', choices=['stanza', 'spacy'],
+        help='NLP tool name')
 
     args = parser.parse_args()
     
-    #stanza.download('en', package='craft', processors={'ner': 'bionlp13cg'})
-    nlp = stanza.Pipeline('en', package="craft", processors={"ner": "bionlp13cg"}, tokenize_no_ssplit=True)
+    if args.nlp_tool == 'stanza':
+        stanza.download('en', package='craft', processors={'ner': 'bionlp13cg'})
+        nlp = stanza.Pipeline('en', package="craft", processors={"ner": "bionlp13cg"}, tokenize_no_ssplit=True)
+    elif args.nlp_tool == 'spacy':
+        subprocess.call(["python", "-m", "spacy", "download", "en_core_web_sm"])
+        nlp = spacy.load("en_core_web_sm")
     
-    converter = ConverterDDI(nlp)
+    converter = ConverterDDI(nlp, args.nlp_tool)
     
     converter.write_split_dataframes(args.output_path, args.train_input_file, args.test_input_file)

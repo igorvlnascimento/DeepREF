@@ -4,31 +4,23 @@ import numpy as np
 import json
 import opennre
 from opennre import constants
-from opennre.pre_processing.preprocess_dataset import PreprocessDataset
+from opennre.dataset.preprocess_dataset import PreprocessDataset
 from opennre.framework.word_embedding_loader import WordEmbeddingLoader
 import os
 import sys
 import argparse
-import stanza
 import random
-
-SEED = 42
 
 class Training():
         def __init__(self, parameters, trial):
                 self.trial = trial
                 
                 self.dataset = "semeval2010" if parameters["dataset"] is None else parameters["dataset"]
-                self.preprocessing = None if len(parameters["preprocessing"]) == 0 else parameters["preprocessing"]
-                self.model = "cnn" if parameters["model"] is None else parameters["model"][0]
+                self.preprocessing = None if parameters["preprocessing"] == 0 else parameters["preprocessing"]
+                self.model = "cnn" if parameters["model"] is None else parameters["model"]
                 self.metric = "micro_f1" if parameters["metric"] is None else parameters["metric"]
                 self.max_length = 128 if parameters["max_length"] is None else parameters["max_length"]
-                self.pooler = "entity" if parameters["pooler"] is None else parameters["pooler"]
-                self.mask_entity = False if parameters["mask_entity"] is None else parameters["mask_entity"]
-                self.hidden_size = 230 if parameters["hidden_size"] is None else parameters["hidden_size"]
-                self.position_size = 5 if parameters["position_size"] is None else parameters["position_size"]
-                self.dropout = 0.5 if parameters["dropout"] is None else parameters["dropout"]
-                self.weight_decay = 1e-5 if parameters["weight_decay"] is None else parameters["weight_decay"]
+                self.opt = "adamw" if self.model == "bert" else "sgd"
                 
                 if self.model == "bert":
                         self.embedding = "bert-base-uncased" if parameters["embedding"] is None else parameters["embedding"]
@@ -36,40 +28,31 @@ class Training():
                         self.batch_size = 16 if parameters["batch_size"] is None else parameters["batch_size"]
                         self.lr = 2e-5 if parameters["lr"] is None else parameters["lr"]
                         self.max_epoch = 3 if parameters["max_epoch"] is None else parameters["max_epoch"]
-                        self.opt = 'adamw'
                 else:
                         self.embedding = "glove" if parameters["embedding"] is None else parameters["embedding"]
                         self.batch_size = 160 if parameters["batch_size"] is None else parameters["batch_size"]
                         self.lr = 1e-1 if parameters["lr"] is None else parameters["lr"]
                         self.max_epoch = 100 if parameters["max_epoch"] is None else parameters["max_epoch"]
-                        self.opt = "adam" if parameters["opt"] is None else parameters["opt"]
                 
                 self.preprocessing_str = 'original'
                 if self.preprocessing is not None:
-                        self.preprocessing_str = "_".join(sorted(self.preprocessing))
+                        self.preprocessing_str = "_".join(sorted(constants.PREPROCESSING_COMBINATION[self.preprocessing]))
                         print(self.preprocessing_str)
                         
                 self.hyper_params = {
                         "max_length": self.max_length,
-                        "max_epoch": self.max_epoch,
-                        "pooler": self.pooler,
-                        "mask_entity": self.mask_entity,
-                        "hidden_size": self.hidden_size,
-                        "position_size": self.position_size,
-                        "dropout": self.dropout,
+                        "max_epoch": self.max_epoch,                        
                         "batch_size": self.batch_size,
-                        "lr": self.lr,
-                        "weight_decay": self.weight_decay,
+                        "lr": self.lr
                 }
                 
                 # Set random seed
-                self.set_seed(SEED)
+                self.set_seed(constants.SEED)
 
                 root_path = '.'
                 sys.path.append(root_path)
                 if not os.path.exists('ckpt'):
                         os.mkdir('ckpt')
-                #if len(args.ckpt) == 0:
                 ckpt = '{}_{}'.format(self.dataset, self.model)
                 self.ckpt = 'ckpt/{}.pth.tar'.format(ckpt)
                 
@@ -98,13 +81,7 @@ class Training():
                                                 '{}_test_{}.txt'.format(self.dataset, self.preprocessing_str))
                         
                 if not (os.path.exists(self.train_file)) or not(os.path.exists(self.val_file)) or not(os.path.exists(self.test_file)):
-                        if self.dataset == "semeval2010":
-                                stanza.download('en')
-                                nlp = stanza.Pipeline(lang='en', processors="tokenize,ner,pos", tokenize_no_ssplit=True)
-                        else:
-                                stanza.download('en', package='craft', processors={'ner': 'bionlp13cg'})
-                                nlp = stanza.Pipeline('en', package="craft", processors={"ner": "bionlp13cg"}, tokenize_no_ssplit=True)
-                        preprocess_dataset = PreprocessDataset(self.dataset, self.preprocessing, nlp)
+                        preprocess_dataset = PreprocessDataset(self.dataset, self.preprocessing)
                         preprocess_dataset.preprocess_dataset()
                         
                 if not os.path.exists(self.test_file):
@@ -115,7 +92,6 @@ class Training():
                 rel2id = json.load(open(self.rel2id_file))
 
                 print("embedding:",self.embedding)
-                #opennre.download(self.embedding, root_path=root_path)
                 if self.model != 'bert':
                         print(self.model)
                         word2id, word2vec = WordEmbeddingLoader(self.embedding).load_embedding()
@@ -130,13 +106,13 @@ class Training():
                                 token2id=word2id,
                                 max_length=self.max_length,
                                 word_size=word_dim,
-                                position_size=self.position_size,
-                                hidden_size=self.hidden_size,
+                                position_size=5,
+                                hidden_size=230,
                                 blank_padding=True,
                                 kernel_size=3,
                                 padding_size=1,
                                 word2vec=word2vec,
-                                dropout=self.dropout,
+                                dropout=0.5,
                         )
 
 
@@ -147,13 +123,13 @@ class Training():
                                 token2id=word2id,
                                 max_length=self.max_length,
                                 word_size=word_dim,
-                                position_size=self.position_size,
-                                hidden_size=self.hidden_size,
+                                position_size=5,
+                                hidden_size=230,
                                 blank_padding=True,
                                 kernel_size=3,
                                 padding_size=1,
                                 word2vec=word2vec,
-                                dropout=self.dropout,
+                                dropout=0.5,
                         )
 
 
@@ -164,13 +140,13 @@ class Training():
                                 token2id=word2id,
                                 max_length=self.max_length,
                                 word_size=word_dim,
-                                position_size=self.position_size,
-                                hidden_size=self.hidden_size,
+                                position_size=5,
+                                hidden_size=230,
                                 blank_padding=True,
                                 kernel_size=3,
                                 padding_size=1,
                                 word2vec=word2vec,
-                                dropout=self.dropout,
+                                dropout=0.5,
                         )
 
 
@@ -181,11 +157,11 @@ class Training():
                                 token2id=word2id,
                                 max_length=self.max_length,
                                 word_size=word_dim,
-                                position_size=self.position_size,
-                                hidden_size=self.hidden_size,
+                                position_size=5,
+                                hidden_size=230,
                                 blank_padding=True,
                                 word2vec=word2vec,
-                                dropout=self.dropout,
+                                dropout=0.5,
                                 bidirectional=False
                         )
 
@@ -196,11 +172,11 @@ class Training():
                                 token2id=word2id,
                                 max_length=self.max_length,
                                 word_size=word_dim,
-                                position_size=self.position_size,
-                                hidden_size=self.hidden_size,
+                                position_size=5,
+                                hidden_size=230,
                                 blank_padding=True,
                                 word2vec=word2vec,
-                                dropout=self.dropout,
+                                dropout=0.5,
                                 bidirectional=True
                         )
 
@@ -211,11 +187,11 @@ class Training():
                                 token2id=word2id,
                                 max_length=self.max_length,
                                 word_size=word_dim,
-                                position_size=self.position_size,
-                                hidden_size=self.hidden_size,
+                                position_size=5,
+                                hidden_size=230,
                                 blank_padding=True,
                                 word2vec=word2vec,
-                                dropout=self.dropout,
+                                dropout=0.5,
                                 bidirectional=False
                         )
 
@@ -226,36 +202,26 @@ class Training():
                                 token2id=word2id,
                                 max_length=self.max_length,
                                 word_size=word_dim,
-                                position_size=self.position_size,
-                                hidden_size=self.hidden_size,
+                                position_size=5,
+                                hidden_size=230,
                                 blank_padding=True,
                                 word2vec=word2vec,
-                                dropout=self.dropout,
+                                dropout=0.5,
                                 bidirectional=True
                         )
 
                         # Define the model
                         self.model_opennre = opennre.model.SoftmaxNN(sentence_encoder, len(rel2id), rel2id)
                 elif self.model == "bert":
-                        if self.pooler == 'entity':
-                                sentence_encoder = opennre.encoder.BERTEntityEncoder(
-                                        upos2id=upos2id,
-                                        deps2id=deps2id,
-                                        max_length=self.max_length, 
-                                        pretrain_path=self.embedding,
-                                        mask_entity=self.mask_entity,
-                                        sk_embedding=self.synt_embeddings[0],
-                                        pos_tags_embedding=self.synt_embeddings[1],
-                                        deps_embedding=self.synt_embeddings[2]
-                                )
-                        elif self.pooler == 'cls':
-                                sentence_encoder = opennre.encoder.BERTEncoder(
-                                        max_length=self.max_length, 
-                                        pretrain_path=self.embedding,
-                                        mask_entity=self.mask_entity
-                                )
-                        else:
-                                raise NotImplementedError
+                        sentence_encoder = opennre.encoder.BERTEntityEncoder(
+                                upos2id=upos2id,
+                                deps2id=deps2id,
+                                max_length=self.max_length, 
+                                pretrain_path=self.embedding,
+                                sk_embedding=self.synt_embeddings[0],
+                                pos_tags_embedding=self.synt_embeddings[1],
+                                deps_embedding=self.synt_embeddings[2]
+                        )
 
                         # Define the model
                         self.model_opennre = opennre.model.SoftmaxNN(sentence_encoder, len(rel2id), rel2id)
@@ -281,7 +247,6 @@ class Training():
                         batch_size=self.batch_size,
                         max_epoch=self.max_epoch,
                         lr=self.lr,
-                        weight_decay=self.weight_decay,
                         opt=self.opt,
                         criterion=self.criterion,
                         trial=self.trial,
@@ -356,36 +321,18 @@ if __name__ == '__main__':
                 help='Learning rate')
         parser.add_argument('--weight_decay', default=1e-5, type=float,
                 help='Weight decay')
-        parser.add_argument('--max_length', default=40, type=int,
+        parser.add_argument('--max_length', default=128, type=int,
                 help='Maximum sentence length')
         parser.add_argument('--max_epoch', default=50, type=int, # TODO : change default to 100
                 help='Max number of training epochs')
 
         args = parser.parse_args()
         
-        parameters = {
-                "dataset": args.dataset,
-                "model": args.model, 
-                "metric": args.metric,
-                "preprocessing": args.preprocessing,
-                "embedding": args.embedding,
-                "pretrain_path": args.pretrain_path,
-                "batch_size": args.batch_size,
-                "lr": args.lr,
-                "weight_decay": args.weight_decay,
-                "max_length": args.max_length,
-                "max_epoch": args.max_epoch
-        }
+        BEST_HPARAMS_FILE_PATH = "opennre/optimization/best_hparams_{}.json"
         
-        train = Training(parameters)
+        with open(BEST_HPARAMS_FILE_PATH.format(args.dataset), 'r') as f:
+            best_hparams = json.load(f)
+        
+        train = Training(best_hparams)
         print("Micro-F1:",train.train())
-
-#args, ckpt = Parser(args).init_args('cnn')
-
-#if args.metric == 'acc':
-#    logging.info('Accuracy: {}'.format(result['acc']))
-#else:
-#    logging.info('Micro precision: {}'.format(result['micro_p']))
-#    logging.info('Micro recall: {}'.format(result['micro_r']))
-#    logging.info('Micro F1: {}'.format(result['micro_f1']))
 #

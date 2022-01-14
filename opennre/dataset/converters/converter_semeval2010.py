@@ -1,44 +1,16 @@
 import os
 import stanza
+import spacy
 from tqdm import tqdm
 import argparse
+import subprocess
+
 import pandas as pd
 from opennre.dataset.converters.converter import ConverterDataset
 
-relation_dict = {0:'Component-Whole(e2,e1)', 1:'Instrument-Agency(e2,e1)', 2:'Member-Collection(e1,e2)',
-3:'Cause-Effect(e2,e1)', 4:'Entity-Destination(e1,e2)', 5:'Content-Container(e1,e2)',
-6:'Message-Topic(e1,e2)', 7:'Product-Producer(e2,e1)', 8:'Member-Collection(e2,e1)',
-9:'Entity-Origin(e1,e2)', 10:'Cause-Effect(e1,e2)', 11:'Component-Whole(e1,e2)',
-12:'Message-Topic(e2,e1)', 13:'Product-Producer(e1,e2)', 14:'Entity-Origin(e2,e1)',
-15:'Content-Container(e2,e1)', 16:'Instrument-Agency(e1,e2)', 17:'Entity-Destination(e2,e1)',
-18:'Other'}
-rev_relation_dict = {val: key for key, val in relation_dict.items()}
-
 class ConverterSemEval2010(ConverterDataset):
-    def __init__(self, nlp):
-        super().__init__(dataset_name='semeval2010', nlp=nlp)
-        
-        os.makedirs(os.path.join('benchmark', self.dataset_name), exist_ok=True)
-        
-        self.write_relations_json(self.dataset_name, rev_relation_dict)
-
-    def tokenize(self, sentence, model="spacy"):
-        tokenized = []
-        if model == "spacy":
-            #nlp = spacy.load('en_core_web_lg')
-            doc = self.nlp(sentence)
-            for token in doc:
-                tokenized.append(token.text)
-        elif model == "stanza":
-            doc = self.nlp(sentence)
-            tokenized = [word.text for sent in doc.sentences for word in sent.words]
-            tokenized = [token.text for sent in doc.sentences for token in sent.words]
-            upos = [token.upos for sent in doc.sentences for token in sent.words]
-            deps = [token.deprel for sent in doc.sentences for token in sent.words]
-            ner = [token.ner for sent in doc.sentences for token in sent.tokens]
-
-        return tokenized, upos, deps, ner
-
+    def __init__(self, nlp_tool, nlp_tool_type):
+        super().__init__(dataset_name='semeval2010', nlp=nlp, nlp_tool=nlp_tool, nlp_tool_type=nlp_tool_type)
 
     # get the start and end of the entities 
     def get_entity_start_and_end(self, entity_start, entity_end, tokens, upos, deps, ner):
@@ -212,12 +184,18 @@ if __name__ == '__main__':
         help='Input path of training examples')
     parser.add_argument('--output_path', default='benchmark/semeval2010/original', 
         help='Input path of training examples')
+    parser.add_argument('--nlp_tool', default='stanza', choices=['stanza', 'spacy'],
+        help='NLP tool name')
 
     args = parser.parse_args()
     
-    #stanza.download('en')
-    nlp = stanza.Pipeline(lang='en', processors="tokenize,ner,depparse,pos,lemma", tokenize_no_ssplit=True)
+    if args.nlp_tool == 'stanza':
+        stanza.download('en')
+        nlp = stanza.Pipeline(lang='en', processors="tokenize,ner,depparse,pos,lemma", tokenize_no_ssplit=True)
+    elif args.nlp_tool == 'spacy':
+        subprocess.call(["python", "-m", "spacy", "download", "en_core_web_trf"])
+        nlp = spacy.load("en_core_web_sm")
     
-    converter = ConverterSemEval2010(nlp)
+    converter = ConverterSemEval2010(args.nlp_tool)
 
     converter.write_split_dataframes(args.output_path, args.train_input_file, args.test_input_file)

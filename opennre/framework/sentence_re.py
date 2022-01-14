@@ -4,10 +4,9 @@ import torch
 from torch import nn, optim
 from .data_loader import SentenceRELoader
 from .utils import AverageMeter
+from datetime import datetime
 
 from sklearn import metrics
-from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
-import matplotlib.pyplot as plt
 import numpy as np
 
 import optuna
@@ -38,18 +37,11 @@ class SentenceRE(nn.Module):
         self.train_path = train_path
         self.dataset_name = train_path[train_path.rfind('/')+1:train_path.find('_', train_path.rfind('/'))]
         self.preprocessing = train_path[train_path.rfind('/', 0, -(len(train_path)-train_path.rfind('/')))+1:train_path.rfind('/')]
+        
+        with open(constants.CLASSES_DATASET, 'r') as f:
+            classes_dataset = json.load(f)
 
-        self.classes = []
-        if self.dataset_name == 'semeval2010':
-            self.classes = constants.CLASSES_SEM_EVAL
-        elif self.dataset_name == 'semeval2018':
-            self.classes = constants.CLASSES_SEM_EVAL_2018
-        elif self.dataset_name == 'semeval20181-1':
-            self.classes = constants.CLASSES_SEM_EVAL_2018
-        elif self.dataset_name == 'semeval20181-2':
-            self.classes = constants.CLASSES_SEM_EVAL_2018
-        elif self.dataset_name == 'ddi':
-            self.classes = constants.CLASSES_DDI
+        self.classes = classes_dataset[self.dataset_name]
             
         print("classes:",self.classes)
 
@@ -215,34 +207,12 @@ class SentenceRE(nn.Module):
         result = eval_loader.dataset.eval(pred_result)
         return result, pred_result, ground_truth
 
-    def get_confusion_matrix(self, ground_truth, pred_result, model, embedding, only_test=False, output_format='png'):
-        # embedding = embedding.replace('/', '-').replace('.', '')
-        # c_matrix = confusion_matrix(ground_truth, pred_result)
-
-        # disp = ConfusionMatrixDisplay(confusion_matrix=c_matrix,
-        #                                display_labels=self.classes)
-
-        # disp.plot(include_values=True, xticks_rotation='vertical')
-
-        # if only_test:
-        #     image_output_name = "confusion_matrix_{}_{}_{}_{}_only_test.{}".format(self.dataset_name, model, embedding, self.preprocessing, output_format)
-        # else:
-        #     image_output_name = "confusion_matrix_{}_{}_{}_{}.{}".format(self.dataset_name, model, embedding, self.preprocessing, output_format)
-
-        if not os.path.exists('results/'):
-            os.makedirs("results", exist_ok=True)
-        # save_path = os.path.join('results', image_output_name)
-        # plt.savefig(save_path, bbox_inches="tight")
-        # plt.clf()
-
     def test_set_results(self, ground_truth, pred, result, model, embedding, hyper_params):
         embedding = embedding.replace('/', '-').replace('.', '')
-        #logging.info('Ground truth: '+ str(ground_truth))
-        #logging.info('Predictions : '+ str(pred))
         logging.info('Test set results:')
         logging.info('Trained with dataset {}, model {}, embedding {} and preprocessing {}:\n'.format(self.dataset_name, model, embedding, self.preprocessing))
         logging.info('Hyperparams: {}'.format(hyper_params))
-        file_path = 'results/ResultsOpenNRE++_{}.txt'.format(self.dataset_name)
+        file_path = 'results/{}/ResultsOpenNRE++_{}_{}.txt'.format(self.dataset_name, self.dataset_name, datetime.now().isoformat(timespec="auto"))
         report = metrics.classification_report(ground_truth, pred, target_names=self.classes, digits=5, zero_division=1)
         confusion_matrix = metrics.confusion_matrix(ground_truth, pred)
         logging.info(report)
@@ -250,8 +220,8 @@ class SentenceRE(nn.Module):
         logging.info('Micro precision: {}'.format(result['micro_p']))
         logging.info('Micro recall: {}'.format(result['micro_r']))
         logging.info('Micro F1: {}'.format(result['micro_f1']))
-        #max_length_classes = max([len(w) for w in self.classes])
-        os.makedirs('results/', exist_ok=True)
+        logging.info('Macro F1: {}'.format(result['macro_f1']))
+        os.makedirs(os.path.join(constants.RESULTS_PATH, self.dataset_name), exist_ok=True)
         if os.path.isfile(file_path):
             with open(file_path, 'a') as ablation_file:
                 self.write_test_results(ablation_file, model, embedding, hyper_params, result, report, confusion_matrix)
@@ -271,6 +241,7 @@ class SentenceRE(nn.Module):
         file.write('Micro precision: {}\n'.format(result['micro_p']))
         file.write('Micro recall: {}\n'.format(result['micro_r']))
         file.write('Micro F1: {}\n\n'.format(result['micro_f1']))
+        file.write('Macro F1: {}\n\n'.format(result['macro_f1']))
 
 
     def load_state_dict(self, state_dict):
