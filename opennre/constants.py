@@ -25,7 +25,7 @@ MODELS = ["cnn", "pcnn", "crcnn", "gru", "bigru", "lstm", "bilstm", "bert"]
 PRETRAIN_WEIGHTS = ["bert-base-uncased", "dmis-lab/biobert-v1.1", "allenai/scibert_scivocab_uncased"]
 
 ########################### PATHS #######################################
-RESULTS_PATH = "opennre/framework/results"
+RESULTS_PATH = "opennre/results"
 NLP_CONFIG = "opennre/data/nlp_config.json"
 RELATIONS_TYPE = "opennre/data/relations_type.json"
 CLASSES_DATASET = "opennre/data/classes_dataset.json"
