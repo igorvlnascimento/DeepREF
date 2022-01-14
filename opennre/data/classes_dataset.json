@@ -22,7 +22,16 @@
         "Entity-Destination(e2,e1)"
     ],
 
-    "semeval2018": 
+    "semeval20181-1": 
+    [
+        "usage",
+        "result",
+        "model-feature",
+        "part_whole",
+        "topic",
+        "compare"
+    ],
+    "semeval20181-2": 
     [
         "usage",
         "result",
