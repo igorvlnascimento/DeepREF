@@ -41,23 +41,6 @@ class Optimizer():
             self.params = self.optimize_model()
         elif opt_type == 'hyperparams':
             self.params = self.optimize_hyperparameters()
-        
-    def combine_preprocessing(self, preprocessing):
-        combinations = []
-        for i in range(len(preprocessing)):
-            combinations.extend(itertools.combinations(preprocessing, i))
-            
-        for j, comb in enumerate(combinations):
-            if 'eb' in comb and 'nb' in comb:
-                comb = list(comb)
-                comb.remove('eb')
-                combinations[j] = comb
-            else:
-                combinations[j] = list(comb)
-        
-        self.final_combinations = [comb for n, comb in enumerate(combinations) if comb not in combinations[:n]]
-        print(self.final_combinations)
-        return self.final_combinations
 
     def evaluate_hyperparameters(self, individual):
         

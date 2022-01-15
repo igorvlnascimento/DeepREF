@@ -7,6 +7,8 @@ import subprocess
 import spacy
 import stanza
 
+from opennre import constants
+
 import pandas as pd
 from tqdm import tqdm
 
@@ -302,8 +304,10 @@ if __name__ == '__main__':
         help='Input path of training examples')
     parser.add_argument('--output_path', default='benchmark/ddi/original', 
         help='Input path of training examples')
-    parser.add_argument('--nlp_tool', default='stanza', choices=['stanza', 'spacy'],
+    parser.add_argument('--nlp_tool', default='stanza', choices=constants.NLP_TOOLS,
         help='NLP tool name')
+    parser.add_argument('--nlp_tool_type', default='general', choices=constants.NLP_TOOLS_TYPE,
+        help='NLP tool type name')
 
     args = parser.parse_args()
     
