@@ -81,7 +81,7 @@ class Training():
                                                 '{}_test_{}.txt'.format(self.dataset, self.preprocessing_str))
                         
                 if not (os.path.exists(self.train_file)) or not(os.path.exists(self.val_file)) or not(os.path.exists(self.test_file)):
-                        preprocess_dataset = PreprocessDataset(self.dataset, self.preprocessing)
+                        preprocess_dataset = PreprocessDataset(self.dataset, constants.PREPROCESSING_COMBINATION[self.preprocessing])
                         preprocess_dataset.preprocess_dataset()
                         
                 if not os.path.exists(self.test_file):
@@ -94,11 +94,8 @@ class Training():
                 print("embedding:",self.embedding)
                 if self.model != 'bert':
                         print(self.model)
-                        word2id, word2vec = WordEmbeddingLoader(self.embedding).load_embedding()
+                        word2id, word2vec = WordEmbeddingLoader("fasttext_crawl").load_embedding()
                         word_dim = word2vec.shape[1]
-                        
-                upos2id = json.load(open(os.path.join(root_path, 'pretrain/upos2id.json')))
-                deps2id = json.load(open(os.path.join(root_path, 'pretrain/deps2id.json')))
 
                 # Define the sentence encoder
                 if self.model == "cnn":
@@ -213,6 +210,8 @@ class Training():
                         # Define the model
                         self.model_opennre = opennre.model.SoftmaxNN(sentence_encoder, len(rel2id), rel2id)
                 elif self.model == "bert":
+                        upos2id = json.load(open(os.path.join(root_path, 'opennre/data/upos2id.json')))
+                        deps2id = json.load(open(os.path.join(root_path, 'opennre/data/deps2id.json')))
                         sentence_encoder = opennre.encoder.BERTEntityEncoder(
                                 upos2id=upos2id,
                                 deps2id=deps2id,
@@ -266,10 +265,7 @@ class Training():
                                 return 0
                         
                 # Test
-                #framework.load_state_dict(torch.load(self.ckpt)['state_dict'])
                 result, pred, ground_truth = framework.eval_model(framework.test_loader)
-                
-                #framework.get_confusion_matrix(ground_truth, pred, self.model, self.embedding)
 
                 # Print the result
                 framework.test_set_results(ground_truth, pred, result, self.model, self.embedding, self.hyper_params)
@@ -279,60 +275,22 @@ class Training():
 if __name__ == '__main__':
 
         parser = argparse.ArgumentParser()
-        parser.add_argument('--pretrain_path', default='bert-base-uncased', choices=constants.pretrain_choices,
-                help='Pre-trained ckpt path / model name (hugginface)')
-        parser.add_argument('--ckpt', default='', 
-                help='Checkpoint name')
-        parser.add_argument('--pooler', default='entity', choices=['cls', 'entity'], 
-                help='Sentence representation pooler')
-        parser.add_argument('--only_test', action='store_true', 
-                help='Only run test')
-        parser.add_argument('--mask_entity', action='store_true', 
-                help='Mask entity mentions')
 
-        #Model
-        parser.add_argument('--model', default='cnn', choices=['cnn', 'pcnn', 'bert', 'crcnn', 'gru', 'bigru', 'lstm', 'bilstm'],
-                help='Model to train')
-
-        #Embedding
-        parser.add_argument('--embedding', default='glove', choices=['glove', 'senna', 'elmo'],
-                help='Word Embedding')
-
-        # Data
-        parser.add_argument('--metric', default='micro_f1', choices=['micro_f1', 'acc'],
+        # # Data
+        parser.add_argument('--metric', default='micro_f1', choices=constants.METRICS,
                 help='Metric for picking up best checkpoint')
-        parser.add_argument('--dataset', default=None, choices=constants.datasets_choices, 
-                help='Dataset. If not none, the following args can be ignored')
-        parser.add_argument('--preprocessing', nargs="+", default=None,
-                help='Preprocessing. If not none, the original dataset is used')
-        parser.add_argument('--train_file', default='', type=str,
-                help='Training data file')
-        parser.add_argument('--val_file', default='', type=str,
-                help='Validation data file')
-        parser.add_argument('--test_file', default='', type=str,
-                help='Test data file')
-        parser.add_argument('--rel2id_file', default='', type=str,
-                help='Relation to ID file')
-
-        # Hyper-parameters
-        parser.add_argument('--batch_size', default=32, type=int,
-                help='Batch size')
-        parser.add_argument('--lr', default=1e-1, type=float,
-                help='Learning rate')
-        parser.add_argument('--weight_decay', default=1e-5, type=float,
-                help='Weight decay')
-        parser.add_argument('--max_length', default=128, type=int,
-                help='Maximum sentence length')
-        parser.add_argument('--max_epoch', default=50, type=int, # TODO : change default to 100
-                help='Max number of training epochs')
+        parser.add_argument('--dataset', default=None, choices=constants.DATASETS, 
+                 help='Dataset. If not none, the following args can be ignored')
 
         args = parser.parse_args()
         
-        BEST_HPARAMS_FILE_PATH = "opennre/optimization/best_hparams_{}.json"
-        
-        with open(BEST_HPARAMS_FILE_PATH.format(args.dataset), 'r') as f:
+        with open(constants.BEST_HPARAMS_FILE_PATH.format(args.dataset), 'r') as f:
             best_hparams = json.load(f)
+            
+        best_hparams["dataset"] = args.dataset
+        best_hparams["metric"] = args.metric
         
-        train = Training(best_hparams)
-        print("Micro-F1:",train.train())
+        train = Training(best_hparams,None)
+        train.train()
+        
 #

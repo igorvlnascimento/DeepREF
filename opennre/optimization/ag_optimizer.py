@@ -9,7 +9,7 @@ from deap import creator
 from deap import tools
 from deap import algorithms
 
-from train import Training
+from opennre.framework.train import Training
 
 CONFIG_FILE_PATH = "opennre/optimization/config_params.json"
 BEST_HPARAMS_FILE_PATH = "opennre/optimization/best_hparams.json"

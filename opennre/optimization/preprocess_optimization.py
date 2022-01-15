@@ -4,7 +4,7 @@ import json
 import os
 from opennre import constants
 
-from train import Training
+from opennre.framework.train import Training
 
 import optuna
 
@@ -77,6 +77,9 @@ if __name__ == '__main__':
     if new_value > json_value:
         best_hparams["preprocessing"] = preprocessing
         best_hparams["{}".format(metric)] = new_value
+        best_hparams.pop("dataset",None)
+        best_hparams.pop("metric",None)
+        
         json_object = json.dumps(best_hparams, indent=4)
         
         with open(constants.BEST_HPARAMS_FILE_PATH.format(dataset), 'w') as out_f:

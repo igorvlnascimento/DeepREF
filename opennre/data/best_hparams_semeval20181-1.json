@@ -1,11 +1,15 @@
 {
-    "macro_f1": 0.85219,
+    "macro_f1": 0.8570412113057344,
     "model": "bert",
     "embedding": "allenai/scibert_scivocab_uncased",
-    "batch_size": 16,
+    "batch_size": 14,
     "preprocessing": 16,
-    "lr": 2e-05,
-    "max_length": 128,
-    "max_epoch": 3,
-    "synt_embeddings": [1,0,1]
+    "lr": 1.418766566266216e-05,
+    "max_length": 46,
+    "max_epoch": 8,
+    "synt_embeddings": [
+        1,
+        0,
+        1
+    ]
 }

@@ -24,6 +24,8 @@ class ConverterDataset():
             
         nlp_info = self.nlp_config[nlp_tool][nlp_tool_type]
         
+        print(nlp_info)
+        
         if nlp_tool == 'stanza':
             if nlp_tool_type == 'general':
                 stanza.download('en')
@@ -52,7 +54,7 @@ class ConverterDataset():
             doc = self.nlp(tag_sentence)
             tokenized = [token.text for token in doc]
             upos = [token.pos_ for token in doc]
-            deps = [token.dep_ for token in doc]
+            deps = [token.dep_.lower() for token in doc]
             ner = ["O"] * len(tokenized)
             for ent in doc.ents:
                 for i in range(ent.start, ent.end):

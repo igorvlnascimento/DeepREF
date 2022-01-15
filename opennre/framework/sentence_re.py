@@ -38,10 +38,10 @@ class SentenceRE(nn.Module):
         self.dataset_name = train_path[train_path.rfind('/')+1:train_path.find('_', train_path.rfind('/'))]
         self.preprocessing = train_path[train_path.rfind('/', 0, -(len(train_path)-train_path.rfind('/')))+1:train_path.rfind('/')]
         
-        with open(constants.CLASSES_DATASET, 'r') as f:
-            classes_dataset = json.load(f)
+        with open(constants.DATASET_CLASSES, 'r') as f:
+            dataset_classes = json.load(f)
 
-        self.classes = classes_dataset[self.dataset_name]
+        self.classes = dataset_classes[self.dataset_name]
             
         print("classes:",self.classes)
 
@@ -212,7 +212,7 @@ class SentenceRE(nn.Module):
         logging.info('Test set results:')
         logging.info('Trained with dataset {}, model {}, embedding {} and preprocessing {}:\n'.format(self.dataset_name, model, embedding, self.preprocessing))
         logging.info('Hyperparams: {}'.format(hyper_params))
-        file_path = 'results/{}/ResultsOpenNRE++_{}_{}.txt'.format(self.dataset_name, self.dataset_name, datetime.now().isoformat(timespec="auto"))
+        file_path = constants.RESULTS_PATH+'/{}/ResultsOpenNRE++_{}_{}.txt'.format(self.dataset_name, self.dataset_name, datetime.now().isoformat(timespec="seconds"))
         report = metrics.classification_report(ground_truth, pred, target_names=self.classes, digits=5, zero_division=1)
         confusion_matrix = metrics.confusion_matrix(ground_truth, pred)
         logging.info(report)

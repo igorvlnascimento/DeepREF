@@ -16,7 +16,7 @@ from opennre.dataset.converters.converter import ConverterDataset
 
 class ConverterDDI(ConverterDataset):
     def __init__(self, nlp_tool, nlp_tool_type):
-        super().__init__(dataset_name="ddi", entity_name="DRUG", nlp=nlp, nlp_tool=nlp_tool, nlp_tool_type=nlp_tool_type)
+        super().__init__(dataset_name="ddi", entity_name="DRUG", nlp_tool=nlp_tool, nlp_tool_type=nlp_tool_type)
         
     # given sentence dom in DDI corpus, get all the information related to the entities 
     # present in the dom
@@ -195,7 +195,7 @@ class ConverterDDI(ConverterDataset):
                 e2_data = entity_dict[e2_id]
                 
                 tagged_sentence = self.tag_sentence(sentence_text, e1_data, e2_data, other_entities)
-                tokens, upos, deps, ner = self.tokenize(tagged_sentence, model="stanza")
+                tokens, upos, deps, ner = self.tokenize(tagged_sentence)
 
                 e1_idx, e2_idx, entity_replacement, tokens_for_indexing, upos_for_indexing, deps_for_indexing, ner_for_indexing = \
                         self.get_entity_positions_and_replacement_dictionary(tokens, upos, deps, ner)
@@ -311,13 +311,6 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
     
-    if args.nlp_tool == 'stanza':
-        stanza.download('en', package='craft', processors={'ner': 'bionlp13cg'})
-        nlp = stanza.Pipeline('en', package="craft", processors={"ner": "bionlp13cg"}, tokenize_no_ssplit=True)
-    elif args.nlp_tool == 'spacy':
-        subprocess.call(["python", "-m", "spacy", "download", "en_core_web_sm"])
-        nlp = spacy.load("en_core_web_sm")
-    
-    converter = ConverterDDI(nlp, args.nlp_tool)
+    converter = ConverterDDI(args.nlp_tool, args.nlp_tool_type)
     
     converter.write_split_dataframes(args.output_path, args.train_input_file, args.test_input_file)

@@ -108,7 +108,6 @@ class SentenceREDataset(data.Dataset):
         macro_f1 = sklearn.metrics.f1_score(goldens, pred_result, labels=list(range(len(self.rel2id))), average='macro')
 
         result = {'acc': acc, 'micro_p': micro_p, 'micro_r': micro_r, 'micro_f1': micro_f1, 'macro_f1': macro_f1}
-        #report = metrics.classification_report(goldens, pred_result, labels=labels)
         logging.info('Evaluation result: \n {}.'.format(result))
         return result
     

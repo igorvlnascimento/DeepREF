@@ -6,7 +6,7 @@ from opennre import constants
 
 import optuna
 
-from train import Training
+from opennre.framework.train import Training
 
 class Optimizer():
     def __init__(self, dataset, metric, trials, opt_type):
@@ -16,6 +16,8 @@ class Optimizer():
         if not os.path.exists(constants.BEST_HPARAMS_FILE_PATH.format(dataset)):
             dict = {
                 "{}".format(self.metric): 0,
+                "model": "bert",
+                "embedding": "bert-base-uncased",
                 "batch_size": 16,
                 "preprocessing": 0,
                 "lr": 2e-5,
@@ -42,12 +44,12 @@ class Optimizer():
         elif opt_type == 'hyperparams':
             self.params = self.optimize_hyperparameters()
 
-    def evaluate_hyperparameters(self, individual):
+    def evaluate_hyperparameters(self, trial):
         
-        batch_size =  individual.suggest_int("batch_size", 2, 64, log=True)
-        lr =  individual.suggest_float("lr", 1e-6, 1e-1, log=True)
-        max_length =  individual.suggest_int("max_length", 16, 256, log=True)
-        max_epoch = individual.suggest_int("max_epoch", 2, 8)
+        batch_size =  trial.suggest_int("batch_size", 2, 64, log=True)
+        lr =  trial.suggest_float("lr", 1e-6, 1e-1, log=True)
+        max_length =  trial.suggest_int("max_length", 16, 256, log=True)
+        max_epoch = trial.suggest_int("max_epoch", 2, 8)
         
         parameters = self.best_hparams
         parameters["dataset"] = self.dataset
@@ -59,14 +61,14 @@ class Optimizer():
         
         print("parameters:",parameters)
         
-        train = Training(parameters, individual)
+        train = Training(parameters, trial)
         
         return train.train()
     
-    def evaluate_model(self, individual):
+    def evaluate_model(self, trial):
         
-        model = individual.suggest_categorical("model", constants.MODELS)
-        embedding = self.study_model.best_params["pretrain_bert"] if model == 'bert' else self.study_model.best_params["embedding"]
+        model = trial.suggest_categorical("model", constants.MODELS)
+        embedding = trial.suggest_categorical("embedding", constants.PRETRAIN_WEIGHTS) if model == 'bert' else trial.suggest_categorical("embedding", constants.EMBEDDINGS)
         preprocessing = 0
         batch_size =  3 if model == 'bert' else 160
         lr =  2e-5 if model == 'bert' else 1e-1
@@ -85,7 +87,7 @@ class Optimizer():
             "max_epoch": max_epoch,
         }
         
-        train = Training(parameters, individual)
+        train = Training(parameters, trial)
         
         return train.train()
 
@@ -118,22 +120,34 @@ if __name__ == "__main__":
     opt = Optimizer(args.dataset, args.metric, args.trials, args.optimizer_type)
     best_hparams = opt.best_hparams
     
-    hof_hp = opt.params
-    print("Best:",hof_hp)
+    hof = opt.params
+    print("Best:",hof)
     
     new_value = abs(opt.study_params.best_value)
     json_value = float(best_hparams["{}".format(opt.metric)]) if best_hparams["{}".format(opt.metric)] else 0
     
     if new_value > json_value:
-        max_epoch = hof_hp["max_epoch"]
-        batch_size = hof_hp["batch_size"]
-        lr, max_length = hof_hp["lr"], hof_hp["max_length"]
-        
-        best_hparams["max_epoch"] = max_epoch
-        best_hparams["batch_size"] = batch_size
-        best_hparams["lr"] = lr
-        best_hparams["max_length"] = max_length
+        if args.optimizer_type == 'hyperparams':
+            max_epoch = hof["max_epoch"]
+            batch_size = hof["batch_size"]
+            lr, max_length = hof["lr"], hof["max_length"]
+            
+            best_hparams["max_epoch"] = max_epoch
+            best_hparams["batch_size"] = batch_size
+            best_hparams["lr"] = lr
+            best_hparams["max_length"] = max_length
+            
+        elif args.optimizer_type == 'model':
+            model = hof["model"]
+            embedding = hof["embedding"]
+            
+            best_hparams["model"] = model
+            best_hparams["embedding"] = embedding
+            
         best_hparams["{}".format(opt.metric)] = new_value
+        best_hparams.pop("dataset",None)
+        best_hparams.pop("metric",None)
+        
         json_object = json.dumps(best_hparams, indent=4)
         
         with open(constants.BEST_HPARAMS_FILE_PATH.format(args.dataset), 'w') as out_f:

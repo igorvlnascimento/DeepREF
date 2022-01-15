@@ -96,8 +96,8 @@ for arg in vars(args):
 
 rel2id = json.load(open(args.rel2id_file))
 
-upos2id = json.load(open(os.path.join(root_path, 'pretrain/upos2id.json')))
-deps2id = json.load(open(os.path.join(root_path, 'pretrain/deps2id.json')))
+upos2id = json.load(open(os.path.join(root_path, 'opennre/data/upos2id.json')))
+deps2id = json.load(open(os.path.join(root_path, 'opennre/data/deps2id.json')))
 
 # Define the sentence encoder
 if args.pooler == 'entity':
@@ -148,11 +148,3 @@ framework.load_state_dict(torch.load(ckpt)['state_dict'])
 result,ground_truth, pred = framework.eval_model(framework.test_loader)
 
 framework.test_set_results(ground_truth, pred, result, 'bert', args.pretrain_path, '')
-
-# Print the result
-# logging.info('Test set results:')
-# logging.info('Accuracy: {}'.format(result['acc']))
-# logging.info('Micro precision: {}'.format(result['micro_p']))
-# logging.info('Micro recall: {}'.format(result['micro_r']))
-# logging.info('Micro F1: {}'.format(result['micro_f1']))
-# logging.info('Macro F1: {}'.format(result['macro_f1']))

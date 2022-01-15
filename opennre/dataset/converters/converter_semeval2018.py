@@ -16,24 +16,6 @@ from opennre.dataset.converters.converter import ConverterDataset
 class ConverterSemEval2018(ConverterDataset):
     def __init__(self, nlp_tool, nlp_tool_type) -> None:
         super().__init__(dataset_name="semeval2018", entity_name="ENTITY", nlp_tool=nlp_tool, nlp_tool_type=nlp_tool_type)
-        
-    # def tokenize(self, tag_sentence):
-    #     if self.nlp_name == "spacy":
-    #         doc = self.nlp(tag_sentence)
-    #         tokenized = [token.text for token in doc]
-    #         upos = [token.pos_ for token in doc]
-    #         deps = [token.dep_ for token in doc]
-    #         ner = [ent.label_ for ent in doc.ents]
-    #     elif self.nlp_name == "stanza":
-    #         #tag_sentence_tokenized = tag_sentence.split()
-    #         doc = self.nlp(tag_sentence)
-    #         tokenized = [token.text for sent in doc.sentences for token in sent.words]
-    #         upos = [token.upos for sent in doc.sentences for token in sent.words]
-    #         deps = [token.deprel for sent in doc.sentences for token in sent.words]
-    #         ner = [token.ner for sent in doc.sentences for token in sent.tokens]
-            
-    #     assert len(tokenized) == len(upos) and len(tokenized) == len(deps) and len(tokenized) == len(ner) 
-    #     return tokenized, upos, deps, ner
 
     # given sentence dom in DDI corpus, get all the information related to the entities 
     # present in the dom
@@ -458,4 +440,3 @@ if __name__ == '__main__':
     
     converter.write_split_dataframes('benchmark/semeval20181-1/original', 'benchmark/raw_semeval20181-1/Train/', 'benchmark/raw_semeval20181-1/Test/')
     converter.write_split_dataframes('benchmark/semeval20181-2/original', 'benchmark/raw_semeval20181-2/Train/', 'benchmark/raw_semeval20181-2/Test/')
-    converter.write_split_dataframes('benchmark/semeval2018/original', 'benchmark/raw_semeval2018/Train/', 'benchmark/raw_semeval2018/Test/')

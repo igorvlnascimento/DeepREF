@@ -1,3 +1,13 @@
+if [ -z "$1" ]
+then
+      $1 = "stanza"
+fi
+
+if [ -z "$2" ]
+then
+      $2 = "scientific"
+fi
+
 mkdir benchmark/raw_semeval20181-1
 mkdir benchmark/raw_semeval20181-2
 

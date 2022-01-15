@@ -12,7 +12,7 @@ from opennre.dataset.converters.converter import ConverterDataset
 
 class ConverterSemEval2010(ConverterDataset):
     def __init__(self, nlp_tool, nlp_tool_type):
-        super().__init__(dataset_name='semeval2010', nlp=nlp, nlp_tool=nlp_tool, nlp_tool_type=nlp_tool_type)
+        super().__init__(dataset_name='semeval2010', nlp_tool=nlp_tool, nlp_tool_type=nlp_tool_type)
 
     # get the start and end of the entities 
     def get_entity_start_and_end(self, entity_start, entity_end, tokens, upos, deps, ner):
@@ -82,7 +82,7 @@ class ConverterSemEval2010(ConverterDataset):
                 sent = sent.replace('</e2>', ' ENTITYOTHEREND ')
                 sent = self.remove_whitespace(sent) # to get rid of additional white space
 
-                tokens, upos, deps, ner = self.tokenize(sent, "stanza")
+                tokens, upos, deps, ner = self.tokenize(sent)
                 start_with_e1 = True
                 for token in tokens:
                     if token == 'ENTITYSTART':
@@ -188,18 +188,11 @@ if __name__ == '__main__':
         help='Input path of training examples')
     parser.add_argument('--nlp_tool', default='stanza', choices=constants.NLP_TOOLS,
         help='NLP tool name')
-    parser.add_argument('--nlp_tool', default='general', choices=constants.NLP_TOOLS_TYPE,
+    parser.add_argument('--nlp_tool_type', default='general', choices=constants.NLP_TOOLS_TYPE,
         help='NLP tool type name')
 
     args = parser.parse_args()
     
-    if args.nlp_tool == 'stanza':
-        stanza.download('en')
-        nlp = stanza.Pipeline(lang='en', processors="tokenize,ner,depparse,pos,lemma", tokenize_no_ssplit=True)
-    elif args.nlp_tool == 'spacy':
-        subprocess.call(["python", "-m", "spacy", "download", "en_core_web_trf"])
-        nlp = spacy.load("en_core_web_sm")
-    
-    converter = ConverterSemEval2010(args.nlp_tool)
+    converter = ConverterSemEval2010(args.nlp_tool, args.nlp_tool_type)
 
     converter.write_split_dataframes(args.output_path, args.train_input_file, args.test_input_file)
