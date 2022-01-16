@@ -1,5 +1,7 @@
 {
     "micro_f1": 0.9274770173646578,
+    "nlp_tool": "stanza",
+    "nlp_tool_type": "scientific",
     "model": "bert",
     "embedding": "allenai/scibert_scivocab_uncased",
     "batch_size": 4,

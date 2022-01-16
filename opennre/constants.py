@@ -26,6 +26,21 @@ PRETRAIN_WEIGHTS = ["bert-base-uncased", "dmis-lab/biobert-v1.1", "allenai/scibe
 EMBEDDINGS = ["glove", "senna", "fasttext_wiki", "fasttext_crawl",]
 NLP_TOOLS = ["stanza", "spacy"]
 NLP_TOOLS_TYPE = ["general", "scientific"]
+HPARAMS = {
+    "micro_f1": 0,
+    "macro_f1": 0,
+    "acc": 0,
+    "model": "bert",
+    "embedding": "bert-base-uncased",
+    "nlp_tool": "stanza",
+    "nlp_tool_type": "general",
+    "batch_size": 16,
+    "preprocessing": 0,
+    "lr": 2e-5,
+    "synt_embeddings": [0,0,0],
+    "max_length": 128,
+    "max_epoch": 3
+}
 
 ########################### PATHS #######################################
 RESULTS_PATH = "results"

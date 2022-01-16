@@ -12,27 +12,22 @@ import argparse
 import random
 
 class Training():
-        def __init__(self, parameters, trial):
+        def __init__(self, dataset, metric, parameters, trial):
+                self.dataset = dataset
+                self.metric = metric
                 self.trial = trial
-                
-                self.dataset = "semeval2010" if parameters["dataset"] is None else parameters["dataset"]
-                self.preprocessing = None if parameters["preprocessing"] == 0 else parameters["preprocessing"]
-                self.model = "cnn" if parameters["model"] is None else parameters["model"]
-                self.metric = "micro_f1" if parameters["metric"] is None else parameters["metric"]
-                self.max_length = 128 if parameters["max_length"] is None else parameters["max_length"]
+                nlp_tool = parameters["nlp_tool"]
+                nlp_tool_type = parameters["nlp_tool_type"]
+        
+                self.preprocessing = parameters["preprocessing"]
+                self.model = parameters["model"]
+                self.max_length = parameters["max_length"]
                 self.opt = "adamw" if self.model == "bert" else "sgd"
-                
-                if self.model == "bert":
-                        self.embedding = "bert-base-uncased" if parameters["embedding"] is None else parameters["embedding"]
-                        self.synt_embeddings = [0,0,0] if parameters["synt_embeddings"] is None else parameters["synt_embeddings"]
-                        self.batch_size = 16 if parameters["batch_size"] is None else parameters["batch_size"]
-                        self.lr = 2e-5 if parameters["lr"] is None else parameters["lr"]
-                        self.max_epoch = 3 if parameters["max_epoch"] is None else parameters["max_epoch"]
-                else:
-                        self.embedding = "glove" if parameters["embedding"] is None else parameters["embedding"]
-                        self.batch_size = 160 if parameters["batch_size"] is None else parameters["batch_size"]
-                        self.lr = 1e-1 if parameters["lr"] is None else parameters["lr"]
-                        self.max_epoch = 100 if parameters["max_epoch"] is None else parameters["max_epoch"]
+                self.embedding = parameters["embedding"]
+                self.synt_embeddings = parameters["synt_embeddings"]
+                self.batch_size = parameters["batch_size"]
+                self.lr = parameters["lr"]
+                self.max_epoch = parameters["max_epoch"]
                 
                 self.preprocessing_str = 'original'
                 if self.preprocessing is not None:
@@ -81,14 +76,13 @@ class Training():
                                                 '{}_test_{}.txt'.format(self.dataset, self.preprocessing_str))
                         
                 if not (os.path.exists(self.train_file)) or not(os.path.exists(self.val_file)) or not(os.path.exists(self.test_file)):
-                        preprocess_dataset = PreprocessDataset(self.dataset, constants.PREPROCESSING_COMBINATION[self.preprocessing])
+                        preprocess_dataset = PreprocessDataset(self.dataset, constants.PREPROCESSING_COMBINATION[self.preprocessing], nlp_tool, nlp_tool_type)
                         preprocess_dataset.preprocess_dataset()
                         
                 if not os.path.exists(self.test_file):
                         self.test_file = None
                 self.rel2id_file = os.path.join(root_path, 'benchmark', self.dataset, '{}_rel2id.json'.format(self.dataset))
                 
-                        
                 rel2id = json.load(open(self.rel2id_file))
 
                 print("embedding:",self.embedding)
@@ -112,9 +106,6 @@ class Training():
                                 dropout=0.5,
                         )
 
-
-                        # Define the model
-                        self.model_opennre = opennre.model.SoftmaxNN(sentence_encoder, len(rel2id), rel2id)
                 elif self.model == "pcnn":
                         sentence_encoder = opennre.encoder.PCNNEncoder(
                                 token2id=word2id,
@@ -129,9 +120,6 @@ class Training():
                                 dropout=0.5,
                         )
 
-
-                        # Define the model
-                        self.model_opennre = opennre.model.SoftmaxNN(sentence_encoder, len(rel2id), rel2id)
                 elif self.model == "crcnn":
                         sentence_encoder = opennre.encoder.CRCNNEncoder(
                                 token2id=word2id,
@@ -146,9 +134,6 @@ class Training():
                                 dropout=0.5,
                         )
 
-
-                        # Define the model
-                        self.model_opennre = opennre.model.SoftmaxNN(sentence_encoder, len(rel2id), rel2id)
                 elif self.model == "gru":
                         sentence_encoder = opennre.encoder.GRUEncoder(
                                 token2id=word2id,
@@ -161,9 +146,7 @@ class Training():
                                 dropout=0.5,
                                 bidirectional=False
                         )
-
-                        # Define the model
-                        self.model_opennre = opennre.model.SoftmaxNN(sentence_encoder, len(rel2id), rel2id)
+                        
                 elif self.model == "bigru":
                         sentence_encoder = opennre.encoder.GRUEncoder(
                                 token2id=word2id,
@@ -177,8 +160,6 @@ class Training():
                                 bidirectional=True
                         )
 
-                        # Define the model
-                        self.model_opennre = opennre.model.SoftmaxNN(sentence_encoder, len(rel2id), rel2id)
                 elif self.model == "lstm":
                         sentence_encoder = opennre.encoder.LSTMEncoder(
                                 token2id=word2id,
@@ -192,8 +173,6 @@ class Training():
                                 bidirectional=False
                         )
 
-                        # Define the model
-                        self.model_opennre = opennre.model.SoftmaxNN(sentence_encoder, len(rel2id), rel2id)
                 elif self.model == "bilstm":
                         sentence_encoder = opennre.encoder.LSTMEncoder(
                                 token2id=word2id,
@@ -207,8 +186,6 @@ class Training():
                                 bidirectional=True
                         )
 
-                        # Define the model
-                        self.model_opennre = opennre.model.SoftmaxNN(sentence_encoder, len(rel2id), rel2id)
                 elif self.model == "bert":
                         upos2id = json.load(open(os.path.join(root_path, 'opennre/data/upos2id.json')))
                         deps2id = json.load(open(os.path.join(root_path, 'opennre/data/deps2id.json')))
@@ -252,7 +229,6 @@ class Training():
                 )
 
                 # Train the model
-                #if not self.only_test:
                 try:
                         framework.train_model(self.metric)
                 except RuntimeError as e:
@@ -262,7 +238,7 @@ class Training():
                                         if p .grad is not None:
                                                 del p.grad
                                 torch.cuda.empty_cache()
-                                return 0
+                                return {"acc": 0, "micro_f1": 0, "macro_f1": 0}
                         
                 # Test
                 result, pred, ground_truth = framework.eval_model(framework.test_loader)
@@ -270,27 +246,22 @@ class Training():
                 # Print the result
                 framework.test_set_results(ground_truth, pred, result, self.model, self.embedding, self.hyper_params)
                 
-                return result[self.metric]                
+                return result
                 
 if __name__ == '__main__':
 
         parser = argparse.ArgumentParser()
 
         # # Data
-        parser.add_argument('--metric', default='micro_f1', choices=constants.METRICS,
-                help='Metric for picking up best checkpoint')
-        parser.add_argument('--dataset', default=None, choices=constants.DATASETS, 
+        parser.add_argument('--dataset', default="semeval2010", choices=constants.DATASETS, 
                  help='Dataset. If not none, the following args can be ignored')
+        parser.add_argument('-m','--metric', default="micro_f1", choices=constants.METRICS, 
+                help='Metric to optimize')
 
         args = parser.parse_args()
         
         with open(constants.BEST_HPARAMS_FILE_PATH.format(args.dataset), 'r') as f:
             best_hparams = json.load(f)
-            
-        best_hparams["dataset"] = args.dataset
-        best_hparams["metric"] = args.metric
         
-        train = Training(best_hparams,None)
+        train = Training(args.dataset, args.metric, best_hparams,None)
         train.train()
-        
-#

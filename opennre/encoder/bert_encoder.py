@@ -279,9 +279,13 @@ class BERTEntityEncoder(nn.Module):
         indexed_deps = []
         
         for pos in pos_tags:
+            if pos not in self.upos2id:
+                self.upos2id[pos] = len(self.upos2id)
             indexed_pos.append(self.upos2id[pos])
             
         for dep in deps:
+            if dep not in self.deps2id:
+                self.deps2id[dep] = len(self.deps2id)
             indexed_deps.append(self.deps2id[dep])
 
         # Position

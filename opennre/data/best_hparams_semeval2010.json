@@ -1,5 +1,7 @@
 {
     "micro_f1": 0.8946792204948544,
+    "nlp_tool": "spacy",
+    "nlp_tool_type": "general",
     "model": "bert",
     "embedding": "bert-base-uncased",
     "batch_size": 16,

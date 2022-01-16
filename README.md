@@ -32,7 +32,7 @@ python setup.py install
 It's easy to preprocess the datasets on OpenNRE++. Just execute the code below:
 
 ```
-python opennre/dataset/preprocess_dataset.py -d <dataset> -p <preprocessing_types>
+python opennre/dataset/preprocess_dataset.py -d <dataset>
 ```
 
 Dataset can be one of theses options: 'semeval2010' (default), 'semeval20181-1', 'semeval20181-2' and 'ddi'.
@@ -51,7 +51,9 @@ If you only wants to download the dataset and transform it to a .csv file in a s
 bash benchmark/download_<dataset>.sh
 ```
 
-This can take from about 30 minutes to 3 hours to execute
+You can change the NLP tool and NLP tool type from 'opennre/data/best_hparams_<dataset>.json' file. The 'nlp_tool' can be only 'stanza' or 'spacy' and 'nlp_tool_type' is 'general' or 'scientific'. The 'general' type loads a more general model for Stanza or SpaCy and the 'scientific' loads the biomedical model for Stanza and the smae general model for SpaCy.
+
+This can take from about 30 minutes to 3 hours to execute for Stanza (depending on the dataset) and less than 10 minutes for SpaCy. But Stanza has more accuracy.
 
 ## Training
 
@@ -61,6 +63,8 @@ If you want to train one or a few models, try this:
 ```
 python opennre/framework/train.py --dataset <dataset> --metric <metric>
 ```
+
+Even if you don't have any datasets preprocessed, the code above can automatically download and preprocess the dataset for you on the fly.
 
 Possible metrics are: 'micro_f1' (default), 'macro_f1' and 'acc'.
 

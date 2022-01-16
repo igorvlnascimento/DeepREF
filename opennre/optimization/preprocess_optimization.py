@@ -16,17 +16,8 @@ class PreprocessOptimization():
         self.preprocess_combination = constants.PREPROCESSING_COMBINATION
         
         if not os.path.exists(constants.BEST_HPARAMS_FILE_PATH.format(dataset)):
-            dict = {
-                "{}".format(self.metric): 0,
-                "model": "bert",
-                "embedding": "bert-base-uncased",
-                "batch_size": 16,
-                "preprocessing": 0,
-                "lr": 2e-5,
-                "synt_embeddings": [0,0,0],
-                "max_length": 128,
-                "max_epoch": 3
-            }
+            dict = constants.HPARAMS
+            dict["{}".format(self.metric)] = 0
             json_object = json.dumps(dict, indent=4)
             with open(constants.BEST_HPARAMS_FILE_PATH.format(dataset), 'w') as f:
                 f.write(json_object)
@@ -40,19 +31,26 @@ class PreprocessOptimization():
         self.best_prep = self.study_prep.best_params["preprocessing"]
         self.best_prep_value = self.study_prep.best_value
         
+        self.value = 0
+        self.best_result = None
+        
     def preprocessing_optimization(self, trial):
         
         parameters = self.best_hparams
         
         preprocessing =  trial.suggest_int("preprocessing", 0, len(constants.PREPROCESSING_COMBINATION)-1)
             
-        parameters["dataset"] = self.dataset
-        parameters["metric"] = self.metric
         parameters["preprocessing"] = preprocessing
         
-        train = Training(parameters,None)
+        train = Training(self.dataset, self.metric, parameters, trial)
+        result = train.train()
+        new_value = result[self.metric]
         
-        return train.train()    
+        if new_value > self.value:
+            self.value = new_value
+            self.best_result = result
+        
+        return new_value
 
     
 if __name__ == '__main__':
@@ -65,6 +63,7 @@ if __name__ == '__main__':
     dataset = args.dataset
     metric = args.metric
     prep = PreprocessOptimization(dataset, metric)
+    best_result = prep.best_result
     preprocessing, new_value = prep.best_prep, prep.best_prep_values
     print("Type:", prep.preprocess_combination[preprocessing], "Value:", new_value)
     
@@ -76,9 +75,9 @@ if __name__ == '__main__':
     
     if new_value > json_value:
         best_hparams["preprocessing"] = preprocessing
-        best_hparams["{}".format(metric)] = new_value
-        best_hparams.pop("dataset",None)
-        best_hparams.pop("metric",None)
+        best_hparams["acc"] = best_result["acc"]
+        best_hparams["macro_f1"] = best_result["macro_f1"]
+        best_hparams["micro_f1"] = best_result["micro_f1"]
         
         json_object = json.dumps(best_hparams, indent=4)
         
