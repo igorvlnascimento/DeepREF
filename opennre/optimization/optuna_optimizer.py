@@ -29,14 +29,13 @@ class Optimizer():
         self.preprocessing = constants.PREPROCESSING_COMBINATION
         
         self.params = None
+        self.value = 0
+        self.best_result = None
         
         if opt_type == 'model':
             self.params = self.optimize_model()
         elif opt_type == 'hyperparams':
             self.params = self.optimize_hyperparameters()
-            
-        self.value = 0
-        self.best_result = None
 
     def evaluate_hyperparameters(self, trial):
         
@@ -125,7 +124,7 @@ if __name__ == "__main__":
     
     args = parser.parse_args()
     
-    opt = Optimizer(args.dataset, args.metric, args.trials, args.optimizer_type)
+    opt = Optimizer(args.dataset, args.metric, int(args.trials), args.optimizer_type)
     best_result = opt.best_result
     best_hparams = opt.best_hparams
     

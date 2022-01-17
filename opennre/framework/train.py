@@ -187,11 +187,7 @@ class Training():
                         )
 
                 elif self.model == "bert":
-                        upos2id = json.load(open(os.path.join(root_path, 'opennre/data/upos2id.json')))
-                        deps2id = json.load(open(os.path.join(root_path, 'opennre/data/deps2id.json')))
                         sentence_encoder = opennre.encoder.BERTEntityEncoder(
-                                upos2id=upos2id,
-                                deps2id=deps2id,
                                 max_length=self.max_length, 
                                 pretrain_path=self.embedding,
                                 sk_embedding=self.synt_embeddings[0],
@@ -253,7 +249,7 @@ if __name__ == '__main__':
         parser = argparse.ArgumentParser()
 
         # # Data
-        parser.add_argument('--dataset', default="semeval2010", choices=constants.DATASETS, 
+        parser.add_argument('-d','--dataset', default="semeval2010", choices=constants.DATASETS, 
                  help='Dataset. If not none, the following args can be ignored')
         parser.add_argument('-m','--metric', default="micro_f1", choices=constants.METRICS, 
                 help='Metric to optimize')

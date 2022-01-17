@@ -1,4 +1,4 @@
-# OpenNRE++
+# DeepREF
 
 An optimization framework for relation classification tasks
 

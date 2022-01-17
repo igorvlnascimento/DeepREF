@@ -96,25 +96,18 @@ for arg in vars(args):
 
 rel2id = json.load(open(args.rel2id_file))
 
-upos2id = json.load(open(os.path.join(root_path, 'opennre/data/upos2id.json')))
-deps2id = json.load(open(os.path.join(root_path, 'opennre/data/deps2id.json')))
-
 # Define the sentence encoder
 if args.pooler == 'entity':
     sentence_encoder = opennre.encoder.BERTEntityEncoder(
-        upos2id=upos2id,
-        deps2id=deps2id,
-        pos_tags_embedding=False,
+        pos_tags_embedding=True,
         sk_embedding=False,
-        deps_embedding=False,
+        deps_embedding=True,
         max_length=args.max_length, 
         pretrain_path=args.pretrain_path,
         mask_entity=args.mask_entity,
     )
 elif args.pooler == 'cls':
     sentence_encoder = opennre.encoder.BERTEncoder(
-        upos2id=upos2id,
-        deps2id=deps2id,
         max_length=args.max_length, 
         pretrain_path=args.pretrain_path,
         mask_entity=args.mask_entity,
