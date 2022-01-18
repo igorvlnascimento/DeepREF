@@ -29,7 +29,7 @@ Then install the package with
 python setup.py install
 ```
 
-## Classes Diagram
+## DeepREF Classes Diagram
 
 ![alt text](figures/DeepREF_Class_Diagram.png)
 
