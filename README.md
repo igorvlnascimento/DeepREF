@@ -31,7 +31,7 @@ python setup.py install
 
 ## Classes Diagram
 
-![alt text](figures/DeepREF_Class_Diagram.jpg)
+![alt text](figures/DeepREF_Class_Diagram.png)
 
 ## Preprocessing
 
