@@ -3,11 +3,13 @@ import torch
 import numpy as np
 import json
 import opennre
-from opennre import encoder, model, framework, constants
+from opennre import encoder, model, framework
 import sys
 import os
 import argparse
 from parser import Parser
+
+from opennre import config
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--ckpt', default='', 
@@ -18,9 +20,9 @@ parser.add_argument('--only_test', action='store_true',
 # Data
 parser.add_argument('--metric', default='micro_f1', choices=['micro_f1', 'acc'],
         help='Metric for picking up best checkpoint')
-parser.add_argument('--dataset', default='none', choices=constants.datasets_choices, 
+parser.add_argument('--dataset', default='none', choices=config.datasets_choices, 
         help='Dataset. If not none, the following args can be ignored')
-parser.add_argument('--preprocessing', default='none', choices=constants.preprocessing_choices, 
+parser.add_argument('--preprocessing', default='none', choices=config.preprocessing_choices, 
         help='Preprocessing. If not none, the original dataset is used')
 parser.add_argument('--train_file', default='', type=str,
         help='Training data file')

@@ -14,19 +14,19 @@ class SemanticKNWL:
         for entity in entities:
             #self.vocabulary.append(entity)
             if len(wordnet.synsets(entity)) == 0:
-                ent_vector = [entity, entity, entity, entity]
+                ent_vector = [entity, entity]
             else:
                 syn = wordnet.synsets(entity)[0].hypernyms()
                 if len(syn) == 0:
-                    ent_vector = [entity, entity, entity]
+                    ent_vector = [entity, entity]
                 else:
                     father = syn[0].name()[:-5]
                     syn = wordnet.synsets(father)[0].hypernyms()
                     if len(syn) == 0:
-                        ent_vector = [entity, self.unigram(father), self.unigram(father)]
+                        ent_vector = [self.unigram(father), self.unigram(father)]
                     else:
                         grandpa = syn[0].name()[:-5]
-                        ent_vector = [entity, self.unigram(father), self.unigram(grandpa)]
+                        ent_vector = [self.unigram(father), self.unigram(grandpa)]
             ent_dict.append(ent_vector)
         self.add(ent_dict[0] + ent_dict[1])
         return {'ses1': ent_dict[0], 'ses2': ent_dict[1]}

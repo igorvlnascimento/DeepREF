@@ -68,7 +68,7 @@ Even if you don't have any datasets preprocessed, the code above can automatical
 
 Possible metrics are: 'micro_f1' (default), 'macro_f1' and 'acc'.
 
-That code will get the hyperparameters, embeddings and preprocessing types from 'opennre/data/best_hparams_<dataset>.json'. If this file doesn't exist, it will create it automatically with default values. This file contains the best hyperparameters, embeddings and preprocessing type for such dataset. You can change the values manually to get a different result. The list of possible values you can use to test can be seen on `opennre/constants.py`. You can see the results in the file `results/<dataset>/ResultsOpenNRE++_<dataset>_<datetime>.txt`. It can take about 20 minutes to execute the training on Colab Pro+ using `GPU` and `High RAM`.
+That code will get the hyperparameters, embeddings and preprocessing types from 'opennre/data/best_hparams_<dataset>.json'. If this file doesn't exist, it will create it automatically with default values. This file contains the best hyperparameters, embeddings and preprocessing type for such dataset. You can change the values manually to get a different result. The list of possible values you can use to test can be seen on `opennre/config.py`. You can see the results in the file `results/<dataset>/ResultsOpenNRE++_<dataset>_<datetime>.txt`. It can take about 20 minutes to execute the training on Colab Pro+ using `GPU` and `High RAM`.
 
 ## Optimization
 
@@ -79,7 +79,7 @@ To optimize hyperparameters or models, execute the following code:
 python opennre/optimization/optuna_optimizer.py -d <dataset> -m <metric> -t <trials_number> -o <optimization_type>
 ```
 
-The first two are the datasets and metrics already explained above. The '-t' arg means the number of trials that Optuna needs to execute to find the best combination of parameters. The '-o' is the type of optimization that you can choose between `hyperparams` or `model`. If you choose `hyperparams` (default), Optuna will find the best hyperparameters for the model and embedding indicated on 'best_hparams_<dataset>.json' file. The default model and embedding are `bert` and `bert-base-uncaseed`, respectively. If you choose the `model` option, Optuna will find the best model and embedding combination. The possible models and embeddings to be choosen can be seen on `opennre/constants.py` file. 
+The first two are the datasets and metrics already explained above. The '-t' arg means the number of trials that Optuna needs to execute to find the best combination of parameters. The '-o' is the type of optimization that you can choose between `hyperparams` or `model`. If you choose `hyperparams` (default), Optuna will find the best hyperparameters for the model and embedding indicated on 'best_hparams_<dataset>.json' file. The default model and embedding are `bert` and `bert-base-uncaseed`, respectively. If you choose the `model` option, Optuna will find the best model and embedding combination. The possible models and embeddings to be choosen can be seen on `opennre/config.py` file. 
 
 ### Preprocessing type optimization
 

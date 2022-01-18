@@ -2,7 +2,7 @@ import os
 import json
 import argparse
 import subprocess
-from opennre import constants
+from opennre import config
 
 from opennre.dataset.preprocess import Preprocess
 
@@ -70,12 +70,12 @@ class PreprocessDataset():
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('-d', '--dataset', type=str, required=True, choices=constants.DATASETS,
+    parser.add_argument('-d', '--dataset', type=str, required=True, choices=config.DATASETS,
         help='Dataset name')
     
     args = parser.parse_args()
     
-    with open(constants.BEST_HPARAMS_FILE_PATH.format(args.dataset), 'r') as f:
+    with open(config.BEST_HPARAMS_FILE_PATH.format(args.dataset), 'r') as f:
         best_hparams = json.load(f)
         
     preprocess_dataset = PreprocessDataset(args.dataset, best_hparams["preprocessing"], best_hparams["nlp_tool"], best_hparams["nlp_tool_type"])

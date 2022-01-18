@@ -106,7 +106,7 @@ class BERTEntityEncoder(nn.Module):
                  pretrain_path, 
                  max_length=128, 
                  blank_padding=True,
-                 hidden_size=230,
+                 hidden_size=115,
                  activation_function=F.relu,
                  mask_entity=False, 
                  sk_embedding=False, 
@@ -121,7 +121,7 @@ class BERTEntityEncoder(nn.Module):
         self.upos2id = json.load(open(os.path.join('.', 'opennre/data/upos2id.json')))
         self.deps2id = json.load(open(os.path.join('.', 'opennre/data/deps2id.json')))
         self.max_length = max_length
-        self.word_size = 50
+        self.word_size = 4
         self.blank_padding = blank_padding
         # self.kernel_size = kernel_size
         # self.padding_size = padding_size
@@ -135,7 +135,8 @@ class BERTEntityEncoder(nn.Module):
         
         self.input_size = 768 * 2 + 2 * self.max_length + ((self.pos_tags_embedding + self.deps_embedding) * self.max_length)
         #hidden_times = (self.pos_tags_embedding + self.deps_embedding + self.sk_embedding + 1) * 2
-        self.hidden_size = self.input_size // 4 + (self.sk_embedding * self.word_size)
+        self.input_size2 = self.input_size // 4 + (self.sk_embedding * self.word_size)
+        self.hidden_size = self.input_size // 4# + (self.sk_embedding * self.word_size)
         #print(self.hidden_size)
         #hidden_size = 768 + 2 * self.position_size + ((self.pos_tags_embedding + self.deps_embedding) * self.syntatic_size)
         
@@ -193,9 +194,7 @@ class BERTEntityEncoder(nn.Module):
             
         if self.deps_embedding:
             concat_list.extend([deps])
-            
-            
-            
+
         x = torch.cat(concat_list, 1)
         x = self.linear1(x)
         x = self.linear2(x)
@@ -206,8 +205,8 @@ class BERTEntityEncoder(nn.Module):
         #sk = self.sk_embed(sk)
         #print("sk:",sk.size())
             
-        if self.sk_embedding:
-            x = torch.cat([x, sk], 1)  # (B, H)
+        #if self.sk_embedding:
+        #    x = torch.cat([x, sk], 1)  # (B, H)
         #print(x.size())
         x = self.linear3(x)
         x = self.drop(x)
@@ -282,11 +281,13 @@ class BERTEntityEncoder(nn.Module):
             # e2 = sentence[pos_tail[0]:pos_tail[1]]
             # print(e1,e2)
             sk_ents = SemanticKNWL().extract([sentence[pos_head[0]:pos_head[1]][-1], sentence[pos_tail[0]:pos_tail[1]][-1]])
+            #print("sk_ents:",sk_ents)
         
             indexed_tokens_sk1 = self.tokenizer.convert_tokens_to_ids(sk_ents["ses1"])
             indexed_tokens_sk2 = self.tokenizer.convert_tokens_to_ids(sk_ents["ses2"])
             
             indexed_tokens_sk = indexed_tokens_sk1 + indexed_tokens_sk2
+            #print(indexed_tokens_sk)
         
         #indexed_tokens += indexed_tokens_sk1 + indexed_tokens_sk2
         

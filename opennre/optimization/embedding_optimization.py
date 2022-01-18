@@ -2,7 +2,7 @@ import argparse
 import json
 import os
 
-from opennre import constants
+from opennre import config
 
 from opennre.framework.train import Training
 
@@ -13,14 +13,14 @@ class EmbeddingOptimization():
         self.dataset = dataset
         self.metric = metric
         
-        if not os.path.exists(constants.BEST_HPARAMS_FILE_PATH.format(dataset)):
-            dict = constants.HPARAMS
+        if not os.path.exists(config.BEST_HPARAMS_FILE_PATH.format(dataset)):
+            dict = config.HPARAMS
             dict["{}".format(self.metric)] = 0
             json_object = json.dumps(dict, indent=4)
-            with open(constants.BEST_HPARAMS_FILE_PATH.format(dataset), 'w') as f:
+            with open(config.BEST_HPARAMS_FILE_PATH.format(dataset), 'w') as f:
                 f.write(json_object)
         self.best_hparams = {}
-        with open(constants.BEST_HPARAMS_FILE_PATH.format(dataset), 'r') as f:
+        with open(config.BEST_HPARAMS_FILE_PATH.format(dataset), 'r') as f:
             self.best_hparams = json.load(f)
             
     def embedding_training(self):
@@ -53,13 +53,13 @@ class EmbeddingOptimization():
     
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('-d','--dataset', default="semeval2010", choices=constants.DATASETS, 
+    parser.add_argument('-d','--dataset', default="semeval2010", choices=config.DATASETS, 
                 help='Dataset')
-    parser.add_argument('-m','--metric', default="micro_f1", choices=constants.METRICS, 
+    parser.add_argument('-m','--metric', default="micro_f1", choices=config.METRICS, 
                 help='Metric to optimize')
     args = parser.parse_args()
     
-    with open(constants.BEST_HPARAMS_FILE_PATH.format(args.dataset), 'r') as f:
+    with open(config.BEST_HPARAMS_FILE_PATH.format(args.dataset), 'r') as f:
         best_hparams = json.load(f)
     embed = EmbeddingOptimization(args.dataset, args.metric)
     best_result = embed.best_result
@@ -67,7 +67,7 @@ if __name__ == '__main__':
     print("Type:", embedding, "Value:", new_value)
     
     best_hparams = {}
-    with open(constants.BEST_HPARAMS_FILE_PATH.format(args.dataset), 'r') as f:
+    with open(config.BEST_HPARAMS_FILE_PATH.format(args.dataset), 'r') as f:
         best_hparams = json.load(f)
         
     json_value = float(best_hparams["{}".format(args.metric)]) if best_hparams["{}".format(args.metric)] else 0
@@ -81,5 +81,5 @@ if __name__ == '__main__':
         
         json_object = json.dumps(best_hparams, indent=4)
         
-        with open(constants.BEST_HPARAMS_FILE_PATH.format(args.dataset), 'w') as out_f:
+        with open(config.BEST_HPARAMS_FILE_PATH.format(args.dataset), 'w') as out_f:
             out_f.write(json_object)

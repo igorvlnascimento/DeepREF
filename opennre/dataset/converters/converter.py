@@ -8,7 +8,7 @@ import spacy
 
 import pandas as pd
 
-from opennre import constants
+from opennre import config
 
 class ConverterDataset():
     
@@ -17,7 +17,7 @@ class ConverterDataset():
         self.dataset_name = dataset_name
         self.entity_name = entity_name
         
-        with open(constants.NLP_CONFIG, 'r') as f:
+        with open(config.NLP_CONFIG, 'r') as f:
             self.nlp_config = json.load(f)
             
         self.nlp_tool = nlp_tool
@@ -37,7 +37,7 @@ class ConverterDataset():
                 subprocess.call(["python", "-m", "spacy", "download", nlp_info["package"]])
                 self.nlp = spacy.load(nlp_info["package"])
                 
-        with open(constants.RELATIONS_TYPE, 'r') as f:
+        with open(config.RELATIONS_TYPE, 'r') as f:
             relations_type = json.load(f)
                 
         os.makedirs(os.path.join('benchmark', self.dataset_name), exist_ok=True)

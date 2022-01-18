@@ -11,7 +11,7 @@ import numpy as np
 
 import optuna
 
-from opennre import constants
+from opennre import config
 
 class SentenceRE(nn.Module):
 
@@ -38,7 +38,7 @@ class SentenceRE(nn.Module):
         self.dataset_name = train_path[train_path.rfind('/')+1:train_path.find('_', train_path.rfind('/'))]
         self.preprocessing = train_path[train_path.rfind('/', 0, -(len(train_path)-train_path.rfind('/')))+1:train_path.rfind('/')]
         
-        with open(constants.DATASET_CLASSES, 'r') as f:
+        with open(config.DATASET_CLASSES, 'r') as f:
             dataset_classes = json.load(f)
 
         self.classes = dataset_classes[self.dataset_name]
@@ -212,7 +212,7 @@ class SentenceRE(nn.Module):
         logging.info('Test set results:')
         logging.info('Trained with dataset {}, model {}, embedding {} and preprocessing {}:\n'.format(self.dataset_name, model, embedding, self.preprocessing))
         logging.info('Hyperparams: {}'.format(hyper_params))
-        file_path = constants.RESULTS_PATH+'/{}/ResultsOpenNRE++_{}_{}.txt'.format(self.dataset_name, self.dataset_name, datetime.now().isoformat(timespec="seconds"))
+        file_path = config.RESULTS_PATH+'/{}/ResultsOpenNRE++_{}_{}.txt'.format(self.dataset_name, self.dataset_name, datetime.now().isoformat(timespec="seconds"))
         report = metrics.classification_report(ground_truth, pred, target_names=self.classes, digits=5, zero_division=1)
         confusion_matrix = metrics.confusion_matrix(ground_truth, pred)
         logging.info(report)
@@ -221,7 +221,7 @@ class SentenceRE(nn.Module):
         logging.info('Micro recall: {}'.format(result['micro_r']))
         logging.info('Micro F1: {}'.format(result['micro_f1']))
         logging.info('Macro F1: {}'.format(result['macro_f1']))
-        os.makedirs(os.path.join(constants.RESULTS_PATH, self.dataset_name), exist_ok=True)
+        os.makedirs(os.path.join(config.RESULTS_PATH, self.dataset_name), exist_ok=True)
         if os.path.isfile(file_path):
             with open(file_path, 'a') as ablation_file:
                 self.write_test_results(ablation_file, model, embedding, hyper_params, result, report, confusion_matrix)

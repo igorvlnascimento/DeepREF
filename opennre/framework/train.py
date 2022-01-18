@@ -3,7 +3,7 @@ import torch
 import numpy as np
 import json
 import opennre
-from opennre import constants
+from opennre import config
 from opennre.dataset.preprocess_dataset import PreprocessDataset
 from opennre.framework.word_embedding_loader import WordEmbeddingLoader
 import os
@@ -12,7 +12,7 @@ import argparse
 import random
 
 class Training():
-        def __init__(self, dataset, metric, parameters, trial):
+        def __init__(self, dataset, metric, parameters, trial=None):
                 self.dataset = dataset
                 self.metric = metric
                 self.trial = trial
@@ -31,7 +31,7 @@ class Training():
                 
                 self.preprocessing_str = 'original'
                 if self.preprocessing is not None:
-                        self.preprocessing_str = "_".join(sorted(constants.PREPROCESSING_COMBINATION[self.preprocessing]))
+                        self.preprocessing_str = "_".join(sorted(config.PREPROCESSING_COMBINATION[self.preprocessing]))
                         print(self.preprocessing_str)
                         
                 self.hyper_params = {
@@ -42,7 +42,7 @@ class Training():
                 }
                 
                 # Set random seed
-                self.set_seed(constants.SEED)
+                self.set_seed(config.SEED)
 
                 root_path = '.'
                 sys.path.append(root_path)
@@ -76,7 +76,7 @@ class Training():
                                                 '{}_test_{}.txt'.format(self.dataset, self.preprocessing_str))
                         
                 if not (os.path.exists(self.train_file)) or not(os.path.exists(self.val_file)) or not(os.path.exists(self.test_file)):
-                        preprocess_dataset = PreprocessDataset(self.dataset, constants.PREPROCESSING_COMBINATION[self.preprocessing], nlp_tool, nlp_tool_type)
+                        preprocess_dataset = PreprocessDataset(self.dataset, config.PREPROCESSING_COMBINATION[self.preprocessing], nlp_tool, nlp_tool_type)
                         preprocess_dataset.preprocess_dataset()
                         
                 if not os.path.exists(self.test_file):
@@ -249,15 +249,18 @@ if __name__ == '__main__':
         parser = argparse.ArgumentParser()
 
         # # Data
-        parser.add_argument('-d','--dataset', default="semeval2010", choices=constants.DATASETS, 
+        parser.add_argument('-d','--dataset', default="semeval2010", choices=config.DATASETS, 
                  help='Dataset. If not none, the following args can be ignored')
-        parser.add_argument('-m','--metric', default="micro_f1", choices=constants.METRICS, 
+        parser.add_argument('-m','--metric', default="micro_f1", choices=config.METRICS, 
                 help='Metric to optimize')
 
         args = parser.parse_args()
         
-        with open(constants.BEST_HPARAMS_FILE_PATH.format(args.dataset), 'r') as f:
+        import json
+        from opennre import config
+        
+        with open(config.BEST_HPARAMS_FILE_PATH.format('dataset name'), 'r') as f:
             best_hparams = json.load(f)
         
-        train = Training(args.dataset, args.metric, best_hparams,None)
+        train = Training('dataset name', 'metric to optimize', best_hparams)
         train.train()

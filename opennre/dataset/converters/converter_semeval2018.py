@@ -5,7 +5,7 @@ import subprocess
 import stanza
 import spacy
 
-from opennre import constants
+from opennre import config
 
 import pandas as pd
 from nltk.tokenize.punkt import PunktSentenceTokenizer, PunktParameters
@@ -429,9 +429,9 @@ if __name__ == '__main__':
         help='Input path of training examples')
     parser.add_argument('--output_path', default='benchmark/semeval2010/original', 
         help='Input path of training examples')
-    parser.add_argument('--nlp_tool', default='stanza', choices=constants.NLP_TOOLS,
+    parser.add_argument('--nlp_tool', default='stanza', choices=config.NLP_TOOLS,
         help='NLP tool name')
-    parser.add_argument('--nlp_tool_type', default='general', choices=constants.NLP_TOOLS_TYPE,
+    parser.add_argument('--nlp_tool_type', default='general', choices=config.NLP_TOOLS_TYPE,
         help='NLP tool type name')
     
     args = parser.parse_args()
