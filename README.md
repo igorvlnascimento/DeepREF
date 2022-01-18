@@ -29,9 +29,15 @@ Then install the package with
 python setup.py install
 ```
 
-## Classes Diagram
+## DeepREF Classes Diagram
 
 ![alt text](figures/DeepREF_Class_Diagram.png)
+
+The framework code base was made upon the OpenNRE toolkit. The lines in black are the preexistent modules in OpenNRE. The red lines are new modules added to the DeepREF. Some of the new modules came from REflex. The Dataset module has all the scripts necessary to convert a dataset to .csv file in a standard format to further preprocessing. 
+
+If you want to convert a new dataset, you have to create a converter file and put in this module. The optimization module has all the scripts necessary to findthe best combination of dataset preprocessing, embeddings and hyperparameters.
+
+The other modules in black is explained on OpenNRE [paper](https://aclanthology.org/D19-3029.pdf). There is a file named `train.py` that can train any model and it was inserted on Framework module. This file will be explained later in this docs.
 
 ## Preprocessing
 
@@ -114,7 +120,7 @@ If you want to add a new architecture to the framework, create a encoder to this
 
 To add a new dataset you have it's important to create a new .sh file on `benchmark` folder to download the dataset named `download_<dataset>.sh`. Follow the other preexistent .sh scripts to create a new one. After this, create a converter in the format `converter_<dataset>.py` to the dataset in `opennre/dataset/converters` directory to transform the downloaded dataset into a .csv file in a standard format to preprocess and generate .txt to train in the framework. Follow the other preexistent .py scripts to converter a custom dataset. Add the dataset name to the `DATASETS` list on `opennre/config.py` file.
 
-## Best model architecture
+## Simple Deep Neural Network Architecture in DeepREF
 
 This is the best model architecture available in the framework:
 
