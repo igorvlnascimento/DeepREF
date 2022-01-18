@@ -5,9 +5,9 @@
     "embedding": "allenai/scibert_scivocab_uncased",
     "preprocessing": 16,
     "batch_size": 16,
-    "lr": 2e-05,
-    "max_length": 128,
-    "max_epoch": 3,
+    "lr": 1.418766566266216e-05,
+    "max_length": 46,
+    "max_epoch": 8,
     "pos_embeddings": 1,
     "deps_embeddings": 1
 }
