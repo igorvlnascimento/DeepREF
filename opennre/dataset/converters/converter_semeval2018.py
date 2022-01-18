@@ -431,7 +431,7 @@ if __name__ == '__main__':
         help='Input path of training examples')
     parser.add_argument('--nlp_tool', default='stanza', choices=config.NLP_TOOLS,
         help='NLP tool name')
-    parser.add_argument('--nlp_tool_type', default='general', choices=config.NLP_TOOLS_TYPE,
+    parser.add_argument('--nlp_tool_type', default='general', choices=config.NLP_MODEL,
         help='NLP tool type name')
     
     args = parser.parse_args()

@@ -127,7 +127,7 @@ class SentenceRE(nn.Module):
             avg_loss = AverageMeter()
             avg_acc = AverageMeter()
             t = tqdm(self.train_loader)
-            for iter, data in enumerate(t):
+            for _, data in enumerate(t):
                 if torch.cuda.is_available():
                     for i in range(len(data)):
                         try:
@@ -139,7 +139,7 @@ class SentenceRE(nn.Module):
                 args = data[1:]
                 logits = self.parallel_model(*args)
                 loss = self.criterion(logits, label)
-                score, pred = logits.max(-1) # (B)
+                _, pred = logits.max(-1) # (B)
                 acc = float((pred == label).long().sum()) / label.size(0)
                 avg_loss.update(loss.item(), 1)
                 avg_acc.update(acc, 1)
@@ -212,7 +212,7 @@ class SentenceRE(nn.Module):
         logging.info('Test set results:')
         logging.info('Trained with dataset {}, model {}, embedding {} and preprocessing {}:\n'.format(self.dataset_name, model, embedding, self.preprocessing))
         logging.info('Hyperparams: {}'.format(hyper_params))
-        file_path = config.RESULTS_PATH+'/{}/ResultsOpenNRE++_{}_{}.txt'.format(self.dataset_name, self.dataset_name, datetime.now().isoformat(timespec="seconds"))
+        file_path = config.RESULTS_PATH+'/{}/ResultsDeepREF_{}_{}.txt'.format(self.dataset_name, self.dataset_name, datetime.now().isoformat(timespec="seconds"))
         report = metrics.classification_report(ground_truth, pred, target_names=self.classes, digits=5, zero_division=1)
         confusion_matrix = metrics.confusion_matrix(ground_truth, pred)
         logging.info(report)

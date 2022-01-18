@@ -306,11 +306,11 @@ if __name__ == '__main__':
         help='Input path of training examples')
     parser.add_argument('--nlp_tool', default='stanza', choices=config.NLP_TOOLS,
         help='NLP tool name')
-    parser.add_argument('--nlp_tool_type', default='general', choices=config.NLP_TOOLS_TYPE,
-        help='NLP tool type name')
+    parser.add_argument('--nlp_model', default='general', choices=config.NLP_MODEL,
+        help='NLP tool model name')
 
     args = parser.parse_args()
     
-    converter = ConverterDDI(args.nlp_tool, args.nlp_tool_type)
+    converter = ConverterDDI(args.nlp_tool, args.nlp_model)
     
     converter.write_split_dataframes(args.output_path, args.train_input_file, args.test_input_file)

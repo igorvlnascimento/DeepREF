@@ -96,7 +96,7 @@ class Optimizer():
             self.value = new_value
             self.best_result = result
         
-        return new_value
+        return result
 
     def optimize_model(self):
         self.study_model.optimize(self.evaluate_model, n_trials=self.trials)
@@ -151,10 +151,6 @@ if __name__ == "__main__":
             
             best_hparams["model"] = model
             best_hparams["embedding"] = embedding
-            
-        best_hparams["acc"] = best_result["acc"]
-        best_hparams["macro_f1"] = best_result["macro_f1"]
-        best_hparams["micro_f1"] = best_result["micro_f1"]
         
         json_object = json.dumps(best_hparams, indent=4)
         

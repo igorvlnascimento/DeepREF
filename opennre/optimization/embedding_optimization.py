@@ -6,7 +6,7 @@ from opennre import config
 
 from opennre.framework.train import Training
 
-SYNT_EMBEDDINGS = [[0,0,0],[0,0,1],[0,1,0],[1,0,0],[0,1,1],[1,1,0],[1,0,1],[1,1,1]]
+EMBEDDINGS = [[0,0],[0,1],[1,0],[1,1]]
 
 class EmbeddingOptimization():
     def __init__(self, dataset, metric):
@@ -30,9 +30,10 @@ class EmbeddingOptimization():
         
         embedding_value = 0
         
-        for embed in SYNT_EMBEDDINGS:
+        for embed in EMBEDDINGS:
         
-            parameters["synt_embedding"] = embed
+            parameters["pos_embed"] = embed[0]
+            parameters["deps_embed"] = embed[1]
             
             train = Training(self.dataset, self.metric, parameters,None)
             
@@ -74,10 +75,8 @@ if __name__ == '__main__':
     
     
     if new_value > json_value:
-        best_hparams["synt_embeddings"] = embedding
-        best_hparams["acc"] = best_result["acc"]
-        best_hparams["macro_f1"] = best_result["macro_f1"]
-        best_hparams["micro_f1"] = best_result["micro_f1"]
+        best_hparams["pos_embed"] = embedding[0]
+        best_hparams["deps_embed"] = embedding[0]
         
         json_object = json.dumps(best_hparams, indent=4)
         

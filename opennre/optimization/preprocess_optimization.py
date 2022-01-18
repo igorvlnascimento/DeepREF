@@ -75,9 +75,6 @@ if __name__ == '__main__':
     
     if new_value > json_value:
         best_hparams["preprocessing"] = preprocessing
-        best_hparams["acc"] = best_result["acc"]
-        best_hparams["macro_f1"] = best_result["macro_f1"]
-        best_hparams["micro_f1"] = best_result["micro_f1"]
         
         json_object = json.dumps(best_hparams, indent=4)
         

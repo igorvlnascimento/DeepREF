@@ -1,17 +1,13 @@
 {
-    "micro_f1": 0.9172625127681308,
     "nlp_tool": "stanza",
-    "nlp_tool_type": "scientific",
+    "nlp_model": "scientific",
     "model": "bert",
     "embedding": "allenai/scibert_scivocab_uncased",
-    "batch_size": 22,
     "preprocessing": 31,
+    "batch_size": 22,
     "lr": 2.2669113198848183e-05,
-    "synt_embeddings": [
-        0,
-        1,
-        1
-    ],
     "max_length": 174,
-    "max_epoch": 6
+    "max_epoch": 6,
+    "pos_embeddings": 1,
+    "deps_embeddings": 1
 }

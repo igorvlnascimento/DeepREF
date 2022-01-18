@@ -25,7 +25,7 @@ MODELS = ["cnn", "pcnn", "crcnn", "gru", "bigru", "lstm", "bilstm", "bert"]
 PRETRAIN_WEIGHTS = ["bert-base-uncased", "dmis-lab/biobert-v1.1", "allenai/scibert_scivocab_uncased", "deepset/sentence_bert"]
 EMBEDDINGS = ["glove", "senna", "fasttext_wiki", "fasttext_crawl",]
 NLP_TOOLS = ["stanza", "spacy"]
-NLP_TOOLS_TYPE = ["general", "scientific"]
+NLP_MODEL = ["general", "scientific"]
 HPARAMS = {
     "micro_f1": 0,
     "macro_f1": 0,

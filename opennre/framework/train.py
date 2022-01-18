@@ -12,19 +12,19 @@ import argparse
 import random
 
 class Training():
-        def __init__(self, dataset, metric, parameters, trial=None):
+        def __init__(self, dataset, parameters, trial=None):
                 self.dataset = dataset
-                self.metric = metric
                 self.trial = trial
                 nlp_tool = parameters["nlp_tool"]
-                nlp_tool_type = parameters["nlp_tool_type"]
+                nlp_model = parameters["nlp_model"]
         
                 self.preprocessing = parameters["preprocessing"]
                 self.model = parameters["model"]
                 self.max_length = parameters["max_length"]
                 self.opt = "adamw" if self.model == "bert" else "sgd"
                 self.embedding = parameters["embedding"]
-                self.synt_embeddings = parameters["synt_embeddings"]
+                self.pos_embed = parameters["pos_embed"]
+                self.deps_embed = parameters["deps_embed"]
                 self.batch_size = parameters["batch_size"]
                 self.lr = parameters["lr"]
                 self.max_epoch = parameters["max_epoch"]
@@ -76,7 +76,7 @@ class Training():
                                                 '{}_test_{}.txt'.format(self.dataset, self.preprocessing_str))
                         
                 if not (os.path.exists(self.train_file)) or not(os.path.exists(self.val_file)) or not(os.path.exists(self.test_file)):
-                        preprocess_dataset = PreprocessDataset(self.dataset, config.PREPROCESSING_COMBINATION[self.preprocessing], nlp_tool, nlp_tool_type)
+                        preprocess_dataset = PreprocessDataset(self.dataset, config.PREPROCESSING_COMBINATION[self.preprocessing], nlp_tool, nlp_model)
                         preprocess_dataset.preprocess_dataset()
                         
                 if not os.path.exists(self.test_file):
@@ -226,7 +226,7 @@ class Training():
 
                 # Train the model
                 try:
-                        framework.train_model(self.metric)
+                        framework.train_model()
                 except RuntimeError as e:
                         if 'out of memory' in str(e):
                                 print(" | WARNING: rran out of memory, retrying batch")
@@ -251,16 +251,11 @@ if __name__ == '__main__':
         # # Data
         parser.add_argument('-d','--dataset', default="semeval2010", choices=config.DATASETS, 
                  help='Dataset. If not none, the following args can be ignored')
-        parser.add_argument('-m','--metric', default="micro_f1", choices=config.METRICS, 
-                help='Metric to optimize')
 
         args = parser.parse_args()
         
-        import json
-        from opennre import config
-        
-        with open(config.BEST_HPARAMS_FILE_PATH.format('dataset name'), 'r') as f:
+        with open(config.BEST_HPARAMS_FILE_PATH.format(args.dataset), 'r') as f:
             best_hparams = json.load(f)
         
-        train = Training('dataset name', 'metric to optimize', best_hparams)
+        train = Training(args.dataset, best_hparams)
         train.train()
