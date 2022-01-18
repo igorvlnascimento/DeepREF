@@ -3,7 +3,7 @@ transformers==4.6.0
 pytest==5.3.2
 scikit-learn==0.22.1
 scipy==1.4.1
-nltk==3.6.5
+nltk==3.6.6 
 stanza==1.2.1
 spacy==3.2.1
 tqdm==4.61.1
