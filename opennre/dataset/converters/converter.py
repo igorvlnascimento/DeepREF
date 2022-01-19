@@ -12,7 +12,7 @@ from opennre import config
 
 class ConverterDataset():
     
-    def __init__(self, dataset_name, nlp_tool="stanza", nlp_tool_type="general", entity_name="ENTITY"):
+    def __init__(self, dataset_name, nlp_tool="stanza", nlp_model="general", entity_name="ENTITY"):
         
         self.dataset_name = dataset_name
         self.entity_name = entity_name
@@ -22,12 +22,12 @@ class ConverterDataset():
             
         self.nlp_tool = nlp_tool
             
-        nlp_info = self.nlp_config[nlp_tool][nlp_tool_type]
+        nlp_info = self.nlp_config[nlp_tool][nlp_model]
         
         print(nlp_info)
         
         if nlp_tool == 'stanza':
-            if nlp_tool_type == 'general':
+            if nlp_model == 'general':
                 stanza.download('en')
                 self.nlp = stanza.Pipeline(lang=nlp_info["language_model"], processors="tokenize,ner,depparse,pos,lemma", tokenize_no_ssplit=True)
             else:

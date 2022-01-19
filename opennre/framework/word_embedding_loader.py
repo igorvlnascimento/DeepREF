@@ -1,13 +1,14 @@
-import torch
 import numpy as np
 from gensim.models import KeyedVectors
 
-import io
 import os
 import json
-from tqdm import tqdm
 import subprocess
 
+FASTTEXT_CRAWL_NAME = 'fasttext_crawl.2M.300d'
+FASTTEXT_WIKI_NAME = 'fasttext_wiki.1M.300d'
+GLOVE_NAME = 'glove.6B.50d'
+SENNA_NAME = 'senna.50d'
 
 class WordEmbeddingLoader(object):
     """
@@ -34,40 +35,44 @@ class WordEmbeddingLoader(object):
         word2vec = list()  # wordID to word embedding
         
         if 'fasttext_wiki' == self.embedding_name:
-            if not os.path.exists(os.path.join(self.path_word, 'fasttext_wiki.1M.300d_word2id.json')):
+            if not os.path.exists(os.path.join(self.path_word, FASTTEXT_WIKI_NAME + '_word2id.json')):
                 if not os.path.exists(os.path.join(self.path_word, 'wiki-news-300d-1M.vec')):
                     subprocess.call(["bash", "pretrain/download_fasttext_wiki.sh"])
+                print("Loading embedding {}...".format(self.embedding_name))
                 fasttext_model = KeyedVectors.load_word2vec_format(os.path.join(self.path_word, 'wiki-news-300d-1M.vec'))
                 word2id = fasttext_model.key_to_index
                 word2vec = np.array([fasttext_model.word_vec(k) for k in word2id.keys()])
-                json.dump(word2id, open(os.path.join(self.path_word,'fasttext_wiki.1M.300d_word2id.json'), 'w'))
-                np.save(os.path.join(self.path_word,'fasttext_wiki.1M.300d._mat.npy'), word2vec)
-            word2id = json.load(open(os.path.join(self.path_word, 'fasttext_wiki.1M.300d_word2id.json')))
-            word2vec = np.load(os.path.join(self.path_word, 'fasttext_wiki.1M.300d._mat.npy'))
+                json.dump(word2id, open(os.path.join(self.path_word,FASTTEXT_WIKI_NAME + '_word2id.json'), 'w'))
+                np.save(os.path.join(self.path_word,FASTTEXT_WIKI_NAME + '._mat.npy'), word2vec)
+            word2id = json.load(open(os.path.join(self.path_word, FASTTEXT_WIKI_NAME + '_word2id.json')))
+            word2vec = np.load(os.path.join(self.path_word, FASTTEXT_WIKI_NAME + '._mat.npy'))
                 
         
         elif 'fasttext_crawl' == self.embedding_name:
-            if not os.path.exists(os.path.join(self.path_word, 'fasttext_crawl.2M.300d_word2id.json')):
+            if not os.path.exists(os.path.join(self.path_word, FASTTEXT_CRAWL_NAME + '_word2id.json')):
                 if not os.path.exists(os.path.join(self.path_word, 'crawl-300d-2M.vec')):
                     subprocess.call(["bash", "pretrain/download_fasttext_crawl.sh"])
+                print("Loading embedding {}...".format(self.embedding_name))
                 fasttext_model = KeyedVectors.load_word2vec_format(os.path.join(self.path_word, 'crawl-300d-2M.vec'))
                 word2id = fasttext_model.key_to_index
                 word2vec = np.array([fasttext_model.word_vec(k) for k in word2id.keys()])
-                json.dump(word2id, open(os.path.join(self.path_word,'fasttext_crawl.2M.300d_word2id.json'), 'w'))
-                np.save(os.path.join(self.path_word,'fasttext_crawl.1M.300d._mat.npy'), word2vec)
-            word2id = json.load(open(os.path.join(self.path_word, 'fasttext_crawl.2M.300d_word2id.json')))
-            word2vec = np.load(os.path.join(self.path_word, 'fasttext_crawl.2M.300d._mat.npy'))
+                json.dump(word2id, open(os.path.join(self.path_word,FASTTEXT_CRAWL_NAME + '_word2id.json'), 'w'))
+                np.save(os.path.join(self.path_word,FASTTEXT_CRAWL_NAME + '._mat.npy'), word2vec)
+            word2id = json.load(open(os.path.join(self.path_word, FASTTEXT_CRAWL_NAME + '_word2id.json')))
+            word2vec = np.load(os.path.join(self.path_word, FASTTEXT_CRAWL_NAME + '._mat.npy'))
         
         elif 'glove' == self.embedding_name:
-            if not os.path.exists(os.path.join(self.path_word, 'glove.6B.50d_mat.npy')):
+            if not os.path.exists(os.path.join(self.path_word, GLOVE_NAME + '_mat.npy')):
                 subprocess.call(["bash", "pretrain/download_glove.sh"])
-            word2id = json.load(open(os.path.join(self.path_word, 'glove.6B.50d_word2id.json')))
-            word2vec = np.load(os.path.join(self.path_word, 'glove.6B.50d_mat.npy'))
+            print("Loading embedding {}...".format(self.embedding_name))
+            word2id = json.load(open(os.path.join(self.path_word, GLOVE_NAME + '_word2id.json')))
+            word2vec = np.load(os.path.join(self.path_word, GLOVE_NAME + '_mat.npy'))
             
         elif 'senna' == self.embedding_name:
-            if not os.path.exists(os.path.join(self.path_word, 'senna.50d_word2id.json')):
+            if not os.path.exists(os.path.join(self.path_word, SENNA_NAME + '_word2id.json')):
                 if not os.path.exists(os.path.join(self.path_word, "senna", "embeddings", "embeddings.txt")):
                     subprocess.call(["bash", "pretrain/download_senna.sh"])
+                print("Loading embedding {}...".format(self.embedding_name))
                 fr = open(os.path.join(self.path_word, 'senna', 'embeddings', 'embeddings.txt'), 'r', encoding='utf-8').readlines()
                 w = open(os.path.join(self.path_word, 'senna', 'hash', 'words.lst'), 'r', encoding='utf-8').readlines()
                 for i, line in enumerate(fr):
@@ -77,9 +82,9 @@ class WordEmbeddingLoader(object):
                     word2id[w[i].strip()] = len(word2id)
                     word2vec.append(np.array(line).astype(np.float))
                     
-                json.dump(word2id, open(os.path.join(self.path_word,'senna.50d_word2id.json'), 'w'))
-                np.save(os.path.join(self.path_word,'senna.50d._mat.npy'), word2vec)
-            word2id = json.load(open(os.path.join(self.path_word, 'senna.50d_word2id.json')))
-            word2vec = np.load(os.path.join(self.path_word, 'senna.50d._mat.npy'))
+                json.dump(word2id, open(os.path.join(self.path_word,SENNA_NAME + '_word2id.json'), 'w'))
+                np.save(os.path.join(self.path_word,SENNA_NAME + '._mat.npy'), word2vec)
+            word2id = json.load(open(os.path.join(self.path_word, SENNA_NAME + '_word2id.json')))
+            word2vec = np.load(os.path.join(self.path_word, SENNA_NAME + '._mat.npy'))
         
         return word2id, word2vec

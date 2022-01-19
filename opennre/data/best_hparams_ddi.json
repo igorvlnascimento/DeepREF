@@ -1,5 +1,5 @@
 {
-    "nlp_tool": "stanza",
+    "nlp_tool": "spacy",
     "nlp_model": "scientific",
     "model": "bert",
     "embedding": "allenai/scibert_scivocab_uncased",
@@ -8,6 +8,6 @@
     "lr": 2.2669113198848183e-05,
     "max_length": 174,
     "max_epoch": 6,
-    "pos_embeddings": 1,
-    "deps_embeddings": 1
+    "pos_embed": 1,
+    "deps_embed": 1
 }

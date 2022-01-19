@@ -30,7 +30,7 @@ class Training():
                 self.max_epoch = parameters["max_epoch"]
                 
                 self.preprocessing_str = 'original'
-                if self.preprocessing is not None:
+                if self.preprocessing != 0:
                         self.preprocessing_str = "_".join(sorted(config.PREPROCESSING_COMBINATION[self.preprocessing]))
                         print(self.preprocessing_str)
                         
@@ -76,7 +76,7 @@ class Training():
                                                 '{}_test_{}.txt'.format(self.dataset, self.preprocessing_str))
                         
                 if not (os.path.exists(self.train_file)) or not(os.path.exists(self.val_file)) or not(os.path.exists(self.test_file)):
-                        preprocess_dataset = PreprocessDataset(self.dataset, config.PREPROCESSING_COMBINATION[self.preprocessing], nlp_tool, nlp_model)
+                        preprocess_dataset = PreprocessDataset(self.dataset, self.preprocessing, nlp_tool, nlp_model)
                         preprocess_dataset.preprocess_dataset()
                         
                 if not os.path.exists(self.test_file):
@@ -88,7 +88,7 @@ class Training():
                 print("embedding:",self.embedding)
                 if self.model != 'bert':
                         print(self.model)
-                        word2id, word2vec = WordEmbeddingLoader("fasttext_crawl").load_embedding()
+                        word2id, word2vec = WordEmbeddingLoader("glove").load_embedding()
                         word_dim = word2vec.shape[1]
 
                 # Define the sentence encoder
@@ -190,13 +190,12 @@ class Training():
                         sentence_encoder = opennre.encoder.BERTEntityEncoder(
                                 max_length=self.max_length, 
                                 pretrain_path=self.embedding,
-                                sk_embedding=self.synt_embeddings[0],
-                                pos_tags_embedding=self.synt_embeddings[1],
-                                deps_embedding=self.synt_embeddings[2]
+                                pos_tags_embedding=self.pos_embed,
+                                deps_embedding=self.deps_embed
                         )
 
-                        # Define the model
-                        self.model_opennre = opennre.model.SoftmaxNN(sentence_encoder, len(rel2id), rel2id)
+                # Define the model
+                self.model_opennre = opennre.model.SoftmaxNN(sentence_encoder, len(rel2id), rel2id)
                         
                 
                 self.criterion = opennre.model.PairwiseRankingLoss() if self.model == 'crcnn' else None
@@ -229,7 +228,7 @@ class Training():
                         framework.train_model()
                 except RuntimeError as e:
                         if 'out of memory' in str(e):
-                                print(" | WARNING: rran out of memory, retrying batch")
+                                print(" | WARNING: ran out of memory")
                                 for p in framework.model.parameters():
                                         if p .grad is not None:
                                                 del p.grad

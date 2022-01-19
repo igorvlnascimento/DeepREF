@@ -106,7 +106,6 @@ class BERTEntityEncoder(nn.Module):
                  pretrain_path, 
                  max_length=128, 
                  blank_padding=True,
-                 hidden_size=115,
                  activation_function=F.relu,
                  mask_entity=False, 
                  sk_embedding=False, 
@@ -123,10 +122,6 @@ class BERTEntityEncoder(nn.Module):
         self.max_length = max_length
         self.word_size = 4
         self.blank_padding = blank_padding
-        # self.kernel_size = kernel_size
-        # self.padding_size = padding_size
-        # self.position_size = position_size
-        # self.syntatic_size = syntatic_size
         self.act = activation_function
         
         self.sk_embedding = sk_embedding
@@ -134,31 +129,19 @@ class BERTEntityEncoder(nn.Module):
         self.deps_embedding = deps_embedding
         
         self.input_size = 768 * 2 + 2 * self.max_length + ((self.pos_tags_embedding + self.deps_embedding) * self.max_length)
-        #hidden_times = (self.pos_tags_embedding + self.deps_embedding + self.sk_embedding + 1) * 2
         self.input_size2 = self.input_size // 4 + (self.sk_embedding * self.word_size)
-        self.hidden_size = self.input_size // 4# + (self.sk_embedding * self.word_size)
-        #print(self.hidden_size)
-        #hidden_size = 768 + 2 * self.position_size + ((self.pos_tags_embedding + self.deps_embedding) * self.syntatic_size)
-        
-        # self.conv = nn.Conv1d(self.input_size, hidden_size, self.kernel_size, padding=self.padding_size)
-        # self.pool = nn.MaxPool1d(self.max_length)
+        self.hidden_size = self.input_size // 4
         
         self.mask_entity = mask_entity
         
         logging.info('Loading {} pre-trained checkpoint.'.format(pretrain_path.upper()))
         self.bert = AutoModel.from_pretrained(pretrain_path, return_dict=False)
         self.tokenizer = AutoTokenizer.from_pretrained(pretrain_path)
-        #print("hidden_size:",hidden_size)
         self.linear1 = nn.Linear(self.input_size, self.input_size//2)
         self.linear2 = nn.Linear(self.input_size//2, self.input_size//4)
         self.linear3 = nn.Linear(self.hidden_size, self.hidden_size)
         self.drop = nn.Dropout(0.5)
-        # self.position_size = position_size
-        # self.pos1_embedding = nn.Embedding(2 * max_length, self.position_size, padding_idx=0)
-        # self.pos2_embedding = nn.Embedding(2 * max_length, self.position_size, padding_idx=0)
-        # self.pos_embed = nn.Embedding(2 * max_length, self.syntatic_size, padding_idx=0)
-        # self.deps_embed = nn.Embedding(2 * max_length, self.syntatic_size, padding_idx=0)
-        # self.sk_embed = nn.Embedding(len(self.tokenizer.vocab), self.syntatic_size, padding_idx=0)
+        
         print("pos-tag:",self.pos_tags_embedding)
         print("deps:",self.deps_embedding)
         print("sk:",self.sk_embedding)
@@ -184,9 +167,6 @@ class BERTEntityEncoder(nn.Module):
         head_hidden = (onehot_head.unsqueeze(2) * hidden).sum(1)  # (B, H)
         tail_hidden = (onehot_tail.unsqueeze(2) * hidden).sum(1)  # (B, H)
         
-        # pos1_embedding = self.pos1_embedding(pos1_embed)
-        # pos2_embedding = self.pos1_embedding(pos2_embed)
-        
         concat_list = [head_hidden, tail_hidden, pos1_embed, pos2_embed]
         
         if self.pos_tags_embedding:
@@ -198,16 +178,6 @@ class BERTEntityEncoder(nn.Module):
         x = torch.cat(concat_list, 1)
         x = self.linear1(x)
         x = self.linear2(x)
-        # x = x.transpose(1, 2) # (B, EMBED, L)
-        # x = self.act(self.conv(x))
-        # x = self.pool(x).squeeze(-1)
-        
-        #sk = self.sk_embed(sk)
-        #print("sk:",sk.size())
-            
-        #if self.sk_embedding:
-        #    x = torch.cat([x, sk], 1)  # (B, H)
-        #print(x.size())
         x = self.linear3(x)
         x = self.drop(x)
         return x
@@ -277,19 +247,12 @@ class BERTEntityEncoder(nn.Module):
         
         indexed_tokens_sk = []
         if self.sk_embedding:
-            # e1 = sentence[pos_head[0]:pos_head[1]]
-            # e2 = sentence[pos_tail[0]:pos_tail[1]]
-            # print(e1,e2)
             sk_ents = SemanticKNWL().extract([sentence[pos_head[0]:pos_head[1]][-1], sentence[pos_tail[0]:pos_tail[1]][-1]])
-            #print("sk_ents:",sk_ents)
         
             indexed_tokens_sk1 = self.tokenizer.convert_tokens_to_ids(sk_ents["ses1"])
             indexed_tokens_sk2 = self.tokenizer.convert_tokens_to_ids(sk_ents["ses2"])
             
             indexed_tokens_sk = indexed_tokens_sk1 + indexed_tokens_sk2
-            #print(indexed_tokens_sk)
-        
-        #indexed_tokens += indexed_tokens_sk1 + indexed_tokens_sk2
         
         indexed_pos = []
         indexed_deps = []
@@ -334,8 +297,6 @@ class BERTEntityEncoder(nn.Module):
                 indexed_tokens.append(0)  # 0 is id for [PAD]
             while self.sk_embedding and len(indexed_tokens_sk) < self.word_size:
                 indexed_tokens_sk.append(0)  # 0 is id for [PAD]
-            # while len(indexed_tokens_sk2) < self.max_length and self.sk_embedding:
-            #     indexed_tokens_sk2.append(0)  # 0 is id for [PAD]
             while self.pos_tags_embedding and len(indexed_pos) < self.max_length:
                 indexed_pos.append(0)  # 0 is id for [PAD]
             while self.deps_embedding and len(indexed_deps) < self.max_length:
@@ -346,7 +307,6 @@ class BERTEntityEncoder(nn.Module):
             indexed_deps = indexed_deps[:self.max_length]
         indexed_tokens = torch.tensor(indexed_tokens).long().unsqueeze(0)  # (1, L)
         indexed_tokens_sk = torch.tensor(indexed_tokens_sk).long().unsqueeze(0)  # (1, L)
-        #indexed_tokens_sk2 = torch.tensor(indexed_tokens_sk2).long().unsqueeze(0)  # (1, L)
         indexed_pos = torch.tensor(indexed_pos).long().unsqueeze(0)  # (1, L)
         indexed_deps = torch.tensor(indexed_deps).long().unsqueeze(0)  # (1, L)
 

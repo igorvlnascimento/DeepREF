@@ -117,10 +117,8 @@ benchmark/tacred
 *.swp
 
 # data and pretrain
-benchmark/
-!benchmark/*.sh
-pretrain/
-!pretrain/*.sh
+benchmark/*/
+pretrain/*/
 
 # test env
 .test
@@ -130,6 +128,4 @@ opennre-egg.info
 
 # debug
 
-results/*.png
-ResultsOpenNRE*.txt
-AblationStudies.txt
+results/

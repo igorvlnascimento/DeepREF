@@ -18,57 +18,20 @@ def check_root(root_path=default_root_path):
         os.mkdir(os.path.join(root_path, 'pretrain'))
         os.mkdir(os.path.join(root_path, 'pretrain/nre'))
 
-def download_wiki80(root_path=default_root_path):
-    check_root()
-    if not os.path.exists(os.path.join(root_path, 'benchmark/wiki80')):
-        os.mkdir(os.path.join(root_path, 'benchmark/wiki80'))
-        os.system('wget -P ' + os.path.join(root_path, 'benchmark/wiki80') + ' ' + root_url + 'opennre/benchmark/wiki80/wiki80_rel2id.json')
-        os.system('wget -P ' + os.path.join(root_path, 'benchmark/wiki80') + ' ' + root_url + 'opennre/benchmark/wiki80/wiki80_train.txt')
-        os.system('wget -P ' + os.path.join(root_path, 'benchmark/wiki80') + ' ' + root_url + 'opennre/benchmark/wiki80/wiki80_val.txt')
-
-def download_tacred(root_path=default_root_path):
-    check_root()
-    if not os.path.exists(os.path.join(root_path, 'benchmark/tacred')):
-        os.mkdir(os.path.join(root_path, 'benchmark/tacred'))
-        os.system('wget -P ' + os.path.join(root_path, 'benchmark/tacred') + ' ' + root_url + 'opennre/benchmark/tacred/tacred_rel2id.json')
-        logging.info('Due to copyright limits, we only provide rel2id for TACRED. Please download TACRED manually and convert the data to OpenNRE format if needed.')
-
-def download_nyt10(root_path=default_root_path):
-    check_root()
-    if not os.path.exists(os.path.join(root_path, 'benchmark/nyt10')):
-        os.mkdir(os.path.join(root_path, 'benchmark/nyt10'))
-        os.system('wget -P ' + os.path.join(root_path, 'benchmark/nyt10') + ' ' + root_url + 'opennre/benchmark/nyt10/nyt10_rel2id.json')
-        os.system('wget -P ' + os.path.join(root_path, 'benchmark/nyt10') + ' ' + root_url + 'opennre/benchmark/nyt10/nyt10_train.txt')
-        os.system('wget -P ' + os.path.join(root_path, 'benchmark/nyt10') + ' ' + root_url + 'opennre/benchmark/nyt10/nyt10_test.txt')
-
-def download_wiki_distant(root_path=default_root_path):
-    check_root()
-    if not os.path.exists(os.path.join(root_path, 'benchmark/wiki_distant')):
-        os.mkdir(os.path.join(root_path, 'benchmark/wiki_distant'))
-        os.system('wget -P ' + os.path.join(root_path, 'benchmark/wiki_distant') + ' ' + root_url + 'opennre/benchmark/wiki_distant/wiki_distant_rel2id.json')
-        os.system('wget -P ' + os.path.join(root_path, 'benchmark/wiki_distant') + ' ' + root_url + 'opennre/benchmark/wiki_distant/wiki_distant_train.txt')
-        os.system('wget -P ' + os.path.join(root_path, 'benchmark/wiki_distant') + ' ' + root_url + 'opennre/benchmark/wiki_distant/wiki_distant_test.txt')
-        os.system('wget -P ' + os.path.join(root_path, 'benchmark/wiki_distant') + ' ' + root_url + 'opennre/benchmark/wiki_distant/wiki_distant_val.txt')
-
-def download_semeval(root_path=default_root_path):
-    check_root()
-    if not os.path.exists(os.path.join(root_path, 'benchmark/semeval')):
-        os.mkdir(os.path.join(root_path, 'benchmark/semeval'))
-        os.system('wget -P ' + os.path.join(root_path, 'benchmark/semeval') + ' ' + root_url + 'opennre/benchmark/semeval/semeval_rel2id.json')
-        os.system('wget -P ' + os.path.join(root_path, 'benchmark/semeval') + ' ' + root_url + 'opennre/benchmark/semeval/semeval_train.txt')
-        os.system('wget -P ' + os.path.join(root_path, 'benchmark/semeval') + ' ' + root_url + 'opennre/benchmark/semeval/semeval_test.txt')
-        os.system('wget -P ' + os.path.join(root_path, 'benchmark/semeval') + ' ' + root_url + 'opennre/benchmark/semeval/semeval_val.txt')
-
 def download_semeval2010(root_path=default_root_path):
     check_root()
     if not os.path.exists(os.path.join(root_path, 'benchmark/semeval2010')):
         os.system('bash ' + os.path.join(root_path, 'bechmark/download_semeval2010.sh'))
 
-def download_semeval2018(root_path=default_root_path):
+def download_semeval20181_1(root_path=default_root_path):
     check_root()
-    if not os.path.exists(os.path.join(root_path, 'benchmark/semeval2018')):
-        os.system('bash ' + os.path.join(root_path, 'bechmark/download_semeval2018.sh'))
-
+    if not os.path.exists(os.path.join(root_path, 'benchmark/semeval20181-1')):
+        os.system('bash ' + os.path.join(root_path, 'bechmark/download_semeval20181-1.sh'))
+        
+def download_semeval20181_2(root_path=default_root_path):
+    check_root()
+    if not os.path.exists(os.path.join(root_path, 'benchmark/semeval20181-2')):
+        os.system('bash ' + os.path.join(root_path, 'bechmark/download_semeval20181-2.sh'))
 
 def download_ddi(root_path=default_root_path):
     check_root()
@@ -106,30 +69,6 @@ def download_bert_base_uncased(root_path=default_root_path):
         os.system('wget -P ' + os.path.join(root_path, 'pretrain/bert-base-uncased') + ' ' + root_url + 'opennre/pretrain/bert-base-uncased/pytorch_model.bin')
         os.system('wget -P ' + os.path.join(root_path, 'pretrain/bert-base-uncased') + ' ' + root_url + 'opennre/pretrain/bert-base-uncased/vocab.txt')
         
-def download_biobert(root_path=default_root_path):
-    check_root()
-    if not os.path.exists(os.path.join(root_path, 'pretrain/biobert')):
-        os.mkdir(os.path.join(root_path, 'pretrain/biobert'))
-        os.system('bash pretrain/download_biobert.sh')
-        
-def download_scibert(root_path=default_root_path):
-    check_root()
-    if not os.path.exists(os.path.join(root_path, 'pretrain/scibert')):
-        os.mkdir(os.path.join(root_path, 'pretrain/scibert'))
-        os.system('bash pretrain/download_scibert.sh')
-        
-def download_roberta(root_path=default_root_path):
-    check_root()
-    if not os.path.exists(os.path.join(root_path, 'pretrain/roberta')):
-        os.mkdir(os.path.join(root_path, 'pretrain/roberta'))
-        os.system('bash pretrain/download_roberta.sh')
-        
-def download_distilbert(root_path=default_root_path):
-    check_root()
-    if not os.path.exists(os.path.join(root_path, 'pretrain/distilbert')):
-        os.mkdir(os.path.join(root_path, 'pretrain/distilbert'))
-        os.system('bash pretrain/download_distilbert.sh')
-
 def download_pretrain(model_name, root_path=default_root_path):
     ckpt = os.path.join(root_path, 'pretrain/nre/' + model_name + '.pth.tar')
     if not os.path.exists(ckpt):
@@ -140,22 +79,14 @@ def download(name, root_path=default_root_path):
         os.mkdir(os.path.join(root_path, 'benchmark'))
     if not os.path.exists(os.path.join(root_path, 'pretrain')):
         os.mkdir(os.path.join(root_path, 'pretrain'))
-    if name == 'nyt10':
-        download_nyt10(root_path=root_path)
-    elif name == 'wiki_distant':
-        download_wiki_distant(root_path=root_path)
-    elif name == 'semeval':
-        download_semeval(root_path=root_path)
-    elif name == 'semeval2010':
+    if name == 'semeval2010':
         download_semeval2010(root_path=root_path)
-    elif name == 'semeval2018':
-        download_semeval2018(root_path=root_path)
+    elif name == 'semeval20181-1':
+        download_semeval20181_1(root_path=root_path)
+    elif name == 'semeval20181-2':
+        download_semeval20181_2(root_path=root_path)
     elif name == 'ddi':
         download_ddi(root_path=root_path)
-    elif name == 'wiki80':
-        download_wiki80(root_path=root_path)
-    elif name == 'tacred':
-        download_tacred(root_path=root_path)
     elif name == 'glove':
         download_glove(root_path=root_path)
     elif name == 'fasttext_wiki':
@@ -166,14 +97,6 @@ def download(name, root_path=default_root_path):
         download_senna(root_path=root_path)
     elif name == 'bert_base_uncased':
         download_bert_base_uncased(root_path=root_path)
-    elif name == 'distilbert':
-        download_distilbert(root_path=root_path)
-    elif name == 'roberta':
-        download_roberta(root_path=root_path)
-    elif name == 'biobert':
-        download_biobert(root_path=root_path)
-    elif name == 'scibert':
-        download_scibert(root_path=root_path)
     
     else:
         raise Exception('Cannot find corresponding data.')

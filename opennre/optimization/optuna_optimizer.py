@@ -2,31 +2,31 @@ import os
 import json
 import argparse
 import itertools
-from opennre import constants
+from opennre import config
 
 import optuna
 
 from opennre.framework.train import Training
 
 class Optimizer():
-    def __init__(self, dataset, metric, trials, opt_type):
+    def __init__(self, dataset, metric, trials=50, opt_type='hyperparams'):
         self.dataset = dataset
         self.metric = metric
         self.trials = trials
-        if not os.path.exists(constants.BEST_HPARAMS_FILE_PATH.format(dataset)):
-            dict = constants.HPARAMS
+        if not os.path.exists(config.BEST_HPARAMS_FILE_PATH.format(dataset)):
+            dict = config.HPARAMS
             dict["{}".format(self.metric)] = 0
             json_object = json.dumps(dict, indent=4)
-            with open(constants.BEST_HPARAMS_FILE_PATH.format(dataset), 'w') as f:
+            with open(config.BEST_HPARAMS_FILE_PATH.format(dataset), 'w') as f:
                 f.write(json_object)
-        with open(constants.BEST_HPARAMS_FILE_PATH.format(dataset), 'r') as f:
+        with open(config.BEST_HPARAMS_FILE_PATH.format(dataset), 'r') as f:
             self.best_hparams = json.load(f)
         
         self.study_model = optuna.create_study(direction="maximize")
         self.study_params = optuna.create_study(direction="maximize")
         
-        self.preprocessing = constants.PREPROCESSING_TYPES
-        self.preprocessing = constants.PREPROCESSING_COMBINATION
+        self.preprocessing = config.PREPROCESSING_TYPES
+        self.preprocessing = config.PREPROCESSING_COMBINATION
         
         self.params = None
         self.value = 0
@@ -54,9 +54,7 @@ class Optimizer():
         
         print("parameters:",parameters)
         
-        
-        
-        train = Training(self.dataset, self.metric, parameters, trial)
+        train = Training(self.dataset, parameters, trial)
         result = train.train()
         new_value = result[self.metric]
         
@@ -68,27 +66,18 @@ class Optimizer():
     
     def evaluate_model(self, trial):
         
-        model = trial.suggest_categorical("model", constants.MODELS)
-        embedding = trial.suggest_categorical("embedding", constants.PRETRAIN_WEIGHTS) if model == 'bert' else trial.suggest_categorical("embedding", constants.EMBEDDINGS)
-        preprocessing = 0
-        batch_size =  3 if model == 'bert' else 160
-        lr =  2e-5 if model == 'bert' else 1e-1
-        max_length =  128
-        max_epoch = 64 if model == 'bert' else 100
-    
-        parameters = {
-            "dataset": self.dataset,
-            "model": model,
-            "metric": self.metric,
-            "preprocessing": preprocessing,
-            "embedding": embedding,
-            "batch_size": batch_size,
-            "lr": lr,
-            "max_length": max_length,
-            "max_epoch": max_epoch,
-        }
+        model = trial.suggest_categorical("model", config.MODELS)
+        embedding = trial.suggest_categorical("embedding", config.PRETRAIN_WEIGHTS) if model == 'bert' else trial.suggest_categorical("embedding", config.EMBEDDINGS)
         
-        train = Training(self.dataset, self.metric, parameters, trial)
+        parameters = self.best_hparams
+        parameters["dataset"] = self.dataset
+        parameters["metric"] = self.metric
+        parameters["model"] = model
+        parameters["embedding"] = embedding
+        
+        print("parameters:",parameters)
+        
+        train = Training(self.dataset, parameters, trial)
         result = train.train()
         new_value = result[self.metric]
         
@@ -96,7 +85,7 @@ class Optimizer():
             self.value = new_value
             self.best_result = result
         
-        return result
+        return new_value
 
     def optimize_model(self):
         self.study_model.optimize(self.evaluate_model, n_trials=self.trials)
@@ -114,9 +103,9 @@ class Optimizer():
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('-d','--dataset', default="semeval2010", choices=constants.DATASETS, 
+    parser.add_argument('-d','--dataset', default="semeval2010", choices=config.DATASETS, 
                 help='Dataset')
-    parser.add_argument('-m','--metric', default="micro_f1", choices=constants.METRICS, 
+    parser.add_argument('-m','--metric', default="micro_f1", choices=config.METRICS, 
                 help='Metric to optimize')
     parser.add_argument('-t','--trials', default=50, help='Number of trials to optimize')
     parser.add_argument('-o', '--optimizer_type', default='hyperparams', choices=['hyperparams', 'model'],
@@ -129,31 +118,33 @@ if __name__ == "__main__":
     best_hparams = opt.best_hparams
     
     hof = opt.params
-    print("Best:",hof)
+    print("Best params:",hof)
+    print("Best result:",best_result)
     
-    new_value = abs(opt.study_params.best_value)
-    json_value = float(best_hparams["{}".format(opt.metric)]) if best_hparams["{}".format(opt.metric)] else 0
     
-    if new_value > json_value:
-        if args.optimizer_type == 'hyperparams':
-            max_epoch = hof["max_epoch"]
-            batch_size = hof["batch_size"]
-            lr, max_length = hof["lr"], hof["max_length"]
+    #new_value = abs(opt.study_params.best_value)
+    #json_value = float(best_hparams["{}".format(opt.metric)]) if best_hparams["{}".format(opt.metric)] else 0
+    
+    # if new_value > json_value:
+    #     if args.optimizer_type == 'hyperparams':
+    #         max_epoch = hof["max_epoch"]
+    #         batch_size = hof["batch_size"]
+    #         lr, max_length = hof["lr"], hof["max_length"]
             
-            best_hparams["max_epoch"] = max_epoch
-            best_hparams["batch_size"] = batch_size
-            best_hparams["lr"] = lr
-            best_hparams["max_length"] = max_length
+    #         best_hparams["max_epoch"] = max_epoch
+    #         best_hparams["batch_size"] = batch_size
+    #         best_hparams["lr"] = lr
+    #         best_hparams["max_length"] = max_length
             
-        elif args.optimizer_type == 'model':
-            model = hof["model"]
-            embedding = hof["embedding"]
+    #     elif args.optimizer_type == 'model':
+    #         model = hof["model"]
+    #         embedding = hof["embedding"]
             
-            best_hparams["model"] = model
-            best_hparams["embedding"] = embedding
+    #         best_hparams["model"] = model
+    #         best_hparams["embedding"] = embedding
         
-        json_object = json.dumps(best_hparams, indent=4)
+    #     json_object = json.dumps(best_hparams, indent=4)
         
-        with open(constants.BEST_HPARAMS_FILE_PATH.format(args.dataset), 'w') as out_f:
-            out_f.write(json_object)
+    #     with open(config.BEST_HPARAMS_FILE_PATH.format(args.dataset), 'w') as out_f:
+    #         out_f.write(json_object)
     

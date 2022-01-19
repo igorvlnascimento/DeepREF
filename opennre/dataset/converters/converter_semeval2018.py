@@ -10,8 +10,8 @@ from tqdm import tqdm
 from opennre.dataset.converters.converter import ConverterDataset
 
 class ConverterSemEval2018(ConverterDataset):
-    def __init__(self, nlp_tool, nlp_tool_type) -> None:
-        super().__init__(dataset_name="semeval2018", entity_name="ENTITY", nlp_tool=nlp_tool, nlp_tool_type=nlp_tool_type)
+    def __init__(self, dataset_name, entity_name, nlp_tool, nlp_model) -> None:
+        super().__init__(dataset_name=dataset_name, entity_name=entity_name, nlp_tool=nlp_tool, nlp_model=nlp_model)
 
     # given sentence dom in DDI corpus, get all the information related to the entities 
     # present in the dom
@@ -417,22 +417,3 @@ class ConverterSemEval2018(ConverterDataset):
                 outfile.write(str(dict)+"\n")
             outfile.close()
     
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--train_input_file', default='benchmark/raw_semeval2010/TRAIN_FILE.TXT', 
-        help='Input path of training examples')
-    parser.add_argument('--test_input_file', default='benchmark/raw_semeval2010/TEST_FILE_FULL.TXT', 
-        help='Input path of training examples')
-    parser.add_argument('--output_path', default='benchmark/semeval2010/original', 
-        help='Input path of training examples')
-    parser.add_argument('--nlp_tool', default='stanza', choices=config.NLP_TOOLS,
-        help='NLP tool name')
-    parser.add_argument('--nlp_model', default='general', choices=config.NLP_MODEL,
-        help='NLP tool model name')
-    
-    args = parser.parse_args()
-    
-    converter = ConverterSemEval2018(args.nlp_tool, args.nlp_model)
-    
-    converter.write_split_dataframes('benchmark/semeval20181-1/original', 'benchmark/raw_semeval20181-1/Train/', 'benchmark/raw_semeval20181-1/Test/')
-    converter.write_split_dataframes('benchmark/semeval20181-2/original', 'benchmark/raw_semeval20181-2/Train/', 'benchmark/raw_semeval20181-2/Test/')

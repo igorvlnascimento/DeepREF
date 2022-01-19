@@ -15,8 +15,8 @@ from tqdm import tqdm
 from opennre.dataset.converters.converter import ConverterDataset
 
 class ConverterDDI(ConverterDataset):
-    def __init__(self, nlp_tool, nlp_tool_type):
-        super().__init__(dataset_name="ddi", entity_name="DRUG", nlp_tool=nlp_tool, nlp_tool_type=nlp_tool_type)
+    def __init__(self, nlp_tool, nlp_model):
+        super().__init__(dataset_name="ddi", entity_name="DRUG", nlp_tool=nlp_tool, nlp_model=nlp_model)
         
     # given sentence dom in DDI corpus, get all the information related to the entities 
     # present in the dom
@@ -285,16 +285,6 @@ class ConverterDDI(ConverterDataset):
                 dict["relation"] = row.relation_type
                 outfile.write(str(dict)+"\n")
             outfile.close()
-
-    # combine txt files of drugbank and medline
-    # def combine(res, outdir, file1, file2, outfilename):
-    #     outfile = outdir + outfilename
-    #     filenames = [res(outdir + file1+'.txt'), res(outdir + file2+'.txt')]
-    #     with open(res(outfile), 'w') as outfile:
-    #         for fname in filenames:
-    #             with open(fname) as infile:
-    #                 for line in infile:
-    #                     outfile.write(line)
                         
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()

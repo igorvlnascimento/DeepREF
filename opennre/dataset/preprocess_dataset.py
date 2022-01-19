@@ -7,12 +7,12 @@ from opennre import config
 from opennre.dataset.preprocess import Preprocess
 
 class PreprocessDataset():
-    def __init__(self, dataset_name, preprocessing_type, nlp_tool, nlp_tool_type):
+    def __init__(self, dataset_name, preprocessing_type, nlp_tool, nlp_model):
         self.dataset_name = dataset_name
         self.preprocessing_type = sorted(config.PREPROCESSING_COMBINATION[preprocessing_type])
         self.preprocessing_type_str = "_".join(self.preprocessing_type)
         self.nlp_tool = nlp_tool
-        self.nlp_tool_type = nlp_tool_type
+        self.nlp_model = nlp_model
         self.output_path = os.path.join('benchmark', dataset_name, self.preprocessing_type_str)
 
     def out(self, path): return os.path.join(self.output_path, path)
@@ -56,12 +56,14 @@ class PreprocessDataset():
         self.makedir()
 
         for original_df_name in original_dataframe_names:
-            if not os.path.exists(os.path.join('benchmark', self.dataset_name, 'original', original_df_name + '_original.txt')) or \
-                not os.path.exists(os.path.join('benchmark', self.dataset_name, 'original', original_df_name + '_original.csv')):
-                subprocess.call(['bash', 'benchmark/download_{}.sh'.format(self.dataset_name), self.nlp_tool, self.nlp_tool_type])
-            if not os.path.exists(self.out(original_df_name + '_{}.txt'.format(self.preprocessing_type_str))):
+            ds_path = os.path.join('benchmark', self.dataset_name, 'original', original_df_name)
+            if not os.path.exists(os.path.join(ds_path + '_original.txt')) or \
+                not os.path.exists(os.path.join(ds_path + '_original.csv')):
                 print("preprocessing_type_str:",self.preprocessing_type_str)
-                original_ds = preprocess.preprocess(os.path.join('benchmark', self.dataset_name, 'original', original_df_name + '_original.csv'))
+                subprocess.call(['bash', 'benchmark/download_{}.sh'.format(self.dataset_name), self.nlp_tool, self.nlp_model])
+            if not os.path.exists(self.out(original_df_name + '_{}.txt'.format(self.preprocessing_type_str))):
+                print("Preprocessing...")
+                original_ds = preprocess.preprocess(os.path.join(ds_path + '_original.csv'))
                 preprocess.write_into_txt(original_ds, self.out(original_df_name + '_{}.txt'.format(self.preprocessing_type_str)))
             
         for original_df_name in original_dataframe_names:
