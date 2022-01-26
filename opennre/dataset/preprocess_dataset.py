@@ -7,12 +7,10 @@ from opennre import config
 from opennre.dataset.preprocess import Preprocess
 
 class PreprocessDataset():
-    def __init__(self, dataset_name, preprocessing_type, nlp_tool, nlp_model):
+    def __init__(self, dataset_name, preprocessing_type):
         self.dataset_name = dataset_name
         self.preprocessing_type = sorted(config.PREPROCESSING_COMBINATION[preprocessing_type])
         self.preprocessing_type_str = "_".join(self.preprocessing_type)
-        self.nlp_tool = nlp_tool
-        self.nlp_model = nlp_model
         self.output_path = os.path.join('benchmark', dataset_name, self.preprocessing_type_str)
 
     def out(self, path): return os.path.join(self.output_path, path)
@@ -80,7 +78,7 @@ if __name__ == '__main__':
     with open(config.BEST_HPARAMS_FILE_PATH.format(args.dataset), 'r') as f:
         best_hparams = json.load(f)
         
-    preprocess_dataset = PreprocessDataset(args.dataset, best_hparams["preprocessing"], best_hparams["nlp_tool"], best_hparams["nlp_model"])
+    preprocess_dataset = PreprocessDataset(args.dataset, best_hparams["preprocessing"])
     preprocess_dataset.preprocess_dataset()
 
 

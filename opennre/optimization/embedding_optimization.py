@@ -12,6 +12,7 @@ class EmbeddingOptimization():
     def __init__(self, dataset, metric):
         self.dataset = dataset
         self.metric = metric
+        self.value = 0
         
         if not os.path.exists(config.BEST_HPARAMS_FILE_PATH.format(dataset)):
             dict = config.HPARAMS
@@ -27,8 +28,6 @@ class EmbeddingOptimization():
         parameters = self.best_hparams
         parameters["dataset"] = self.dataset
         parameters["metric"] = self.metric
-        
-        embedding_value = 0
         
         for embed in EMBEDDINGS:
         

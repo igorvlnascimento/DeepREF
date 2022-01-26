@@ -15,8 +15,6 @@ class Training():
         def __init__(self, dataset, parameters, trial=None):
                 self.dataset = dataset
                 self.trial = trial
-                nlp_tool = parameters["nlp_tool"]
-                nlp_model = parameters["nlp_model"]
         
                 self.preprocessing = parameters["preprocessing"]
                 self.model = parameters["model"]
@@ -76,7 +74,7 @@ class Training():
                                                 '{}_test_{}.txt'.format(self.dataset, self.preprocessing_str))
                         
                 if not (os.path.exists(self.train_file)) or not(os.path.exists(self.val_file)) or not(os.path.exists(self.test_file)):
-                        preprocess_dataset = PreprocessDataset(self.dataset, self.preprocessing, nlp_tool, nlp_model)
+                        preprocess_dataset = PreprocessDataset(self.dataset, self.preprocessing)
                         preprocess_dataset.preprocess_dataset()
                         
                 if not os.path.exists(self.test_file):

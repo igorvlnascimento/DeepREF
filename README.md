@@ -116,7 +116,15 @@ If you wants to only download the dataset directly and transform it to a .csv fi
 bash benchmark/download_<dataset>.sh
 ```
 
-You can change the NLP tool and NLP model from `opennre/data/best_hparams_<dataset>.json` file. The `nlp_tool` can be only `stanza` or `spacy` and `nlp_tool_type` is `general` or `scientific`. The `general` type loads a more general model for Stanza or SpaCy and the `scientific` loads the biomedical model for Stanza and the smae general model for SpaCy. The file `opennre/data/nlp_config.py` has the NLP tool and model configuration. You can add new NLP models to this file. Don't forget to add to `NLP_MODELS` variable on `opennre/config.py` file.
+You can change the NLP tool and NLP model doing the following:
+```
+NLP_TOOL=spacy
+export NLP_TOOL
+NLP_MODEL=scientific
+export NLP_MODEL
+```
+
+ The `general` type loads a more general model for Stanza or SpaCy and the `scientific` loads the biomedical model for Stanza and the same general model for SpaCy. The file `opennre/data/nlp_config.py` has the NLP tool and model configuration. You can add new NLP models to this file. Don't forget to add to `NLP_MODELS` variable on `opennre/config.py` file.
 
 This can take from about 30 minutes to 3 hours to execute for Stanza (depending on the dataset) and less than 10 minutes for SpaCy. But Stanza has more accuracy.
 
@@ -129,3 +137,7 @@ If you want to add a new architecture to the framework, create a encoder to this
 ### Datasets
 
 To add a new dataset you have it's important to create a new .sh file on `benchmark` folder to download the dataset named `download_<dataset>.sh`. Follow the other preexistent .sh scripts to create a new one. After this, create a converter in the format `converter_<dataset>.py` to the dataset in `opennre/dataset/converters` directory to transform the downloaded dataset into a .csv file in a standard format to preprocess and generate .txt to train in the framework. Follow the other preexistent .py scripts to converter a custom dataset. Add the dataset name to the `DATASETS` list on `opennre/config.py` file.
+
+## Framework Test
+
+You can test the scripts easily on the `deepref-framework-test.ipynb` file. Execute the cells in the notebook to get the results.

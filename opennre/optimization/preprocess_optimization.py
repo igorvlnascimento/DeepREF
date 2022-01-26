@@ -12,6 +12,7 @@ class PreprocessOptimization():
     def __init__(self, dataset, metric):
         self.dataset = dataset
         self.metric = metric
+        self.value = 0
         self.preprocessing = config.PREPROCESSING_TYPES
         self.preprocess_combination = config.PREPROCESSING_COMBINATION
         
@@ -31,9 +32,6 @@ class PreprocessOptimization():
         self.best_prep = self.study_prep.best_params["preprocessing"]
         self.best_prep_value = self.study_prep.best_value
         
-        self.value = 0
-        self.best_result = None
-        
     def preprocessing_optimization(self, trial):
         
         parameters = self.best_hparams
@@ -42,13 +40,12 @@ class PreprocessOptimization():
             
         parameters["preprocessing"] = preprocessing
         
-        train = Training(self.dataset, self.metric, parameters, trial)
+        train = Training(self.dataset, parameters, trial)
         result = train.train()
         new_value = result[self.metric]
         
         if new_value > self.value:
             self.value = new_value
-            self.best_result = result
         
         return new_value
 
@@ -63,7 +60,6 @@ if __name__ == '__main__':
     dataset = args.dataset
     metric = args.metric
     prep = PreprocessOptimization(dataset, metric)
-    best_result = prep.best_result
     preprocessing, new_value = prep.best_prep, prep.best_prep_values
     print("Type:", prep.preprocess_combination[preprocessing], "Value:", new_value)
     

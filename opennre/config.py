@@ -32,8 +32,6 @@ HPARAMS = {
     "acc": 0,
     "model": "bert",
     "embedding": "bert-base-uncased",
-    "nlp_tool": "stanza",
-    "nlp_tool_type": "general",
     "batch_size": 16,
     "preprocessing": 0,
     "lr": 2e-5,
