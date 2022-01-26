@@ -11,8 +11,8 @@ import pandas as pd
 from opennre.dataset.converters.converter import ConverterDataset
 
 class ConverterSemEval2010(ConverterDataset):
-    def __init__(self, nlp_tool, nlp_tool_type):
-        super().__init__(dataset_name='semeval2010', nlp_tool=nlp_tool, nlp_tool_type=nlp_tool_type)
+    def __init__(self, nlp_tool, nlp_model):
+        super().__init__(dataset_name='semeval2010', nlp_tool=nlp_tool, nlp_model=nlp_model)
 
     # get the start and end of the entities 
     def get_entity_start_and_end(self, entity_start, entity_end, tokens, upos, deps, ner):

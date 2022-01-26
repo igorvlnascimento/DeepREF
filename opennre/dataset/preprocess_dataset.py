@@ -60,7 +60,7 @@ class PreprocessDataset():
             if not os.path.exists(os.path.join(ds_path + '_original.txt')) or \
                 not os.path.exists(os.path.join(ds_path + '_original.csv')):
                 print("preprocessing_type_str:",self.preprocessing_type_str)
-                subprocess.call(['bash', 'benchmark/download_{}.sh'.format(self.dataset_name), self.nlp_tool, self.nlp_model])
+                subprocess.call(['bash', 'benchmark/download_{}.sh'.format(self.dataset_name)])
             if not os.path.exists(self.out(original_df_name + '_{}.txt'.format(self.preprocessing_type_str))):
                 print("Preprocessing...")
                 original_ds = preprocess.preprocess(os.path.join(ds_path + '_original.csv'))

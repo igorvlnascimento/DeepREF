@@ -1,11 +1,11 @@
-if [ -z "$1" ]
+if [ -z "$NLP_TOOL" ]
 then
-      $1 = "stanza"
+      NLP_TOOL="stanza"
 fi
-
-if [ -z "$2" ]
+echo $NLP_TOOL
+if [ -z "$NLP_MODEL" ]
 then
-      $2 = "scientific"
+      NLP_MODEL="scientific"
 fi
 
 mkdir benchmark/raw_semeval20181-2
@@ -18,5 +18,5 @@ wget -P benchmark/raw_semeval20181-2/Train https://lipn.univ-paris13.fr/~gabor/s
 wget -P benchmark/raw_semeval20181-2/Test https://lipn.univ-paris13.fr/~gabor/semeval2018task7/1.2.test.text.xml
 wget -P benchmark/raw_semeval20181-2/Test https://lipn.univ-paris13.fr/~gabor/semeval2018task7/keys.test.1.2.txt
 
-python opennre/dataset/converters/converter_semeval20181-2.py --nlp_tool $1 --nlp_model $2
+python opennre/dataset/converters/converter_semeval20181-2.py --nlp_tool $NLP_TOOL --nlp_model $NLP_MODEL
 rm -r benchmark/raw_semeval20181-2

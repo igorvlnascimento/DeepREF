@@ -35,14 +35,13 @@ class EmbeddingOptimization():
             parameters["pos_embed"] = embed[0]
             parameters["deps_embed"] = embed[1]
             
-            train = Training(self.dataset, self.metric, parameters,None)
+            train = Training(self.dataset, parameters)
             
             result = train.train()
             new_value = result[self.metric]
             
             if new_value > self.value:
                 self.value = new_value
-                self.best_result = result
                 embed_type, self.value = embed, new_value
             
         return embed_type, self.value
@@ -63,7 +62,6 @@ if __name__ == '__main__':
     with open(config.BEST_HPARAMS_FILE_PATH.format(args.dataset), 'r') as f:
         best_hparams = json.load(f)
     embed = EmbeddingOptimization(args.dataset, args.metric)
-    best_result = embed.best_result
     embedding, new_value = embed.embedding_training()
     print("Type:", embedding, "Value:", new_value)
     
