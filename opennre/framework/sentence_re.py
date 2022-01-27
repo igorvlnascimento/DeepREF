@@ -215,7 +215,7 @@ class SentenceRE(nn.Module):
         file_path = config.RESULTS_PATH+'/{}/ResultsDeepREF_{}_{}.txt'.format(self.dataset_name, self.dataset_name, datetime.now().isoformat(timespec="seconds"))
         report = metrics.classification_report(ground_truth, pred, target_names=self.classes, digits=5, zero_division=1)
         confusion_matrix = metrics.confusion_matrix(ground_truth, pred)
-        logging.info(report)
+        logging.info('\n'+report)
         logging.info('Accuracy: {}'.format(result['acc']))
         logging.info('Micro precision: {}'.format(result['micro_p']))
         logging.info('Micro recall: {}'.format(result['micro_r']))

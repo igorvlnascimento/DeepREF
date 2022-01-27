@@ -63,19 +63,3 @@ if __name__ == '__main__':
     embed = EmbeddingOptimization(args.dataset, args.metric)
     embedding, new_value = embed.embedding_training()
     print("Type:", embedding, "Value:", new_value)
-    
-    best_hparams = {}
-    with open(config.BEST_HPARAMS_FILE_PATH.format(args.dataset), 'r') as f:
-        best_hparams = json.load(f)
-        
-    json_value = float(best_hparams["{}".format(args.metric)]) if best_hparams["{}".format(args.metric)] else 0
-    
-    
-    if new_value > json_value:
-        best_hparams["pos_embed"] = embedding[0]
-        best_hparams["deps_embed"] = embedding[0]
-        
-        json_object = json.dumps(best_hparams, indent=4)
-        
-        with open(config.BEST_HPARAMS_FILE_PATH.format(args.dataset), 'w') as out_f:
-            out_f.write(json_object)

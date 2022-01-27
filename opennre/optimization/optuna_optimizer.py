@@ -122,29 +122,3 @@ if __name__ == "__main__":
     print("Best result:",best_result)
     
     
-    #new_value = abs(opt.study_params.best_value)
-    #json_value = float(best_hparams["{}".format(opt.metric)]) if best_hparams["{}".format(opt.metric)] else 0
-    
-    # if new_value > json_value:
-    #     if args.optimizer_type == 'hyperparams':
-    #         max_epoch = hof["max_epoch"]
-    #         batch_size = hof["batch_size"]
-    #         lr, max_length = hof["lr"], hof["max_length"]
-            
-    #         best_hparams["max_epoch"] = max_epoch
-    #         best_hparams["batch_size"] = batch_size
-    #         best_hparams["lr"] = lr
-    #         best_hparams["max_length"] = max_length
-            
-    #     elif args.optimizer_type == 'model':
-    #         model = hof["model"]
-    #         embedding = hof["embedding"]
-            
-    #         best_hparams["model"] = model
-    #         best_hparams["embedding"] = embedding
-        
-    #     json_object = json.dumps(best_hparams, indent=4)
-        
-    #     with open(config.BEST_HPARAMS_FILE_PATH.format(args.dataset), 'w') as out_f:
-    #         out_f.write(json_object)
-    

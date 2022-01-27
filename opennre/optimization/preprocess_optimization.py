@@ -60,19 +60,6 @@ if __name__ == '__main__':
     dataset = args.dataset
     metric = args.metric
     prep = PreprocessOptimization(dataset, metric)
-    preprocessing, new_value = prep.best_prep, prep.best_prep_values
+    preprocessing, new_value = prep.best_prep, prep.best_prep_value
     print("Type:", prep.preprocess_combination[preprocessing], "Value:", new_value)
     
-    best_hparams = {}
-    with open(config.BEST_HPARAMS_FILE_PATH.format(dataset), 'r') as f:
-        best_hparams = json.load(f)
-        
-    json_value = float(best_hparams["{}".format(metric)]) if best_hparams["{}".format(metric)] else 0
-    
-    if new_value > json_value:
-        best_hparams["preprocessing"] = preprocessing
-        
-        json_object = json.dumps(best_hparams, indent=4)
-        
-        with open(config.BEST_HPARAMS_FILE_PATH.format(dataset), 'w') as out_f:
-            out_f.write(json_object)
