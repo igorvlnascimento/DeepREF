@@ -195,7 +195,7 @@ class ConverterDataset():
         #     df_train = self.read_dataframe(os.path.join(output_path, self.dataset_name + '_train_original.csv'))
         
         if not os.path.exists(os.path.join(output_path, self.dataset_name + '_val_original.csv')):
-            df_val = df_train.sample(frac=0.2)
+            df_val = df_train.sample(frac=0.2, random_state=config.SEED)
             df_train = df_train.drop(df_val.index)
             self.write_dataframe(df_train, os.path.join(output_path, self.dataset_name + '_train_original.csv'))
             df_train_copy = self.read_dataframe(os.path.join(output_path, self.dataset_name + '_train_original.csv'))

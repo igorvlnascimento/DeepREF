@@ -4,10 +4,10 @@
     "model": "bert",
     "embedding": "allenai/scibert_scivocab_uncased",
     "preprocessing": 16,
-    "batch_size": 9,
-    "lr": 1.418766566266216e-05,
-    "max_length": 59,
-    "max_epoch": 4,
+    "batch_size": 7,
+    "lr": 6.986222608947568e-06,
+    "max_length": 118,
+    "max_epoch": 5,
     "pos_embed": 1,
     "deps_embed": 1
 }

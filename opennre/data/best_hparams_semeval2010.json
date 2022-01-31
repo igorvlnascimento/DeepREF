@@ -4,10 +4,10 @@
     "model": "bert",
     "embedding": "bert-base-uncased",
     "preprocessing": 16,
-    "batch_size": 5,
-    "lr": 1.960910977385097e-05,
-    "max_length": 40,
-    "max_epoch": 7,
+    "batch_size": 2,
+    "lr": 8.499010730653261e-06,
+    "max_length": 249,
+    "max_epoch": 8,
     "pos_embed": 1,
     "deps_embed": 1
 }
