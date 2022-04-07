@@ -67,8 +67,6 @@ if __name__ == '__main__':
                 help='Dataset')
     parser.add_argument('-m','--model', default="bert", choices=config.MODELS, 
                 help='Models')
-    parser.add_argument('-m','--model', default="bert", choices=config.MODELS, 
-                help='Models')
     parser.add_argument('--best_params', action='store_true', 
         help='Run with best hyperparameters (True) or default (False)')
     args = parser.parse_args()
