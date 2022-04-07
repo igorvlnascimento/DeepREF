@@ -13,12 +13,12 @@ from opennre.framework.train import Training
 EMBEDDINGS_COMBINATION = [[0,0],[0,1],[1,0],[1,1]]
 
 class AblationStudies():
-    def __init__(self, dataset, model):
+    def __init__(self, dataset, model, best_hparams):
         self.dataset = dataset
         self.model = model
         self.ablation = {'preprocessing': [], 'embeddings': [], 'micro-f1': [], 'macro-f1': []}
         
-        if not os.path.exists(config.BEST_HPARAMS_FILE_PATH.format(dataset)):
+        if not os.path.exists(config.BEST_HPARAMS_FILE_PATH.format(dataset)) or best_hparams:
             dict = config.HPARAMS
             dict["{}".format(self.metric)] = 0
             json_object = json.dumps(dict, indent=4)
@@ -51,6 +51,8 @@ class AblationStudies():
                 self.ablation["macro_f1"].append(macro_f1)
                 self.ablation["micro_f1"].append(micro_f1)
                 
+                print(self.ablation)
+                
             return self.ablation
         
     def save_ablation(self):
@@ -65,8 +67,12 @@ if __name__ == '__main__':
                 help='Dataset')
     parser.add_argument('-m','--model', default="bert", choices=config.MODELS, 
                 help='Models')
+    parser.add_argument('-m','--model', default="bert", choices=config.MODELS, 
+                help='Models')
+    parser.add_argument('--best_params', action='store_true', 
+        help='Run with best hyperparameters (True) or default (False)')
     args = parser.parse_args()
     
-    ablation = AblationStudies(args.dataset, args.model)
+    ablation = AblationStudies(args.dataset, args.model, args.best_params)
     ablation.executing_ablation()
     ablation.save_ablation()
