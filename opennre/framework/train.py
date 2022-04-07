@@ -42,7 +42,7 @@ class Training():
                 
                 #if not os.path.exists(os.path.join('opennre', 'data', f'{self.dataset}_upos2id.json')):
                 upos2id, deps2id = csv2id(self.dataset)
-                save2json(args.dataset, upos2id, deps2id)
+                save2json(self.dataset, upos2id, deps2id)
                 upos2id = json.loads(open(os.path.join('opennre', 'data', f'{self.dataset}_upos2id.json'), 'r').read())
                 deps2id = json.loads(open(os.path.join('opennre', 'data', f'{self.dataset}_deps2id.json'), 'r').read())
                         
