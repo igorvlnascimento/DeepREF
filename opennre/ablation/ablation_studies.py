@@ -16,9 +16,15 @@ class AblationStudies():
     def __init__(self, dataset, model, best_hparams):
         self.dataset = dataset
         self.model = model
-        self.ablation = {'preprocessing': [], 'embeddings': [], 'micro-f1': [], 'macro-f1': []}
+        self.csv_path = f'opennre/ablation/{self.dataset}_{self.model}_ablation_studies.csv'
+        self.ablation = {'preprocessing': [], 'embeddings': [], 'micro_f1': [], 'macro_f1': []}
         
-        if not os.path.exists(config.BEST_HPARAMS_FILE_PATH.format(dataset)) or best_hparams:
+        if os.path.exists(self.csv_path):
+            df = pd.read_csv(self.csv_path)
+            self.ablation = df.to_dict('split')
+            print(self.ablation)
+        
+        if not os.path.exists(config.BEST_HPARAMS_FILE_PATH.format(dataset)) and best_hparams:
             dict = config.HPARAMS
             dict["{}".format(self.metric)] = 0
             json_object = json.dumps(dict, indent=4)
