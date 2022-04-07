@@ -192,7 +192,7 @@ class SentenceRE(nn.Module):
                         except:
                             pass
                 label = data[0]
-                args = data[1:]        
+                args = data[1:]
                 logits = self.parallel_model(*args)
                 score, pred = logits.max(-1) # (B)
                 # Save result

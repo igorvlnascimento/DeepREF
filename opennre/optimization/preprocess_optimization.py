@@ -25,29 +25,30 @@ class PreprocessOptimization():
         with open(config.BEST_HPARAMS_FILE_PATH.format(dataset), 'r') as f:
             self.best_hparams = json.load(f)
             
-        self.study_prep = optuna.create_study(direction="maximize")
+        #self.study_prep = optuna.create_study(direction="maximize")
         
-        self.study_prep.optimize(self.preprocessing_optimization, n_trials=len(config.PREPROCESSING_COMBINATION))
+        #self.study_prep.optimize(self.preprocessing_optimization, n_trials=len(config.PREPROCESSING_COMBINATION))
         
-        self.best_prep = self.study_prep.best_params["preprocessing"]
-        self.best_prep_value = self.study_prep.best_value
+        self.best_prep = []
+        self.best_prep_value = 0
         
-    def preprocessing_optimization(self, trial):
+    def preprocessing_optimization(self):
         
         parameters = self.best_hparams
         
-        preprocessing =  trial.suggest_int("preprocessing", 0, len(config.PREPROCESSING_COMBINATION)-1)
+        #preprocessing =  trial.suggest_int("preprocessing", 0, len(config.PREPROCESSING_COMBINATION)-1)
+        
+        for comb in config.PREPROCESSING_COMBINATION:
             
-        parameters["preprocessing"] = preprocessing
-        
-        train = Training(self.dataset, parameters, trial)
-        result = train.train()
-        new_value = result[self.metric]
-        
-        if new_value > self.value:
-            self.value = new_value
-        
-        return new_value
+            parameters["preprocessing"] = comb
+            
+            train = Training(self.dataset, parameters, None)
+            result = train.train()
+            new_value = result[self.metric]
+            
+            if new_value > self.best_prep_value:
+                self.best_prep = comb
+                self.best_prep_value = new_value
 
     
 if __name__ == '__main__':
@@ -60,6 +61,9 @@ if __name__ == '__main__':
     dataset = args.dataset
     metric = args.metric
     prep = PreprocessOptimization(dataset, metric)
+    prep.preprocessing_combination()
     preprocessing, new_value = prep.best_prep, prep.best_prep_value
-    print("Type:", prep.preprocess_combination[preprocessing], "Value:", new_value)
+    print("Type:", prep.preprocess_combination[preprocessing], 
+          "Index:", config.PREPROCESSING_COMBINATION.index(prep.preprocess_combination[preprocessing]), 
+          "Value:", new_value)
     

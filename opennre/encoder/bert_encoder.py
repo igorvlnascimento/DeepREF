@@ -104,6 +104,8 @@ class BERTEncoder(nn.Module):
 class BERTEntityEncoder(nn.Module):
     def __init__(self, 
                  pretrain_path, 
+                 upos2id,
+                 deps2id,
                  max_length=128, 
                  blank_padding=True,
                  activation_function=F.relu,
@@ -117,9 +119,10 @@ class BERTEntityEncoder(nn.Module):
             pretrain_path: path of pretrain model
         """
         super().__init__()
-        self.upos2id = json.load(open(os.path.join('.', 'opennre/data/upos2id.json')))
-        self.deps2id = json.load(open(os.path.join('.', 'opennre/data/deps2id.json')))
+        self.upos2id = upos2id
+        self.deps2id = deps2id
         self.max_length = max_length
+        self.max_length_embed = 5
         self.word_size = 4
         self.blank_padding = blank_padding
         self.act = activation_function
@@ -128,7 +131,7 @@ class BERTEntityEncoder(nn.Module):
         self.pos_tags_embedding = pos_tags_embedding
         self.deps_embedding = deps_embedding
         
-        self.input_size = 768 * 2 + 2 * self.max_length + ((self.pos_tags_embedding + self.deps_embedding) * self.max_length)
+        self.input_size = 768 * 2 + ((self.pos_tags_embedding + self.deps_embedding) * (self.max_length_embed * 2)) + 10
         self.input_size2 = self.input_size // 4 + (self.sk_embedding * self.word_size)
         self.hidden_size = self.input_size // 4
         
@@ -137,16 +140,21 @@ class BERTEntityEncoder(nn.Module):
         logging.info('Loading {} pre-trained checkpoint.'.format(pretrain_path.upper()))
         self.bert = AutoModel.from_pretrained(pretrain_path, return_dict=False)
         self.tokenizer = AutoTokenizer.from_pretrained(pretrain_path)
-        self.linear1 = nn.Linear(self.input_size, self.input_size//2)
-        self.linear2 = nn.Linear(self.input_size//2, self.input_size//4)
-        self.linear3 = nn.Linear(self.hidden_size, self.hidden_size)
-        self.drop = nn.Dropout(0.5)
+        
+        self.position_embed = nn.Embedding(self.max_length, self.max_length_embed, padding_idx=0)
+        self.pos_tags_embed = nn.Embedding(len(self.upos2id), self.max_length_embed, padding_idx=0)
+        self.deps_tags_embed = nn.Embedding(len(self.deps2id), self.max_length_embed, padding_idx=0)
+        
+        self.linear1 = nn.Linear(self.input_size, self.hidden_size)
+        # self.linear2 = nn.Linear(self.input_size//2, self.input_size//4)
+        # self.linear3 = nn.Linear(self.hidden_size, self.hidden_size)
+        #self.drop = nn.Dropout(0.5)
         
         print("pos-tag:",self.pos_tags_embedding)
         print("deps:",self.deps_embedding)
         print("sk:",self.sk_embedding)
 
-    def forward(self, token, att_mask, pos1, pos2, pos1_embed, pos2_embed, pos_tags, deps, sk):
+    def forward(self, token, att_mask, pos1, pos2, pos_tag1, pos_tag2, deps1, deps2):
         """
         Args:
             token: (B, L), index of tokens
@@ -167,18 +175,33 @@ class BERTEntityEncoder(nn.Module):
         head_hidden = (onehot_head.unsqueeze(2) * hidden).sum(1)  # (B, H)
         tail_hidden = (onehot_tail.unsqueeze(2) * hidden).sum(1)  # (B, H)
         
-        concat_list = [head_hidden, tail_hidden, pos1_embed, pos2_embed]
+        pos_tag1 = self.pos_tags_embed(pos_tag1).squeeze(1)
+        deps1 = self.deps_tags_embed(deps1).squeeze(1)
         
-        if self.pos_tags_embedding:
-            concat_list.extend([pos_tags])
+        pos_tag2 = self.pos_tags_embed(pos_tag2).squeeze(1)
+        deps2 = self.deps_tags_embed(deps2).squeeze(1)
+        
+        head_list = [head_hidden, self.position_embed(pos1).squeeze(1)]
+        tail_list = [tail_hidden, self.position_embed(pos2).squeeze(1)]
+        if self.pos_tags_embedding: 
+            head_list.append(pos_tag1)
+            tail_list.append(pos_tag2)
+        if self.deps_embedding: 
+            head_list.append(deps1)
+            tail_list.append(deps2)  
             
-        if self.deps_embedding:
-            concat_list.extend([deps])
+        concat_list = head_list + tail_list          
+        
+        # if self.pos_tags_embedding:
+        #     concat_list.extend([pos_tags])
+            
+        # if self.deps_embedding:
+        #     concat_list.extend([deps])
 
         x = torch.cat(concat_list, 1)
         x = self.linear1(x)
-        x = self.linear2(x)
-        x = self.linear3(x)
+        #x = self.linear2(x)
+        #x = self.linear3(x)
         #x = self.drop(x)
         return x
 
@@ -215,7 +238,6 @@ class BERTEntityEncoder(nn.Module):
         else:
             rev = False
             
-        
         if not is_token:
             sent0 = self.tokenizer.tokenize(sentence[:pos_min[0]])
             ent0 = self.tokenizer.tokenize(sentence[pos_min[0]:pos_min[1]])
@@ -238,7 +260,7 @@ class BERTEntityEncoder(nn.Module):
 
         re_tokens = ['[CLS]'] + sent0 + ent0 + sent1 + ent1 + sent2 + ['[SEP]']
         pos1 = 1 + len(sent0) if not rev else 1 + len(sent0 + ent0 + sent1)
-        pos2 = 1 + len(sent0 + ent0 + sent1) if not rev else 1 + len(sent0)
+        pos2 = 2 + len(sent0 + ent0 + sent1) if not rev else 2 + len(sent0)
         pos1 = min(self.max_length - 1, pos1)
         pos2 = min(self.max_length - 1, pos2)
         
@@ -254,18 +276,23 @@ class BERTEntityEncoder(nn.Module):
             
             indexed_tokens_sk = indexed_tokens_sk1 + indexed_tokens_sk2
         
-        indexed_pos = []
-        indexed_deps = []
+        # indexed_pos = []
+        # indexed_deps = []
+        pos_tag1 = self.upos2id[pos_tags[pos_head[0]]] if self.pos_tags_embedding else []
+        pos_tag2 = self.upos2id[pos_tags[pos_tail[0]]] if self.pos_tags_embedding else []
         
-        for pos in pos_tags:
-            if pos not in self.upos2id:
-                self.upos2id[pos] = len(self.upos2id)
-            indexed_pos.append(self.upos2id[pos])
+        deps1 = self.deps2id[deps[pos_head[0]]] if self.deps_embedding else []
+        deps2 = self.deps2id[deps[pos_tail[0]]] if self.deps_embedding else []
+        
+        # for pos in pos_tags:
+        #     if pos not in self.upos2id:
+        #         self.upos2id[pos] = len(self.upos2id)
+        #     indexed_pos.append(self.upos2id[pos])
             
-        for dep in deps:
-            if dep not in self.deps2id:
-                self.deps2id[dep] = len(self.deps2id)
-            indexed_deps.append(self.deps2id[dep])
+        # for dep in deps:
+        #     if dep not in self.deps2id:
+        #         self.deps2id[dep] = len(self.deps2id)
+        #     indexed_deps.append(self.deps2id[dep])
 
         # Position
         pos1 = torch.tensor([[pos1]]).long()
@@ -295,23 +322,25 @@ class BERTEntityEncoder(nn.Module):
         if self.blank_padding:
             while len(indexed_tokens) < self.max_length:
                 indexed_tokens.append(0)  # 0 is id for [PAD]
-            while self.sk_embedding and len(indexed_tokens_sk) < self.word_size:
-                indexed_tokens_sk.append(0)  # 0 is id for [PAD]
-            while self.pos_tags_embedding and len(indexed_pos) < self.max_length:
-                indexed_pos.append(0)  # 0 is id for [PAD]
-            while self.deps_embedding and len(indexed_deps) < self.max_length:
-                indexed_deps.append(0)  # 0 is id for [PAD]
+            # while self.sk_embedding and len(indexed_tokens_sk) < self.word_size:
+            #     indexed_tokens_sk.append(0)  # 0 is id for [PAD]
+            # while self.pos_tags_embedding and len(indexed_pos) < self.max_length_embed:
+            #     indexed_pos.append(0)  # 0 is id for [PAD]
+            # while self.deps_embedding and len(indexed_deps) < self.max_length_embed:
+            #     indexed_deps.append(0)  # 0 is id for [PAD]
             indexed_tokens = indexed_tokens[:self.max_length]
-            indexed_tokens_sk = indexed_tokens_sk[:self.word_size]
-            indexed_pos = indexed_pos[:self.max_length]
-            indexed_deps = indexed_deps[:self.max_length]
+            # indexed_tokens_sk = indexed_tokens_sk[:self.word_size]
+            # indexed_pos = indexed_pos[:self.max_length_embed]
+            # indexed_deps = indexed_deps[:self.max_length_embed]
         indexed_tokens = torch.tensor(indexed_tokens).long().unsqueeze(0)  # (1, L)
-        indexed_tokens_sk = torch.tensor(indexed_tokens_sk).long().unsqueeze(0)  # (1, L)
-        indexed_pos = torch.tensor(indexed_pos).long().unsqueeze(0)  # (1, L)
-        indexed_deps = torch.tensor(indexed_deps).long().unsqueeze(0)  # (1, L)
+        # indexed_tokens_sk = torch.tensor(indexed_tokens_sk).long().unsqueeze(0)  # (1, L)
+        pos_tag1 = torch.tensor([[pos_tag1]]).long()  # (1, L)
+        pos_tag2 = torch.tensor([[pos_tag2]]).long()  # (1, L)
+        deps1 = torch.tensor([[deps1]]).long()  # (1, L)
+        deps2 = torch.tensor([[deps2]]).long()  # (1, L)
 
         # Attention mask
         att_mask = torch.zeros(indexed_tokens.size()).long()  # (1, L)
         att_mask[0, :avai_len] = 1
 
-        return indexed_tokens, att_mask, pos1, pos2, pos1_embed, pos2_embed, indexed_pos, indexed_deps, indexed_tokens_sk#, indexed_tokens_sk1, indexed_tokens_sk2, indexed_pos, indexed_deps
+        return indexed_tokens, att_mask, pos1, pos2, pos_tag1, pos_tag2, deps1, deps2#, indexed_tokens_sk#, indexed_tokens_sk1, indexed_tokens_sk2, indexed_pos, indexed_deps

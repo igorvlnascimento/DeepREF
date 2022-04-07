@@ -35,7 +35,8 @@ HPARAMS = {
     "batch_size": 16,
     "preprocessing": 0,
     "lr": 2e-5,
-    "synt_embeddings": [0,0,0],
+    "pos_embed": 0,
+    "deps_embed": 0,
     "max_length": 128,
     "max_epoch": 3
 }

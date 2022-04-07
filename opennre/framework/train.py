@@ -6,6 +6,7 @@ import opennre
 from opennre import config
 from opennre.dataset.preprocess_dataset import PreprocessDataset
 from opennre.framework.word_embedding_loader import WordEmbeddingLoader
+from opennre.data.generate_parser_dict import save2json, csv2id
 import os
 import sys
 import argparse
@@ -38,6 +39,13 @@ class Training():
                         "batch_size": self.batch_size,
                         "lr": self.lr
                 }
+                
+                if not os.path.exists(os.path.join('opennre', 'data', f'{self.dataset}_upos2id.json')):
+                        upos2id, deps2id = csv2id(args.dataset)
+                        save2json(args.dataset, upos2id, deps2id)
+                upos2id = json.loads(open(os.path.join('opennre', 'data', f'{self.dataset}_upos2id.json'), 'r').read())
+                deps2id = json.loads(open(os.path.join('opennre', 'data', f'{self.dataset}_deps2id.json'), 'r').read())
+                        
                 
                 # Set random seed
                 self.set_seed(config.SEED)
@@ -189,7 +197,9 @@ class Training():
                                 max_length=self.max_length, 
                                 pretrain_path=self.embedding,
                                 pos_tags_embedding=self.pos_embed,
-                                deps_embedding=self.deps_embed
+                                deps_embedding=self.deps_embed,
+                                upos2id=upos2id,
+                                deps2id=deps2id
                         )
 
                 # Define the model
