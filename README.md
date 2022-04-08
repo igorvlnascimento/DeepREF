@@ -22,7 +22,7 @@ pip install -r requirements.txt
 
 Then install the package with 
 ```
-python setup.py install
+python setup.py develop
 ```
 
 ## DeepREF Framework Architecture
