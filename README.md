@@ -56,9 +56,13 @@ To optimize hyperparameters or models, execute the following code:
 python opennre/optimization/optuna_optimizer.py -d <dataset> -m <metric> -t <trials_number> -o <optimization_type>
 ```
 You can replace the following tags by:
+
 `<dataset>`: `semeval2010` (default), `semeval20181-1`, `semeval20181-2` and `ddi`;
+
 `<metric>`: `micro_f1` (default), `macro_f1` and `acc`;
-`<trials_number>`: any integer.
+
+`<trials_number>`: any integer;
+
 `<optimization_type>`: `hyperparams` and `model`.
 
 
