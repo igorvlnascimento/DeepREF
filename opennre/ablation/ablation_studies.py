@@ -38,6 +38,8 @@ class AblationStudies():
         parameters = self.best_hparams
         parameters["dataset"] = self.dataset
         
+        print(config.PREPROCESSING_COMBINATION)
+        
         for preprocessing in config.PREPROCESSING_COMBINATION:
             for embed in EMBEDDINGS_COMBINATION:
             
@@ -59,7 +61,7 @@ class AblationStudies():
                 
                 print(self.ablation)
                 
-            return self.ablation
+        return self.ablation
         
     def save_ablation(self):
         df = pd.DataFrame.from_dict(self.ablation)
