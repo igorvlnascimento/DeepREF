@@ -22,7 +22,7 @@ pip install -r requirements.txt
 
 Then install the package with 
 ```
-python setup.py install
+python setup.py develop
 ```
 
 ## DeepREF Framework Architecture
@@ -55,10 +55,18 @@ To optimize hyperparameters or models, execute the following code:
 ```
 python opennre/optimization/optuna_optimizer.py -d <dataset> -m <metric> -t <trials_number> -o <optimization_type>
 ```
+You can replace the following tags by:
+
+`<dataset>`: `semeval2010` (default), `semeval20181-1`, `semeval20181-2` and `ddi`;
+
+`<metric>`: `micro_f1` (default), `macro_f1` and `acc`;
+
+`<trials_number>`: any integer;
+
+`<optimization_type>`: `hyperparams` and `model`.
+
 
 Even if you don`t have any datasets preprocessed, the code above can automatically download and preprocess the dataset for you on the fly.
-
-Possible metrics are: `micro_f1` (default), `macro_f1` and `acc`.
 
 The first two are the datasets and metrics already explained above. The `-t` arg means the number of trials that Optuna needs to execute to find the best combination of parameters. The `-o` is the type of optimization that you can choose between `hyperparams` or `model`. If you choose `hyperparams` (default), Optuna will find the best hyperparameters for the model and embedding indicated on `opennre/data/best_hparams_<dataset>.json` file. The default model and embedding are `bert` and `bert-base-uncaseed`, respectively. If you choose the `model` option, Optuna will find the best model and embedding combination. The possible models and embeddings to be choosen can be seen on `opennre/config.py` file.
 
