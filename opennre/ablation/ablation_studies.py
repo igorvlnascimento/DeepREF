@@ -82,4 +82,3 @@ if __name__ == '__main__':
     
     ablation = AblationStudies(args.dataset, args.model, args.best_params)
     ablation.executing_ablation()
-    ablation.save_ablation()
