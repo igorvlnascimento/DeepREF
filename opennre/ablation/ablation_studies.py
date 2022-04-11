@@ -58,13 +58,14 @@ class AblationStudies():
                 self.ablation["micro_f1"].append(micro_f1)
                 
                 print(self.ablation)
+                self.save_ablation()
                 
             return self.ablation
         
     def save_ablation(self):
         df = pd.DataFrame.from_dict(self.ablation)
         filepath = Path(f'opennre/ablation/{self.dataset}_{self.model}_ablation_studies.csv')
-        filepath.parent.mkdir(parents=True, exist_ok=True) 
+        #filepath.parent.mkdir(parents=True, exist_ok=True) 
         df.to_csv(filepath, index=False)
     
 if __name__ == '__main__':
