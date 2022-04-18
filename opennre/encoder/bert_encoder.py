@@ -202,7 +202,7 @@ class BERTEntityEncoder(nn.Module):
         x = self.linear1(x)
         x = self.linear2(x)
         x = self.linear3(x)
-        x = self.drop(x)
+        #x = self.drop(x)
         return x
 
     def tokenize(self, item):
