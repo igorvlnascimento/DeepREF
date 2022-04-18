@@ -26,7 +26,6 @@ class AblationStudies():
         
         if not os.path.exists(config.BEST_HPARAMS_FILE_PATH.format(dataset)) or not best_hparams:
             dict = config.HPARAMS
-            dict["{}".format(self.metric)] = 0
             json_object = json.dumps(dict, indent=4)
             with open(config.BEST_HPARAMS_FILE_PATH.format(dataset), 'w') as f:
                 f.write(json_object)
