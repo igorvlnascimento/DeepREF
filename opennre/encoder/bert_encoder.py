@@ -145,9 +145,9 @@ class BERTEntityEncoder(nn.Module):
         self.pos_tags_embed = nn.Embedding(len(self.upos2id), self.max_length_embed, padding_idx=0)
         self.deps_tags_embed = nn.Embedding(len(self.deps2id), self.max_length_embed, padding_idx=0)
         
-        self.linear1 = nn.Linear(self.input_size, self.hidden_size)
-        # self.linear2 = nn.Linear(self.input_size//2, self.input_size//4)
-        # self.linear3 = nn.Linear(self.hidden_size, self.hidden_size)
+        self.linear1 = nn.Linear(self.input_size, self.input_size//2)
+        self.linear2 = nn.Linear(self.input_size//2, self.input_size//4)
+        self.linear3 = nn.Linear(self.input_size//4, self.hidden_size)
         #self.drop = nn.Dropout(0.5)
         
         print("pos-tag:",self.pos_tags_embedding)
@@ -200,9 +200,9 @@ class BERTEntityEncoder(nn.Module):
 
         x = torch.cat(concat_list, 1)
         x = self.linear1(x)
-        #x = self.linear2(x)
-        #x = self.linear3(x)
-        #x = self.drop(x)
+        x = self.linear2(x)
+        x = self.linear3(x)
+        x = self.drop(x)
         return x
 
     def tokenize(self, item):
