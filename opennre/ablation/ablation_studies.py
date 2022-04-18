@@ -24,7 +24,7 @@ class AblationStudies():
             self.ablation = df.to_dict('split')
             print(self.ablation)
         
-        if not os.path.exists(config.BEST_HPARAMS_FILE_PATH.format(dataset)) and best_hparams:
+        if not os.path.exists(config.BEST_HPARAMS_FILE_PATH.format(dataset)) or not best_hparams:
             dict = config.HPARAMS
             dict["{}".format(self.metric)] = 0
             json_object = json.dumps(dict, indent=4)
