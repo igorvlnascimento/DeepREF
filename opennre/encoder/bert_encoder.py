@@ -129,7 +129,7 @@ class BERTEntityEncoder(nn.Module):
         self.pos_tags_embedding = pos_tags_embedding
         self.deps_embedding = deps_embedding
         
-        self.input_size = 768 * 2 + ((self.pos_tags_embedding + self.deps_embedding) * (self.max_length_embed * 2)) + 10 + self.sk_embedding * 768 * 2
+        self.input_size = 768 * 2 + (self.position_embedding * self.max_length) + ((self.pos_tags_embedding + self.deps_embedding) * (self.max_length_embed * 2)) + self.sk_embedding * 768 * 2
         self.hidden_size = self.input_size // 4
         
         self.mask_entity = mask_entity
@@ -212,6 +212,8 @@ class BERTEntityEncoder(nn.Module):
         #     concat_list.extend([deps])
 
         x = torch.cat(concat_list, 1)
+        print("shape:",x.shape)
+        print("input:",self.input_size)
         x = self.linear1(x)
         x = self.linear2(x)
         x = self.linear3(x)
