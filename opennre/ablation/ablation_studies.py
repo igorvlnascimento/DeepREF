@@ -53,7 +53,7 @@ class AblationStudies():
                 macro_f1 = result["macro_f1"]
                 
                 self.ablation["preprocessing"].append(preprocessing)
-                embeddings = ("pos" * embed[0] + ' ' + "deps" * embed[1] + ' ' + "sk" * embed[2])
+                embeddings = ("pos_tag" * embed[0] + ' ' + "deps" * embed[1] + ' ' + "sk" * embed[2] + ' ' + "position" * embed[3]).strip()
                 self.ablation["embeddings"].append(embeddings)
                 self.ablation["macro_f1"].append(macro_f1)
                 self.ablation["micro_f1"].append(micro_f1)

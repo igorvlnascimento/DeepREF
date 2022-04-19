@@ -150,6 +150,7 @@ class BERTEntityEncoder(nn.Module):
         print("pos-tag:",self.pos_tags_embedding)
         print("deps:",self.deps_embedding)
         print("sk:",self.sk_embedding)
+        print("position:",self.position_embedding)
 
     def forward(self, token, att_mask, pos1, pos2, pos1_embed, pos2_embed, sk_pos1, sk_pos2, pos_tag1, pos_tag2, deps1, deps2):
         """
