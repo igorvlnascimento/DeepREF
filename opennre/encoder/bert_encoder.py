@@ -1,4 +1,5 @@
 import logging
+from turtle import pos
 import torch
 import torch.nn.functional as F
 import torch.nn as nn
@@ -124,10 +125,10 @@ class BERTEntityEncoder(nn.Module):
         self.blank_padding = blank_padding
         self.act = activation_function
         
-        self.position_embedding = True
-        self.sk_embedding = False
-        self.pos_tags_embedding = False
-        self.deps_embedding = True
+        self.position_embedding = position_embedding
+        self.sk_embedding = sk_embedding
+        self.pos_tags_embedding = pos_tags_embedding
+        self.deps_embedding = deps_embedding
         
         self.input_size = 768 * 2 + (self.position_embedding * self.max_length_embed * 2) + ((self.pos_tags_embedding + self.deps_embedding) * (self.max_length_embed * 2)) + self.sk_embedding * 768 * 2
         self.hidden_size = self.input_size // 4
