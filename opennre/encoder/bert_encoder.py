@@ -1,13 +1,9 @@
 import logging
 import torch
 import torch.nn.functional as F
-import json, os
 import torch.nn as nn
 from ..utils.semantic_knowledge import SemanticKNWL
 from transformers import AutoTokenizer, AutoModel
-
-import nltk
-nltk.download('wordnet')
 
 class BERTEncoder(nn.Module):
     def __init__(self, max_length, pretrain_path, blank_padding=True, mask_entity=False, sbert=None):
@@ -131,8 +127,7 @@ class BERTEntityEncoder(nn.Module):
         self.pos_tags_embedding = pos_tags_embedding
         self.deps_embedding = deps_embedding
         
-        self.input_size = 768 * 2 + ((self.pos_tags_embedding + self.deps_embedding) * (self.max_length_embed * 2)) + 10
-        self.input_size2 = self.input_size // 4 + (self.sk_embedding * self.word_size)
+        self.input_size = 768 * 2 + ((self.pos_tags_embedding + self.deps_embedding) * (self.max_length_embed * 2)) + 10 + self.sk_embedding * 768 * 2
         self.hidden_size = self.input_size // 4
         
         self.mask_entity = mask_entity
@@ -154,7 +149,7 @@ class BERTEntityEncoder(nn.Module):
         print("deps:",self.deps_embedding)
         print("sk:",self.sk_embedding)
 
-    def forward(self, token, att_mask, pos1, pos2, pos_tag1, pos_tag2, deps1, deps2):
+    def forward(self, token, att_mask, pos1, pos2, sk_pos1, sk_pos2, pos_tag1, pos_tag2, deps1, deps2):
         """
         Args:
             token: (B, L), index of tokens
@@ -172,8 +167,18 @@ class BERTEntityEncoder(nn.Module):
         onehot_head = onehot_head.scatter_(1, pos1, 1)
         onehot_tail = onehot_tail.scatter_(1, pos2, 1)
         
+        sk_pos1 = sk_pos1.squeeze(1)
+        sk_pos2 = sk_pos2.squeeze(1)
+        onehot_sk_head = torch.zeros(hidden.size()[:2]).float().to(hidden.device)  # (B, L)
+        onehot_sk_tail = torch.zeros(hidden.size()[:2]).float().to(hidden.device)  # (B, L)
+        onehot_sk_head = onehot_sk_head.scatter_(1, sk_pos1, 1)
+        onehot_sk_tail = onehot_sk_tail.scatter_(1, sk_pos2, 1)
+        
         head_hidden = (onehot_head.unsqueeze(2) * hidden).sum(1)  # (B, H)
         tail_hidden = (onehot_tail.unsqueeze(2) * hidden).sum(1)  # (B, H)
+        
+        sk_head_hidden = (onehot_sk_head.unsqueeze(2) * hidden).sum(1)  # (B, H)
+        sk_tail_hidden = (onehot_sk_tail.unsqueeze(2) * hidden).sum(1)  # (B, H)
         
         pos_tag1 = self.pos_tags_embed(pos_tag1).squeeze(1)
         deps1 = self.deps_tags_embed(deps1).squeeze(1)
@@ -181,8 +186,13 @@ class BERTEntityEncoder(nn.Module):
         pos_tag2 = self.pos_tags_embed(pos_tag2).squeeze(1)
         deps2 = self.deps_tags_embed(deps2).squeeze(1)
         
-        head_list = [head_hidden, self.position_embed(pos1).squeeze(1)]
-        tail_list = [tail_hidden, self.position_embed(pos2).squeeze(1)]
+        head_list = [head_hidden]
+        tail_list = [tail_hidden]
+        if self.sk_embedding:
+            head_list.append(sk_head_hidden)
+            tail_list.append(sk_tail_hidden)
+        head_list.append(self.position_embed(pos1).squeeze(1))
+        tail_list.append(self.position_embed(pos2).squeeze(1))
         if self.pos_tags_embedding: 
             head_list.append(pos_tag1)
             tail_list.append(pos_tag2)
@@ -250,6 +260,12 @@ class BERTEntityEncoder(nn.Module):
             sent1 = self.tokenizer.tokenize(' '.join(sentence[pos_min[1]:pos_max[0]]))
             ent1 = self.tokenizer.tokenize(' '.join(sentence[pos_max[0]:pos_max[1]]))
             sent2 = self.tokenizer.tokenize(' '.join(sentence[pos_max[1]:]))
+            
+        if self.sk_embedding:
+            sk_ents = SemanticKNWL().extract([sentence[pos_head[0]:pos_head[1]][-1], sentence[pos_tail[0]:pos_tail[1]][-1]])
+            
+            sk0 = self.tokenizer.tokenize(sk_ents["ses1"])
+            sk1 = self.tokenizer.tokenize(sk_ents["ses2"])
 
         if self.mask_entity:
             ent0 = ['[unused4]'] if not rev else ['[unused5]']
@@ -257,24 +273,34 @@ class BERTEntityEncoder(nn.Module):
         else:
             ent0 = ['[unused0]'] + ent0 + ['[unused1]'] if not rev else ['[unused2]'] + ent0 + ['[unused3]']
             ent1 = ['[unused2]'] + ent1 + ['[unused3]'] if not rev else ['[unused0]'] + ent1 + ['[unused1]']
+            sk0 = ['[unused0]'] + sk0 + ['[unused1]'] if not rev else ['[unused2]'] + sk0 + ['[unused3]']
+            sk1 = ['[unused2]'] + sk1 + ['[unused3]'] if not rev else ['[unused0]'] + sk1 + ['[unused1]']
 
-        re_tokens = ['[CLS]'] + sent0 + ent0 + sent1 + ent1 + sent2 + ['[SEP]']
-        pos1 = 1 + len(sent0) if not rev else 1 + len(sent0 + ent0 + sent1)
+        re_tokens = ['[CLS]'] + sent0 + ent0 + sent1 + ent1 + sent2 + sk0 + sk1 + ['[SEP]']
+        pos1 = 2 + len(sent0) if not rev else 2 + len(sent0 + ent0 + sent1)
         pos2 = 2 + len(sent0 + ent0 + sent1) if not rev else 2 + len(sent0)
         pos1 = min(self.max_length - 1, pos1)
         pos2 = min(self.max_length - 1, pos2)
         
+        sk_pos1 = list(range(2 + len(sent0 + ent0+ sent1 + ent1 + sent2), 4 + len(sent0 + ent0+ sent1 + ent1 + sent2)))
+        sk_pos2 = list(range(3 + sk_pos1[-1], len(re_tokens) - 2))
+        sk_pos1 = list(range(len(self.max_length) - len(sk_pos1) - 1)) if sk_pos1[-1] > (self.max_length - 1) else sk_pos1
+        sk_pos2 = list(range(len(self.max_length) - len(sk_pos2) - 1)) if sk_pos2[-1] > (self.max_length - 1) else sk_pos2
+        sk_pos1 = sk_pos1[:2]
+        sk_pos2 = sk_pos2[:2]
+        
         indexed_tokens = self.tokenizer.convert_tokens_to_ids(re_tokens)
         avai_len = len(indexed_tokens)
         
-        indexed_tokens_sk = []
         if self.sk_embedding:
             sk_ents = SemanticKNWL().extract([sentence[pos_head[0]:pos_head[1]][-1], sentence[pos_tail[0]:pos_tail[1]][-1]])
         
             indexed_tokens_sk1 = self.tokenizer.convert_tokens_to_ids(sk_ents["ses1"])
             indexed_tokens_sk2 = self.tokenizer.convert_tokens_to_ids(sk_ents["ses2"])
             
-            indexed_tokens_sk = indexed_tokens_sk1 + indexed_tokens_sk2
+            indexed_tokens = indexed_tokens + indexed_tokens_sk1 + indexed_tokens_sk2
+            
+            #indexed_tokens_sk = indexed_tokens_sk1 + indexed_tokens_sk2
         
         # indexed_pos = []
         # indexed_deps = []
@@ -297,6 +323,8 @@ class BERTEntityEncoder(nn.Module):
         # Position
         pos1 = torch.tensor([[pos1]]).long()
         pos2 = torch.tensor([[pos2]]).long()
+        sk_pos1 = torch.tensor([[sk_pos1]]).long()
+        sk_pos2 = torch.tensor([[sk_pos2]]).long()
         
         # Position -> index
         pos1_embed = []
@@ -343,4 +371,4 @@ class BERTEntityEncoder(nn.Module):
         att_mask = torch.zeros(indexed_tokens.size()).long()  # (1, L)
         att_mask[0, :avai_len] = 1
 
-        return indexed_tokens, att_mask, pos1, pos2, pos_tag1, pos_tag2, deps1, deps2#, indexed_tokens_sk#, indexed_tokens_sk1, indexed_tokens_sk2, indexed_pos, indexed_deps
+        return indexed_tokens, att_mask, pos1, pos2, sk_pos1, sk_pos2, pos_tag1, pos_tag2, deps1, deps2#, indexed_tokens_sk1, indexed_tokens_sk2#, indexed_pos, indexed_deps

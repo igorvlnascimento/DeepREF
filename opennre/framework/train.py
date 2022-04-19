@@ -196,6 +196,7 @@ class Training():
                         sentence_encoder = opennre.encoder.BERTEntityEncoder(
                                 max_length=self.max_length, 
                                 pretrain_path=self.embedding,
+                                sk_embedding=True,
                                 pos_tags_embedding=self.pos_embed,
                                 deps_embedding=self.deps_embed,
                                 upos2id=upos2id,
