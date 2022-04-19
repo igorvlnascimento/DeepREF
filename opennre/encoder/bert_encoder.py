@@ -105,7 +105,8 @@ class BERTEntityEncoder(nn.Module):
                  max_length=128, 
                  blank_padding=True,
                  activation_function=F.relu,
-                 mask_entity=False, 
+                 mask_entity=False,
+                 position_embedding=False,
                  sk_embedding=False, 
                  pos_tags_embedding=False, 
                  deps_embedding=False):
@@ -123,6 +124,7 @@ class BERTEntityEncoder(nn.Module):
         self.blank_padding = blank_padding
         self.act = activation_function
         
+        self.position_embedding = position_embedding
         self.sk_embedding = sk_embedding
         self.pos_tags_embedding = pos_tags_embedding
         self.deps_embedding = deps_embedding
@@ -149,7 +151,7 @@ class BERTEntityEncoder(nn.Module):
         print("deps:",self.deps_embedding)
         print("sk:",self.sk_embedding)
 
-    def forward(self, token, att_mask, pos1, pos2, sk_pos1, sk_pos2, pos_tag1, pos_tag2, deps1, deps2):
+    def forward(self, token, att_mask, pos1, pos2, pos1_embed, pos2_embed, sk_pos1, sk_pos2, pos_tag1, pos_tag2, deps1, deps2):
         """
         Args:
             token: (B, L), index of tokens
@@ -191,8 +193,9 @@ class BERTEntityEncoder(nn.Module):
         if self.sk_embedding:
             head_list.append(sk_head_hidden)
             tail_list.append(sk_tail_hidden)
-        head_list.append(self.position_embed(pos1).squeeze(1))
-        tail_list.append(self.position_embed(pos2).squeeze(1))
+        if self.position_embedding:
+            head_list.append(self.position_embed(pos1_embed).squeeze(1))
+            tail_list.append(self.position_embed(pos2_embed).squeeze(1))
         if self.pos_tags_embedding: 
             head_list.append(pos_tag1)
             tail_list.append(pos_tag2)
@@ -379,4 +382,4 @@ class BERTEntityEncoder(nn.Module):
         att_mask = torch.zeros(indexed_tokens.size()).long()  # (1, L)
         att_mask[0, :avai_len] = 1
 
-        return indexed_tokens, att_mask, pos1, pos2, sk_pos1, sk_pos2, pos_tag1, pos_tag2, deps1, deps2#, indexed_tokens_sk1, indexed_tokens_sk2#, indexed_pos, indexed_deps
+        return indexed_tokens, att_mask, pos1, pos2, pos1_embed, pos2_embed, sk_pos1, sk_pos2, pos_tag1, pos_tag2, deps1, deps2#, indexed_tokens_sk1, indexed_tokens_sk2#, indexed_pos, indexed_deps
