@@ -10,7 +10,7 @@ from pathlib import Path
 
 from opennre.framework.train import Training
 
-EMBEDDINGS_COMBINATION = [[0,0],[0,1],[1,0],[1,1]]
+EMBEDDINGS_COMBINATION = [[0,0,0],[0,0,1],[0,1,0],[0,1,1],[1,0,0],[1,0,1],[1,1,0],[1,1,1]]
 
 class AblationStudies():
     def __init__(self, dataset, model, best_hparams):
@@ -37,13 +37,12 @@ class AblationStudies():
         parameters = self.best_hparams
         parameters["dataset"] = self.dataset
         
-        print(config.PREPROCESSING_COMBINATION)
-        
         for preprocessing in config.PREPROCESSING_COMBINATION:
             for embed in EMBEDDINGS_COMBINATION:
             
                 parameters["pos_embed"] = embed[0]
                 parameters["deps_embed"] = embed[1]
+                parameters["sk_embed"] = embed[2]
                 parameters["preprocessing"] = config.PREPROCESSING_COMBINATION.index(preprocessing)
                 
                 train = Training(self.dataset, parameters)
@@ -53,7 +52,7 @@ class AblationStudies():
                 macro_f1 = result["macro_f1"]
                 
                 self.ablation["preprocessing"].append(preprocessing)
-                embeddings = ("pos" * embed[0] + '_' * (sum(embed) - 1) + "deps" * embed[1])
+                embeddings = ("pos" * embed[0] + ' ' + "deps" * embed[1] + ' ' + "sk" * embed[2])
                 self.ablation["embeddings"].append(embeddings)
                 self.ablation["macro_f1"].append(macro_f1)
                 self.ablation["micro_f1"].append(micro_f1)

@@ -24,6 +24,7 @@ class Training():
                 self.embedding = parameters["embedding"]
                 self.pos_embed = parameters["pos_embed"]
                 self.deps_embed = parameters["deps_embed"]
+                self.sk_embed = parameters["sk_embed"]
                 self.batch_size = parameters["batch_size"]
                 self.lr = parameters["lr"]
                 self.max_epoch = parameters["max_epoch"]
@@ -196,7 +197,7 @@ class Training():
                         sentence_encoder = opennre.encoder.BERTEntityEncoder(
                                 max_length=self.max_length, 
                                 pretrain_path=self.embedding,
-                                sk_embedding=True,
+                                sk_embedding=self.sk_embed,
                                 pos_tags_embedding=self.pos_embed,
                                 deps_embedding=self.deps_embed,
                                 upos2id=upos2id,
