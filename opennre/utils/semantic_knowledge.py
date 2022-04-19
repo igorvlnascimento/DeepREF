@@ -1,7 +1,3 @@
-
-import nltk
-import pandas as pd
-import pickle
 import json
 from nltk.corpus import wordnet
 
