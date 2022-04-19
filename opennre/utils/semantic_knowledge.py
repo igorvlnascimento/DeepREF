@@ -1,5 +1,9 @@
+import nltk
 import json
 from nltk.corpus import wordnet
+
+nltk.download('wordnet')
+nltk.download('omw-1.4')
 
 class SemanticKNWL:
     def __init__(self):
