@@ -124,12 +124,12 @@ class BERTEntityEncoder(nn.Module):
         self.blank_padding = blank_padding
         self.act = activation_function
         
-        self.position_embedding = position_embedding
-        self.sk_embedding = sk_embedding
-        self.pos_tags_embedding = pos_tags_embedding
-        self.deps_embedding = deps_embedding
+        self.position_embedding = True
+        self.sk_embedding = False
+        self.pos_tags_embedding = False
+        self.deps_embedding = True
         
-        self.input_size = 768 * 2 + (self.position_embedding * self.max_length) + ((self.pos_tags_embedding + self.deps_embedding) * (self.max_length_embed * 2)) + self.sk_embedding * 768 * 2
+        self.input_size = 768 * 2 + (self.position_embedding * self.max_length_embed * 2) + ((self.pos_tags_embedding + self.deps_embedding) * (self.max_length_embed * 2)) + self.sk_embedding * 768 * 2
         self.hidden_size = self.input_size // 4
         
         self.mask_entity = mask_entity
@@ -170,24 +170,31 @@ class BERTEntityEncoder(nn.Module):
         onehot_head = onehot_head.scatter_(1, pos1, 1)
         onehot_tail = onehot_tail.scatter_(1, pos2, 1)
         
-        sk_pos1 = sk_pos1.squeeze(1)
-        sk_pos2 = sk_pos2.squeeze(1)
-        onehot_sk_head = torch.zeros(hidden.size()[:2]).float().to(hidden.device)  # (B, L)
-        onehot_sk_tail = torch.zeros(hidden.size()[:2]).float().to(hidden.device)  # (B, L)
-        onehot_sk_head = onehot_sk_head.scatter_(1, sk_pos1, 1)
-        onehot_sk_tail = onehot_sk_tail.scatter_(1, sk_pos2, 1)
-        
         head_hidden = (onehot_head.unsqueeze(2) * hidden).sum(1)  # (B, H)
         tail_hidden = (onehot_tail.unsqueeze(2) * hidden).sum(1)  # (B, H)
         
-        sk_head_hidden = (onehot_sk_head.unsqueeze(2) * hidden).sum(1)  # (B, H)
-        sk_tail_hidden = (onehot_sk_tail.unsqueeze(2) * hidden).sum(1)  # (B, H)
+        if self.sk_embedding:
+            sk_pos1 = sk_pos1.squeeze(1)
+            sk_pos2 = sk_pos2.squeeze(1)
+            onehot_sk_head = torch.zeros(hidden.size()[:2]).float().to(hidden.device)  # (B, L)
+            onehot_sk_tail = torch.zeros(hidden.size()[:2]).float().to(hidden.device)  # (B, L)
+            onehot_sk_head = onehot_sk_head.scatter_(1, sk_pos1, 1)
+            onehot_sk_tail = onehot_sk_tail.scatter_(1, sk_pos2, 1)
+            
+            sk_head_hidden = (onehot_sk_head.unsqueeze(2) * hidden).sum(1)  # (B, H)
+            sk_tail_hidden = (onehot_sk_tail.unsqueeze(2) * hidden).sum(1)  # (B, H)
+            
+        if self.position_embedding:
+            pos1_embed = self.position_embed(pos1).squeeze(1)
+            pos2_embed = self.position_embed(pos2).squeeze(1)
         
-        pos_tag1 = self.pos_tags_embed(pos_tag1).squeeze(1)
-        deps1 = self.deps_tags_embed(deps1).squeeze(1)
+        if self.pos_tags_embedding:
+            pos_tag1 = self.pos_tags_embed(pos_tag1).squeeze(1)
+            pos_tag2 = self.pos_tags_embed(pos_tag2).squeeze(1)
         
-        pos_tag2 = self.pos_tags_embed(pos_tag2).squeeze(1)
-        deps2 = self.deps_tags_embed(deps2).squeeze(1)
+        if self.deps_embedding:
+            deps1 = self.deps_tags_embed(deps1).squeeze(1)
+            deps2 = self.deps_tags_embed(deps2).squeeze(1)
         
         head_list = [head_hidden]
         tail_list = [tail_hidden]
@@ -195,8 +202,8 @@ class BERTEntityEncoder(nn.Module):
             head_list.append(sk_head_hidden)
             tail_list.append(sk_tail_hidden)
         if self.position_embedding:
-            head_list.append(self.position_embed(pos1_embed).squeeze(1))
-            tail_list.append(self.position_embed(pos2_embed).squeeze(1))
+            head_list.append(pos1_embed)
+            tail_list.append(pos2_embed)
         if self.pos_tags_embedding: 
             head_list.append(pos_tag1)
             tail_list.append(pos_tag2)
@@ -204,7 +211,7 @@ class BERTEntityEncoder(nn.Module):
             head_list.append(deps1)
             tail_list.append(deps2)  
             
-        concat_list = head_list + tail_list          
+        concat_list = head_list + tail_list        
         
         # if self.pos_tags_embedding:
         #     concat_list.extend([pos_tags])
