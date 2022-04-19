@@ -212,8 +212,6 @@ class BERTEntityEncoder(nn.Module):
         #     concat_list.extend([deps])
 
         x = torch.cat(concat_list, 1)
-        print("shape:",x.shape)
-        print("input:",self.input_size)
         x = self.linear1(x)
         x = self.linear2(x)
         x = self.linear3(x)
