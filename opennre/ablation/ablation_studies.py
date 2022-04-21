@@ -18,10 +18,12 @@ class AblationStudies():
         self.model = model
         self.csv_path = f'opennre/ablation/{self.dataset}_{self.model}_ablation_studies.csv'
         self.ablation = {'preprocessing': [], 'embeddings': [], 'micro_f1': [], 'macro_f1': []}
+        self.exp = 0
         
         if os.path.exists(self.csv_path):
             df = pd.read_csv(self.csv_path)
             self.ablation = df.to_dict('split')
+            self.exp = len(self.ablation['data'][0])
             print(self.ablation)
         
         if not os.path.exists(config.BEST_HPARAMS_FILE_PATH.format(dataset)) or not best_hparams:
@@ -37,36 +39,40 @@ class AblationStudies():
         parameters = self.best_hparams
         parameters["dataset"] = self.dataset
         
+        index = 0
         for preprocessing in config.PREPROCESSING_COMBINATION:
             for embed in EMBEDDINGS_COMBINATION:
                 
-                parameters["pos_tags_embed"] = embed[0]
-                parameters["deps_embed"] = embed[1]
-                parameters["sk_embed"] = embed[2]
-                parameters["position_embed"] = embed[3]
-                parameters["preprocessing"] = config.PREPROCESSING_COMBINATION.index(preprocessing)
+                if index > self.exp - 1:
                 
-                train = Training(self.dataset, parameters)
+                    parameters["pos_tags_embed"] = embed[0]
+                    parameters["deps_embed"] = embed[1]
+                    parameters["sk_embed"] = embed[2]
+                    parameters["position_embed"] = embed[3]
+                    parameters["preprocessing"] = config.PREPROCESSING_COMBINATION.index(preprocessing)
+                    
+                    train = Training(self.dataset, parameters)
+                    
+                    result = train.train()
+                    micro_f1 = result["micro_f1"]
+                    macro_f1 = result["macro_f1"]
+                    
+                    self.ablation["preprocessing"].append(preprocessing)
+                    embeddings = ("pos_tag" * embed[0] + ' ' + "deps" * embed[1] + ' ' + "sk" * embed[2] + ' ' + "position" * embed[3]).strip()
+                    self.ablation["embeddings"].append(embeddings)
+                    self.ablation["macro_f1"].append(macro_f1)
+                    self.ablation["micro_f1"].append(micro_f1)
+                    
+                    print(self.ablation)
+                    self.save_ablation()
                 
-                result = train.train()
-                micro_f1 = result["micro_f1"]
-                macro_f1 = result["macro_f1"]
-                
-                self.ablation["preprocessing"].append(preprocessing)
-                embeddings = ("pos_tag" * embed[0] + ' ' + "deps" * embed[1] + ' ' + "sk" * embed[2] + ' ' + "position" * embed[3]).strip()
-                self.ablation["embeddings"].append(embeddings)
-                self.ablation["macro_f1"].append(macro_f1)
-                self.ablation["micro_f1"].append(micro_f1)
-                
-                print(self.ablation)
-                self.save_ablation()
+                index += 1
                 
         return self.ablation
         
     def save_ablation(self):
         df = pd.DataFrame.from_dict(self.ablation)
         filepath = Path(f'opennre/ablation/{self.dataset}_{self.model}_ablation_studies.csv')
-        #filepath.parent.mkdir(parents=True, exist_ok=True) 
         df.to_csv(filepath, index=False)
     
 if __name__ == '__main__':
