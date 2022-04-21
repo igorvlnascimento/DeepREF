@@ -22,13 +22,19 @@ class AblationStudies():
         
         if os.path.exists(self.csv_path):
             df = pd.read_csv(self.csv_path)
-            self.ablation = df.to_dict('split')
-            self.exp = len(self.ablation['data'][0])
+            ablation = df.to_dict('split')
+            for data in ablation["data"]:
+                self.ablation['preprocessing'].append(data[0])
+                self.ablation['embeddings'].append(data[1])
+                self.ablation['micro_f1'].append(data[2])
+                self.ablation['macro_f1'].append(data[3])
+            self.exp = len(self.ablation['preprocessing'])
+            print(self.exp)
             print(self.ablation)
         
         if not os.path.exists(config.BEST_HPARAMS_FILE_PATH.format(dataset)) or not best_hparams:
-            dict = config.HPARAMS
-            json_object = json.dumps(dict, indent=4)
+            dict_params = config.HPARAMS
+            json_object = json.dumps(dict_params, indent=4)
             with open(config.BEST_HPARAMS_FILE_PATH.format(dataset), 'w') as f:
                 f.write(json_object)
         self.best_hparams = {}
