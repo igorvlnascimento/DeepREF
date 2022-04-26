@@ -1,6 +1,6 @@
 if [ -z "$NLP_TOOL" ]
   then
-    NLP_TOOL="stanza"
+    NLP_TOOL="spacy"
 fi
 
 if [ -z "$NLP_MODEL" ]

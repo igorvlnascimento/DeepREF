@@ -153,7 +153,7 @@ class BERTEntityEncoder(nn.Module):
         print("sk:",self.sk_embedding)
         print("position:",self.position_embedding)
 
-    def forward(self, token, att_mask, pos1, pos2, pos1_embed, pos2_embed, sk_pos1, sk_pos2, pos_tag1, pos_tag2, deps1, deps2):
+    def forward(self, token, att_mask, pos1, pos2, sk_pos1, sk_pos2, pos_tag1, pos_tag2, deps1, deps2):
         """
         Args:
             token: (B, L), index of tokens
@@ -319,25 +319,11 @@ class BERTEntityEncoder(nn.Module):
             
             indexed_tokens = indexed_tokens + indexed_tokens_sk1 + indexed_tokens_sk2
             
-            #indexed_tokens_sk = indexed_tokens_sk1 + indexed_tokens_sk2
-        
-        # indexed_pos = []
-        # indexed_deps = []
         pos_tag1 = self.upos2id[pos_tags[pos_head[0]]] if self.pos_tags_embedding else []
         pos_tag2 = self.upos2id[pos_tags[pos_tail[0]]] if self.pos_tags_embedding else []
         
         deps1 = self.deps2id[deps[pos_head[0]]] if self.deps_embedding else []
         deps2 = self.deps2id[deps[pos_tail[0]]] if self.deps_embedding else []
-        
-        # for pos in pos_tags:
-        #     if pos not in self.upos2id:
-        #         self.upos2id[pos] = len(self.upos2id)
-        #     indexed_pos.append(self.upos2id[pos])
-            
-        # for dep in deps:
-        #     if dep not in self.deps2id:
-        #         self.deps2id[dep] = len(self.deps2id)
-        #     indexed_deps.append(self.deps2id[dep])
 
         # Position
         pos1 = torch.tensor([[pos1]]).long()
@@ -345,43 +331,13 @@ class BERTEntityEncoder(nn.Module):
         
         sk_pos1 = torch.tensor([[sk_pos1]]).long()
         sk_pos2 = torch.tensor([[sk_pos2]]).long()
-        
-        # Position -> index
-        pos1_embed = []
-        pos2_embed = []
-        pos1_in_index = min(pos1[0], self.max_length)
-        pos2_in_index = min(pos2[0], self.max_length)
-        for i in range(len(re_tokens)):
-            pos1_embed.append(min(i - pos1_in_index + self.max_length, 2 * self.max_length - 1))
-            pos2_embed.append(min(i - pos2_in_index + self.max_length, 2 * self.max_length - 1))
-
-        if self.blank_padding:                
-            while len(pos1_embed) < self.max_length:
-                pos1_embed.append(0)
-            while len(pos2_embed) < self.max_length:
-                pos2_embed.append(0)
-            pos1_embed = pos1_embed[:self.max_length]
-            pos2_embed = pos2_embed[:self.max_length]
-
-        pos1_embed = torch.tensor(pos1_embed).long().unsqueeze(0) # (1, L)
-        pos2_embed = torch.tensor(pos2_embed).long().unsqueeze(0) # (1, L)
 
         # Padding
         if self.blank_padding:
             while len(indexed_tokens) < self.max_length:
                 indexed_tokens.append(0)  # 0 is id for [PAD]
-            # while self.sk_embedding and len(indexed_tokens_sk) < self.word_size:
-            #     indexed_tokens_sk.append(0)  # 0 is id for [PAD]
-            # while self.pos_tags_embedding and len(indexed_pos) < self.max_length_embed:
-            #     indexed_pos.append(0)  # 0 is id for [PAD]
-            # while self.deps_embedding and len(indexed_deps) < self.max_length_embed:
-            #     indexed_deps.append(0)  # 0 is id for [PAD]
             indexed_tokens = indexed_tokens[:self.max_length]
-            # indexed_tokens_sk = indexed_tokens_sk[:self.word_size]
-            # indexed_pos = indexed_pos[:self.max_length_embed]
-            # indexed_deps = indexed_deps[:self.max_length_embed]
         indexed_tokens = torch.tensor(indexed_tokens).long().unsqueeze(0)  # (1, L)
-        # indexed_tokens_sk = torch.tensor(indexed_tokens_sk).long().unsqueeze(0)  # (1, L)
         pos_tag1 = torch.tensor([[pos_tag1]]).long()  # (1, L)
         pos_tag2 = torch.tensor([[pos_tag2]]).long()  # (1, L)
         deps1 = torch.tensor([[deps1]]).long()  # (1, L)
@@ -391,4 +347,4 @@ class BERTEntityEncoder(nn.Module):
         att_mask = torch.zeros(indexed_tokens.size()).long()  # (1, L)
         att_mask[0, :avai_len] = 1
 
-        return indexed_tokens, att_mask, pos1, pos2, pos1_embed, pos2_embed, sk_pos1, sk_pos2, pos_tag1, pos_tag2, deps1, deps2#, indexed_tokens_sk1, indexed_tokens_sk2#, indexed_pos, indexed_deps
+        return indexed_tokens, att_mask, pos1, pos2, sk_pos1, sk_pos2, pos_tag1, pos_tag2, deps1, deps2#, indexed_tokens_sk1, indexed_tokens_sk2#, indexed_pos, indexed_deps

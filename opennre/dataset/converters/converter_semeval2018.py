@@ -133,33 +133,6 @@ class ConverterSemEval2018(ConverterDataset):
         blacklisted_set = [e1, e2]
         return [value for key, value in entity_dict.items() if key not in blacklisted_set]
 
-    # get the start and end of the entities 
-    def get_entity_start_and_end(self, entity_start, entity_end, tokens, upos, deps, ner):
-        e_start = tokens.index(entity_start)
-        e_end = tokens.index(entity_end) - 2 # because 2 tags will be eliminated
-        # only eliminate the entity_start and entity_end once because DRUGUNRELATEDSTART will get
-        # eliminated many times
-        new_tokens = []
-        new_upos = []
-        new_deps = []
-        new_ner = []
-        entity_start_seen = 0
-        entity_end_seen = 0
-        for i, x in enumerate(tokens):
-            if x == entity_start:
-                entity_start_seen += 1
-            if x == entity_end:
-                entity_end_seen += 1
-            if x == entity_start and entity_start_seen == 1:
-                continue
-            if x == entity_end and entity_end_seen == 1:
-                continue
-            new_tokens.append(x)
-            new_upos.append(upos[i])
-            new_deps.append(deps[i])
-            new_ner.append(ner[i])
-        assert len(new_tokens) == len(new_upos) == len(new_deps) == len(new_ner)
-        return (e_start, e_end), new_tokens, new_upos, new_deps, new_ner
     # from the tokenized sentence which contains the drug tags, extract the word positions
     # and replacement dictionary for blinding purposes
     def get_entity_positions_and_replacement_dictionary(self, tokens, upos, deps, ner):

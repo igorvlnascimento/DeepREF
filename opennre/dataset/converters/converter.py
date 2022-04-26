@@ -56,6 +56,8 @@ class ConverterDataset():
             upos = [token.pos_ for token in doc]
             deps = [token.dep_.lower() for token in doc]
             ner = ["O"] * len(tokenized)
+            edges = [(token.lower_, child.lower_) for token in doc for child in token.children]
+            print(edges)
             for ent in doc.ents:
                 for i in range(ent.start, ent.end):
                     ner[i] = ent.label_
@@ -66,8 +68,9 @@ class ConverterDataset():
             upos = [token.upos for sent in doc.sentences for token in sent.words]
             deps = [token.deprel for sent in doc.sentences for token in sent.words]
             ner = [token.ner for sent in doc.sentences for token in sent.tokens]
-        assert len(tokenized) == len(upos) == len(deps) == len(ner) 
-        return tokenized, upos, deps, ner
+            edges = [(token[0].text.lower(), token[2].text) for token in doc.sentences[0].dependencies if token[0].text.lower() != 'root']
+        assert len(tokenized) == len(upos) == len(deps) == len(ner) == len(edges)
+        return tokenized, upos, deps, ner, edges
 
     # remove any additional whitespace within a line
     def remove_whitespace(self, line):
@@ -103,8 +106,30 @@ class ConverterDataset():
         return new_sentence
 
     # get the start and end of the entities 
-    def get_entity_start_and_end(self, entity_start, entity_end, tokens):
-        pass
+    def get_entity_start_and_end(self, entity_start, entity_end, tokens, upos, deps, ner):
+        e_start = tokens.index(entity_start)
+        e_end = tokens.index(entity_end) - 2 # because 2 tags will be eliminated
+        new_tokens = []
+        new_upos = []
+        new_deps = []
+        new_ner = []
+        entity_start_seen = 0
+        entity_end_seen = 0
+        for i, x in enumerate(tokens):
+            if x == entity_start:
+                entity_start_seen += 1
+            if x == entity_end:
+                entity_end_seen += 1
+            if x == entity_start and entity_start_seen == 1:
+                continue
+            if x == entity_end and entity_end_seen == 1:
+                continue
+            new_tokens.append(x)
+            new_upos.append(upos[i])
+            new_deps.append(deps[i])
+            new_ner.append(ner[i])
+        assert len(new_tokens) == len(new_upos) == len(new_deps) == len(new_ner)
+        return [(e_start, e_end)], new_tokens, new_upos, new_deps, new_ner
 
     # given the entity starting and ending word index, and entity replacement dictionary, 
     # update the dictionary to inform of the replace_by string for eg ENTITY

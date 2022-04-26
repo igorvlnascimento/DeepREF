@@ -1,12 +1,12 @@
 import setuptools
 with open("README.md", "r") as fh:
     setuptools.setup(
-        name='opennre',  
+        name='deepref',  
         version='0.1',
         author="Tianyu Gao",
-        author_email="gaotianyu1350@126.com",
+        author_email="igorvlnascimento@gmail.com",
         description="An open source toolkit for relation extraction",
-        url="https://github.com/thunlp/opennre",
+        url="https://github.com/igorvlnascimento/DeepREF",
         packages=setuptools.find_packages(),
         classifiers=[
             "Programming Language :: Python :: 3",

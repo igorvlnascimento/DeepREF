@@ -14,32 +14,6 @@ class ConverterSemEval2010(ConverterDataset):
     def __init__(self, nlp_tool, nlp_model):
         super().__init__(dataset_name='semeval2010', nlp_tool=nlp_tool, nlp_model=nlp_model)
 
-    # get the start and end of the entities 
-    def get_entity_start_and_end(self, entity_start, entity_end, tokens, upos, deps, ner):
-        e_start = tokens.index(entity_start)
-        e_end = tokens.index(entity_end) - 2 # because 2 tags will be eliminated
-        new_tokens = []
-        new_upos = []
-        new_deps = []
-        new_ner = []
-        entity_start_seen = 0
-        entity_end_seen = 0
-        for i, x in enumerate(tokens):
-            if x == entity_start:
-                entity_start_seen += 1
-            if x == entity_end:
-                entity_end_seen += 1
-            if x == entity_start and entity_start_seen == 1:
-                continue
-            if x == entity_end and entity_end_seen == 1:
-                continue
-            new_tokens.append(x)
-            new_upos.append(upos[i])
-            new_deps.append(deps[i])
-            new_ner.append(ner[i])
-        assert len(new_tokens) == len(new_upos) == len(new_deps) == len(new_ner)
-        return [(e_start, e_end)], new_tokens, new_upos, new_deps, new_ner
-
     # given the entity starting and ending word index, and entity replacement dictionary, 
     # update the dictionary to inform of the replace_by string for eg ENTITY
     def get_entity_replacement_dictionary(self, e_idx, entity_replacement, replace_by, ner_for_indexing):
@@ -119,7 +93,7 @@ class ConverterSemEval2010(ConverterDataset):
                 data.append([original_sentence.lower(), e1, e2, rel, metadata, tokenized_sent.lower(),tokenized_upos, tokenized_deps, tokenized_ner])
 
             df = pd.DataFrame(data,
-                    columns='original_sentence,e1,e2,relation_type,metadata,tokenized_sentence,upos_sentence,deps_sentence,ner_sentence'.split(','))
+                    columns='original_sentence,e1,e2,relation_type,metadata,tokenized_sentence,upos_sentence,deps_sentence,ner_sentence,edges'.split(','))
             return df
 
     # The goal here is to make sure that the df that is written into memory is the same one that is read
