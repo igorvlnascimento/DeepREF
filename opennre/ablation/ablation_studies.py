@@ -24,9 +24,8 @@ class AblationStudies():
             self.ablation = df.to_dict('split')
             print(self.ablation)
         
-        if not os.path.exists(config.BEST_HPARAMS_FILE_PATH.format(dataset)) and best_hparams:
+        if not os.path.exists(config.BEST_HPARAMS_FILE_PATH.format(dataset)) or not best_hparams:
             dict = config.HPARAMS
-            dict["{}".format(self.metric)] = 0
             json_object = json.dumps(dict, indent=4)
             with open(config.BEST_HPARAMS_FILE_PATH.format(dataset), 'w') as f:
                 f.write(json_object)
@@ -34,34 +33,36 @@ class AblationStudies():
         with open(config.BEST_HPARAMS_FILE_PATH.format(dataset), 'r') as f:
             self.best_hparams = json.load(f)
             
-    def executing_ablation(self):
+    def execute_ablation(self, having_preprocessing=None):
         parameters = self.best_hparams
         parameters["dataset"] = self.dataset
         
-        print(config.PREPROCESSING_COMBINATION)
-        
         for preprocessing in config.PREPROCESSING_COMBINATION:
-            for embed in EMBEDDINGS_COMBINATION:
+            if having_preprocessing is not None:
+                if having_preprocessing not in preprocessing:
+                    continue
+                    
+            #for embed in EMBEDDINGS_COMBINATION:
+            embed = [0,0]
+            parameters["pos_embed"] = embed[0]
+            parameters["deps_embed"] = embed[1]
+            parameters["preprocessing"] = config.PREPROCESSING_COMBINATION.index(preprocessing)
             
-                parameters["pos_embed"] = embed[0]
-                parameters["deps_embed"] = embed[1]
-                parameters["preprocessing"] = config.PREPROCESSING_COMBINATION.index(preprocessing)
-                
-                train = Training(self.dataset, parameters)
-                
-                result = train.train()
-                micro_f1 = result["micro_f1"]
-                macro_f1 = result["macro_f1"]
-                
-                self.ablation["preprocessing"].append(preprocessing)
-                embeddings = ("pos" * embed[0] + '_' * (sum(embed) - 1) + "deps" * embed[1])
-                self.ablation["embeddings"].append(embeddings)
-                self.ablation["macro_f1"].append(macro_f1)
-                self.ablation["micro_f1"].append(micro_f1)
-                
-                print(self.ablation)
-                self.save_ablation()
-                
+            train = Training(self.dataset, parameters)
+            
+            result = train.train()
+            micro_f1 = result["micro_f1"]
+            macro_f1 = result["macro_f1"]
+            
+            self.ablation["preprocessing"].append(preprocessing)
+            embeddings = ("pos" * embed[0] + '_' * (sum(embed) - 1) + "deps" * embed[1])
+            self.ablation["embeddings"].append(embeddings)
+            self.ablation["macro_f1"].append(macro_f1)
+            self.ablation["micro_f1"].append(micro_f1)
+            
+            print(self.ablation)
+            self.save_ablation()
+            
         return self.ablation
         
     def save_ablation(self):
@@ -74,11 +75,11 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('-d','--dataset', default="semeval2010", choices=config.DATASETS, 
                 help='Dataset')
-    parser.add_argument('-m','--model', default="bert", choices=config.MODELS, 
+    parser.add_argument('-m','--model', default="bert_cls", choices=config.MODELS, 
                 help='Models')
-    parser.add_argument('--best_params', action='store_true', 
+    parser.add_argument('--best_hyperparameters', action='store_true', 
         help='Run with best hyperparameters (True) or default (False)')
     args = parser.parse_args()
     
-    ablation = AblationStudies(args.dataset, args.model, args.best_params)
-    ablation.executing_ablation()
+    ablation = AblationStudies(args.dataset, args.model, args.best_hyperparameters)
+    ablation.execute_ablation()

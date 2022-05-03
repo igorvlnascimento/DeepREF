@@ -10,7 +10,16 @@ import nltk
 nltk.download('wordnet')
 
 class BERTEncoder(nn.Module):
-    def __init__(self, max_length, pretrain_path, blank_padding=True, mask_entity=False, sbert=None):
+    def __init__(self, 
+                 max_length, 
+                 pretrain_path, 
+                 upos2id,
+                 deps2id,
+                 blank_padding=True, 
+                 mask_entity=False, 
+                 sk_embedding=False, 
+                 pos_tags_embedding=False, 
+                 deps_embedding=False):
         """
         Args:
             max_length: max length of sentence

@@ -14,6 +14,9 @@ def combine_preprocessing(preprocessing):
                 combinations[j] = list(comb)
         
         final_combinations = [comb for n, comb in enumerate(combinations) if comb not in combinations[:n]]
+        final_combinations.append(["sdp"])
+        final_combinations.append(["eb", "sdp"])
+        final_combinations.append(["nb", "sdp"])
         return final_combinations
 
 SEED = 42
@@ -21,7 +24,7 @@ METRICS = ["micro_f1", "macro_f1", "acc"]
 PREPROCESSING_TYPES = ["sw", "d", "b", "p", "eb", "nb"]
 PREPROCESSING_COMBINATION = combine_preprocessing(PREPROCESSING_TYPES)
 DATASETS = ['semeval2010', 'semeval20181-1', 'semeval20181-2', 'ddi'] # TODO : Add TACRED
-MODELS = ["cnn", "pcnn", "crcnn", "gru", "bigru", "lstm", "bilstm", "bert"]
+MODELS = ["cnn", "pcnn", "crcnn", "gru", "bigru", "lstm", "bilstm", "bert_cls", "bert_entity"]
 PRETRAIN_WEIGHTS = ["bert-base-uncased", "dmis-lab/biobert-v1.1", "allenai/scibert_scivocab_uncased", "deepset/sentence_bert"]
 EMBEDDINGS = ["glove", "senna", "fasttext_wiki", "fasttext_crawl",]
 NLP_TOOLS = ["stanza", "spacy"]
@@ -30,13 +33,12 @@ HPARAMS = {
     "micro_f1": 0,
     "macro_f1": 0,
     "acc": 0,
-    "model": "bert",
-    "embedding": "bert-base-uncased",
+    "model": "bert_cls",
+    "pretrain": "bert-base-uncased",
     "batch_size": 16,
-    "preprocessing": 0,
+    "preprocessing": [],
     "lr": 2e-5,
-    "pos_embed": 0,
-    "deps_embed": 0,
+    "embeddings": [],
     "max_length": 128,
     "max_epoch": 3
 }

@@ -1,9 +1,6 @@
-import os
-import stanza
-import spacy
 from tqdm import tqdm
 import argparse
-import subprocess
+import os
 
 from opennre import config
 
@@ -13,32 +10,6 @@ from opennre.dataset.converters.converter import ConverterDataset
 class ConverterSemEval2010(ConverterDataset):
     def __init__(self, nlp_tool, nlp_model):
         super().__init__(dataset_name='semeval2010', nlp_tool=nlp_tool, nlp_model=nlp_model)
-
-    # get the start and end of the entities 
-    def get_entity_start_and_end(self, entity_start, entity_end, tokens, upos, deps, ner):
-        e_start = tokens.index(entity_start)
-        e_end = tokens.index(entity_end) - 2 # because 2 tags will be eliminated
-        new_tokens = []
-        new_upos = []
-        new_deps = []
-        new_ner = []
-        entity_start_seen = 0
-        entity_end_seen = 0
-        for i, x in enumerate(tokens):
-            if x == entity_start:
-                entity_start_seen += 1
-            if x == entity_end:
-                entity_end_seen += 1
-            if x == entity_start and entity_start_seen == 1:
-                continue
-            if x == entity_end and entity_end_seen == 1:
-                continue
-            new_tokens.append(x)
-            new_upos.append(upos[i])
-            new_deps.append(deps[i])
-            new_ner.append(ner[i])
-        assert len(new_tokens) == len(new_upos) == len(new_deps) == len(new_ner)
-        return [(e_start, e_end)], new_tokens, new_upos, new_deps, new_ner
 
     # given the entity starting and ending word index, and entity replacement dictionary, 
     # update the dictionary to inform of the replace_by string for eg ENTITY
@@ -76,13 +47,18 @@ class ConverterSemEval2010(ConverterDataset):
                     sent = sent[1:]
                 if sent[-1] == '"':
                     sent = sent[:-1]
+                normal_sent = sent
+                normal_sent = normal_sent.replace('<e1>', ' ')
+                normal_sent = normal_sent.replace('</e1>', ' ')
+                normal_sent = normal_sent.replace('<e2>', ' ')
+                normal_sent = normal_sent.replace('</e2>', ' ')
                 sent = sent.replace('<e1>', ' ENTITYSTART ')
                 sent = sent.replace('</e1>', ' ENTITYEND ')
                 sent = sent.replace('<e2>', ' ENTITYOTHERSTART ')
                 sent = sent.replace('</e2>', ' ENTITYOTHEREND ')
                 sent = self.remove_whitespace(sent) # to get rid of additional white space
 
-                tokens, upos, deps, ner = self.tokenize(sent)
+                tokens, upos, deps, ner, edges = self.tokenize(sent)
                 start_with_e1 = True
                 for token in tokens:
                     if token == 'ENTITYSTART':
@@ -116,10 +92,10 @@ class ConverterSemEval2010(ConverterDataset):
                 tokenized_deps = " ".join(deps)
                 tokenized_ner = " ".join(ner)
                 original_sentence = self.get_original_sentence(sent) # just to write into the dataframe, sent is manipulated
-                data.append([original_sentence.lower(), e1, e2, rel, metadata, tokenized_sent.lower(),tokenized_upos, tokenized_deps, tokenized_ner])
+                data.append([original_sentence.lower(), e1, e2, rel, metadata, tokenized_sent.lower(),tokenized_upos, tokenized_deps, tokenized_ner, edges])
 
             df = pd.DataFrame(data,
-                    columns='original_sentence,e1,e2,relation_type,metadata,tokenized_sentence,upos_sentence,deps_sentence,ner_sentence'.split(','))
+                    columns='original_sentence,e1,e2,relation_type,metadata,tokenized_sentence,upos_sentence,deps_sentence,ner_sentence,sdp'.split(','))
             return df
 
     # The goal here is to make sure that the df that is written into memory is the same one that is read
@@ -146,37 +122,69 @@ class ConverterSemEval2010(ConverterDataset):
             idx_null_row = None
         else:
             idx_null_row = null_row.index.values[0]
-        with open(directory, 'w') as outfile:
-            for i in tqdm(range(0, len(df))):
-                dict = {}
-                head = {}
-                tail = {}
-                if idx_null_row is not None and i == idx_null_row:
-                    continue
-                row = df.iloc[i]
-                metadata = row.metadata
-                e1_idx = [metadata['e1']['word_index'][0][0], metadata['e1']['word_index'][0][1]+1]
-                e2_idx = [metadata['e2']['word_index'][0][0], metadata['e2']['word_index'][0][1]+1]
-                head['name'] = metadata['e1']['word']
-                head['pos'] = e1_idx
-                tail['name'] = metadata['e2']['word']
-                tail['pos'] = e2_idx
-                try:
-                    tokenized_sentence = row.tokenized_sentence
-                except AttributeError:
-                    tokenized_sentence = row.preprocessed_sentence
-                if type(tokenized_sentence) is not str:
-                    continue
-                tokenized_sentence = tokenized_sentence.split(" ")
-                dict["token"] = tokenized_sentence
-                dict["h"] = head
-                dict["t"] = tail
-                dict["pos"] = row.upos_sentence.split(" ")
-                dict["deps"] = row.deps_sentence.split(" ")
-                dict["ner"] = row.ner_sentence.split(" ")
-                dict["relation"] = row.relation_type
-                outfile.write(str(dict)+"\n")
-            outfile.close()
+        outfile = open(directory, 'w')
+        for i in tqdm(range(0, len(df))):
+            dict = {}
+            head = {}
+            tail = {}
+            if idx_null_row is not None and i == idx_null_row:
+                continue
+            row = df.iloc[i]
+            metadata = row.metadata
+            e1_idx = [metadata['e1']['word_index'][0][0], metadata['e1']['word_index'][0][1]+1]
+            e2_idx = [metadata['e2']['word_index'][0][0], metadata['e2']['word_index'][0][1]+1]
+            head['name'] = metadata['e1']['word']
+            head['pos'] = e1_idx
+            tail['name'] = metadata['e2']['word']
+            tail['pos'] = e2_idx
+            try:
+                tokenized_sentence = row.tokenized_sentence
+            except AttributeError:
+                tokenized_sentence = row.preprocessed_sentence
+            if type(tokenized_sentence) is not str:
+                continue
+            tokenized_sentence = tokenized_sentence.split(" ")
+            dict["token"] = tokenized_sentence
+            dict["h"] = head
+            dict["t"] = tail
+            dict["pos"] = row.upos_sentence.split(" ")
+            dict["deps"] = row.deps_sentence.split(" ")
+            dict["ner"] = row.ner_sentence.split(" ")
+            dict["relation"] = row.relation_type
+            outfile.write(str(dict)+"\n")
+        outfile.close()
+            
+    def sdp_write_into_txt(self, df, file_path):
+        path = file_path[:file_path.rfind('/')]
+        os.makedirs(path, exist_ok=True)
+        new_file = open(file_path, 'w')
+        blinding = 'eb_sdp' in file_path or 'nb_sdp' in file_path
+        for i in tqdm(range(len(df))):
+            dict = {}
+            row = df.iloc[i]
+            metadata = row.metadata
+            e1_idx = metadata['e1']['word_index'][0][-1]-1
+            e2_idx = metadata['e2']['word_index'][0][-1]-1
+            upos = row.upos_sentence.split(" ")
+            deps = row.deps_sentence.split(" ")
+            ner = row.ner_sentence.split(" ")
+            dict["token"] = row.sdp.split(" ")
+            if blinding:
+                if 'eb_sdp' in file_path:
+                    dict["token"][0] = self.entity_name
+                    dict["token"][-1] = self.entity_name
+                else:
+                    dict["token"][0] = ner[e1_idx]
+                    dict["token"][-1] = ner[e2_idx]
+            dict["h"] = {'name': metadata['e1']['word'], 'pos': [0, 1]}
+            dict["t"] = {'name': metadata['e2']['word'], 'pos': [len(dict["token"])-1, len(dict["token"])]}
+            dict["pos"] = [upos[e1_idx]] + ['X'] * (len(dict["token"]) - 2) + [upos[e2_idx]]
+            dict["deps"] = [deps[e1_idx]] + ['xcomp'] * (len(dict["token"]) - 2) + [deps[e2_idx]]
+            dict["ner"] = [ner[e1_idx]] + ['O'] * (len(dict["token"]) - 2) + [ner[e2_idx]]
+            dict["relation"] = row.relation_type
+            new_file.write(str(dict)+"\n")
+        new_file.close()
+        
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
