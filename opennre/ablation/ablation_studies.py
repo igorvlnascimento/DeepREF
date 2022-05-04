@@ -41,7 +41,7 @@ class AblationStudies():
         with open(config.BEST_HPARAMS_FILE_PATH.format(dataset), 'r') as f:
             self.best_hparams = json.load(f)
             
-    def executing_ablation(self):
+    def execute_ablation(self, having_preprocessing=None):
         parameters = self.best_hparams
         parameters["dataset"] = self.dataset
         
@@ -85,11 +85,11 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('-d','--dataset', default="semeval2010", choices=config.DATASETS, 
                 help='Dataset')
-    parser.add_argument('-m','--model', default="bert", choices=config.MODELS, 
+    parser.add_argument('-m','--model', default="bert_cls", choices=config.MODELS, 
                 help='Models')
-    parser.add_argument('--best_params', action='store_true', 
+    parser.add_argument('--best_hyperparameters', action='store_true', 
         help='Run with best hyperparameters (True) or default (False)')
     args = parser.parse_args()
     
-    ablation = AblationStudies(args.dataset, args.model, args.best_params)
-    ablation.executing_ablation()
+    ablation = AblationStudies(args.dataset, args.model, args.best_hyperparameters)
+    ablation.execute_ablation()

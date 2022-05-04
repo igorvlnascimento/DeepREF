@@ -20,10 +20,9 @@ class Training():
                 self.preprocessing = parameters["preprocessing"]
                 self.model = parameters["model"]
                 self.max_length = parameters["max_length"]
-                self.opt = "adamw" if self.model == "bert" else "sgd"
-                self.embedding = parameters["embedding"]
-                self.position_embed = parameters["position_embed"]
-                self.pos_embed = parameters["pos_tags_embed"]
+                self.opt = "adamw" if self.model == "bert_entity" or self.model == "bert_cls" else "sgd"
+                self.pretrain = parameters["pretrain"]
+                self.pos_embed = parameters["pos_embed"]
                 self.deps_embed = parameters["deps_embed"]
                 self.sk_embed = parameters["sk_embed"]
                 self.batch_size = parameters["batch_size"]
@@ -93,8 +92,8 @@ class Training():
                 
                 rel2id = json.load(open(self.rel2id_file))
 
-                print("embedding:",self.embedding)
-                if self.model != 'bert':
+                print("pretrain:",self.pretrain)
+                if 'bert_' not in self.model:
                         print(self.model)
                         word2id, word2vec = WordEmbeddingLoader("glove").load_embedding()
                         word_dim = word2vec.shape[1]
@@ -193,11 +192,21 @@ class Training():
                                 dropout=0.5,
                                 bidirectional=True
                         )
-
-                elif self.model == "bert":
-                        sentence_encoder = opennre.encoder.BERTEntityEncoder(
+                        
+                elif self.model == "bert_cls":
+                        sentence_encoder = opennre.encoder.BERTEncoder(
                                 max_length=self.max_length, 
-                                pretrain_path=self.embedding,
+                                pretrain_path=self.pretrain,
+                                pos_tags_embedding=self.pos_embed,
+                                deps_embedding=self.deps_embed,
+                                upos2id=upos2id,
+                                deps2id=deps2id
+                        )
+                        
+                elif self.model == "bert_entity":
+                        sentence_encoder = opennre.encoder.BERTEntityEncoder(
+                                max_length=self.max_length,
+                                pretrain_path=self.pretrain, 
                                 position_embedding=self.position_embed,
                                 sk_embedding=self.sk_embed,
                                 pos_tags_embedding=self.pos_embed,
@@ -251,7 +260,7 @@ class Training():
                 result, pred, ground_truth = framework.eval_model(framework.test_loader)
 
                 # Print the result
-                framework.test_set_results(ground_truth, pred, result, self.model, self.embedding, self.hyper_params)
+                framework.test_set_results(ground_truth, pred, result, self.model, self.pretrain, self.hyper_params)
                 
                 return result
                 
