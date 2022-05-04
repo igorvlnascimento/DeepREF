@@ -267,6 +267,6 @@ class ConverterDataset():
                     dataset_type = 'val'
                 elif '_test_' in file:
                     dataset_type = 'test'
-                self.sdp_write_into_txt(df, parent_dir + "/sdp/{}_{}_sdp.txt".format(self.dataset_name, dataset_type))
-                self.sdp_write_into_txt(df, parent_dir + "/eb_sdp/{}_{}_eb_sdp.txt".format(self.dataset_name, dataset_type))
-                self.sdp_write_into_txt(df, parent_dir + "/nb_sdp/{}_{}_nb_sdp.txt".format(self.dataset_name, dataset_type))
+                # self.sdp_write_into_txt(df, parent_dir + "/sdp/{}_{}_sdp.txt".format(self.dataset_name, dataset_type))
+                # self.sdp_write_into_txt(df, parent_dir + "/eb_sdp/{}_{}_eb_sdp.txt".format(self.dataset_name, dataset_type))
+                # self.sdp_write_into_txt(df, parent_dir + "/nb_sdp/{}_{}_nb_sdp.txt".format(self.dataset_name, dataset_type))

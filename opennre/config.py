@@ -14,9 +14,6 @@ def combine_preprocessing(preprocessing):
                 combinations[j] = list(comb)
         
         final_combinations = [comb for n, comb in enumerate(combinations) if comb not in combinations[:n]]
-        final_combinations.append(["sdp"])
-        final_combinations.append(["eb", "sdp"])
-        final_combinations.append(["nb", "sdp"])
         return final_combinations
 
 SEED = 42
@@ -26,7 +23,7 @@ PREPROCESSING_COMBINATION = combine_preprocessing(PREPROCESSING_TYPES)
 DATASETS = ['semeval2010', 'semeval20181-1', 'semeval20181-2', 'ddi'] # TODO : Add TACRED
 MODELS = ["cnn", "pcnn", "crcnn", "gru", "bigru", "lstm", "bilstm", "bert_cls", "bert_entity"]
 PRETRAIN_WEIGHTS = ["bert-base-uncased", "dmis-lab/biobert-v1.1", "allenai/scibert_scivocab_uncased", "deepset/sentence_bert"]
-EMBEDDINGS = ["glove", "senna", "fasttext_wiki", "fasttext_crawl",]
+WORD_EMBEDDINGS = ["glove", "senna", "fasttext_wiki", "fasttext_crawl",]
 NLP_TOOLS = ["stanza", "spacy"]
 NLP_MODEL = ["general", "scientific"]
 HPARAMS = {
