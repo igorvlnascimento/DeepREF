@@ -300,9 +300,15 @@ class BERTEntityEncoder(nn.Module):
                 sk1 = ['[unused2]'] + sk1 + ['[unused3]'] if not rev else ['[unused0]'] + sk1 + ['[unused1]']
 
         if self.sk_embedding:
-            re_tokens = ['[CLS]'] + sent0 + ent0 + sent1 + ent1 + sent2 + sk0 + sk1 + ['[SEP]']
+            if self.sdp_embedding:
+                re_tokens = ['[CLS]'] + sent0 + ent0 + sent1 + ent1 + sent2 + sk0 + sk1 + sdp + ['[SEP]']
+            else:
+                re_tokens = ['[CLS]'] + sent0 + ent0 + sent1 + ent1 + sent2 + sk0 + sk1 + ['[SEP]']
         else:
-            re_tokens = ['[CLS]'] + sent0 + ent0 + sent1 + ent1 + sent2 + ['[SEP]']
+            if self.sdp_embedding:
+                re_tokens = ['[CLS]'] + sent0 + ent0 + sent1 + ent1 + sent2 + sdp + ['[SEP]']
+            else:
+                re_tokens = ['[CLS]'] + sent0 + ent0 + sent1 + ent1 + sent2 + ['[SEP]']
         pos1 = 2 + len(sent0) if not rev else 2 + len(sent0 + ent0 + sent1)
         pos2 = 2 + len(sent0 + ent0 + sent1) if not rev else 2 + len(sent0)
         pos1 = min(self.max_length - 1, pos1)
@@ -317,9 +323,6 @@ class BERTEntityEncoder(nn.Module):
             sk_pos2 = list(range(self.max_length - len(sk_pos2) - 1)) if sk_pos2[-1] > (self.max_length - 1) else sk_pos2
             sk_pos1 = sk_pos1[:2]
             sk_pos2 = sk_pos2[:2]
-        
-        if self.sdp_embedding:
-            re_tokens = re_tokens + sdp
                 
         indexed_tokens = self.tokenizer.convert_tokens_to_ids(re_tokens)
         avai_len = len(indexed_tokens)
