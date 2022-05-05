@@ -22,7 +22,8 @@ class Training():
                 self.max_length = parameters["max_length"]
                 self.opt = "adamw" if self.model == "bert_entity" or self.model == "bert_cls" else "sgd"
                 self.pretrain = parameters["pretrain"]
-                self.pos_embed = parameters["pos_tags_embed"]
+                self.position_embed = parameters["position_embed"]
+                self.pos_tags_embed = parameters["pos_tags_embed"]
                 self.deps_embed = parameters["deps_embed"]
                 self.sk_embed = parameters["sk_embed"]
                 self.batch_size = parameters["batch_size"]
@@ -209,7 +210,7 @@ class Training():
                                 pretrain_path=self.pretrain, 
                                 position_embedding=self.position_embed,
                                 sk_embedding=self.sk_embed,
-                                pos_tags_embedding=self.pos_embed,
+                                pos_tags_embedding=self.pos_tags_embed,
                                 deps_embedding=self.deps_embed,
                                 upos2id=upos2id,
                                 deps2id=deps2id

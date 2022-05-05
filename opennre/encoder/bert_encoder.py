@@ -22,6 +22,7 @@ class BERTEncoder(nn.Module):
             max_length: max length of sentence
             pretrain_path: path of pretrain model
         """
+        print("bert_cls")
         super().__init__()
         self.max_length = max_length
         self.blank_padding = blank_padding
@@ -126,6 +127,7 @@ class BERTEntityEncoder(nn.Module):
             max_length: max length of sentence
             pretrain_path: path of pretrain model
         """
+        print("bert_entity")
         super().__init__()
         self.upos2id = upos2id
         self.deps2id = deps2id

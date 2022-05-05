@@ -48,6 +48,7 @@ class AblationStudies():
                     continue
                 if index > self.exp - 1:
                 
+                    parameters["model"] = self.model
                     parameters["pos_tags_embed"] = embed[config.TYPE_EMBEDDINGS.index('pos_tags')]
                     parameters["deps_embed"] = embed[config.TYPE_EMBEDDINGS.index('deps')]
                     parameters["sk_embed"] = embed[config.TYPE_EMBEDDINGS.index('sk')]
