@@ -119,7 +119,8 @@ class BERTEntityEncoder(nn.Module):
                  position_embedding=False,
                  sk_embedding=False, 
                  pos_tags_embedding=False, 
-                 deps_embedding=False):
+                 deps_embedding=False,
+                 sdp_embedding=False):
         """
         Args:
             max_length: max length of sentence
@@ -138,6 +139,7 @@ class BERTEntityEncoder(nn.Module):
         self.sk_embedding = sk_embedding
         self.pos_tags_embedding = pos_tags_embedding
         self.deps_embedding = deps_embedding
+        self.sdp_embedding = sdp_embedding
         
         self.input_size = 768 * 2 + (self.position_embedding * self.max_length_embed * 2) + ((self.pos_tags_embedding + self.deps_embedding) * (self.max_length_embed * 2)) + self.sk_embedding * 768 * 2
         self.hidden_size = self.input_size // 4
@@ -161,6 +163,7 @@ class BERTEntityEncoder(nn.Module):
         print("deps:",self.deps_embedding)
         print("sk:",self.sk_embedding)
         print("position:",self.position_embedding)
+        print("sdp:",self.sdp_embedding)
 
     def forward(self, token, att_mask, pos1, pos2, sk_pos1, sk_pos2, pos_tag1, pos_tag2, deps1, deps2):
         """
@@ -255,11 +258,9 @@ class BERTEntityEncoder(nn.Module):
         
         pos_tags = []
         deps = []
-        if self.pos_tags_embedding:
-            pos_tags = item['pos'] if self.pos_tags_embedding else []
-        if self.deps_embedding:
-            deps = item['deps'] if self.deps_embedding else []
-
+        pos_tags = item['pos'] if self.pos_tags_embedding else []
+        deps = item['deps'] if self.deps_embedding else []
+        sdp = item['sdp'][1:-1] if self.sdp_embedding else []
         pos_min = pos_head
         pos_max = pos_tail
         if pos_head[0] > pos_tail[0]:
@@ -316,6 +317,9 @@ class BERTEntityEncoder(nn.Module):
             sk_pos2 = list(range(self.max_length - len(sk_pos2) - 1)) if sk_pos2[-1] > (self.max_length - 1) else sk_pos2
             sk_pos1 = sk_pos1[:2]
             sk_pos2 = sk_pos2[:2]
+        
+        if self.sdp_embedding:
+            re_tokens = re_tokens + sdp
                 
         indexed_tokens = self.tokenizer.convert_tokens_to_ids(re_tokens)
         avai_len = len(indexed_tokens)
