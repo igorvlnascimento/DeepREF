@@ -258,15 +258,3 @@ class ConverterDataset():
             if file.endswith(".csv"):
                 df = self.read_dataframe(os.path.join(output_path, file))
                 self.write_into_txt(df, os.path.join(output_path, file[:file.rfind('.')] + '.txt'))
-                parent_dir = output_path[:output_path.rfind('/')]
-                
-                dataset_type = 'test'
-                if '_train_' in file:
-                    dataset_type = 'train'
-                elif '_val_' in file:
-                    dataset_type = 'val'
-                elif '_test_' in file:
-                    dataset_type = 'test'
-                # self.sdp_write_into_txt(df, parent_dir + "/sdp/{}_{}_sdp.txt".format(self.dataset_name, dataset_type))
-                # self.sdp_write_into_txt(df, parent_dir + "/eb_sdp/{}_{}_eb_sdp.txt".format(self.dataset_name, dataset_type))
-                # self.sdp_write_into_txt(df, parent_dir + "/nb_sdp/{}_{}_nb_sdp.txt".format(self.dataset_name, dataset_type))
