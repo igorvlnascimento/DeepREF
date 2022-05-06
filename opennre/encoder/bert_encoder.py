@@ -319,8 +319,9 @@ class BERTEntityEncoder(nn.Module):
         sk_pos1 = []
         sk_pos2 = []
         if self.sk_embedding:
-            sk_pos1 = list(range(2 + len(sent0 + ent0+ sent1 + ent1 + sent2), 4 + len(sent0 + ent0+ sent1 + ent1 + sent2)))
+            sk_pos1 = list(range(2 + len(sent0 + ent0+ sent1 + ent1 + sent2), 2 + len(sent0 + ent0+ sent1 + ent1 + sent2 + sk0)))
             sk_pos2 = list(range(3 + sk_pos1[-1], len(re_tokens) - 2))
+            print(sk_pos2)
             sk_pos1 = list(range(self.max_length - len(sk_pos1) - 1)) if sk_pos1[-1] > (self.max_length - 1) else sk_pos1
             sk_pos2 = list(range(self.max_length - len(sk_pos2) - 1)) if sk_pos2[-1] > (self.max_length - 1) else sk_pos2
             sk_pos1 = sk_pos1[:2]
