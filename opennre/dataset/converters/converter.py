@@ -54,26 +54,27 @@ class ConverterDataset():
         tag_sentence = tag_sentence.replace('(','')
         tag_sentence = tag_sentence.replace(')','')
         tag_sentence_splitted = tag_sentence.split(" ")
-        e1_idx = tag_sentence_splitted.index("ENTITYEND") - 1
-        e2_idx = tag_sentence_splitted.index("ENTITYOTHEREND") - 1
+        e1_idx = tag_sentence_splitted.index(self.entity_name+"END") - 1
+        e2_idx = tag_sentence_splitted.index(self.entity_name+"OTHEREND") - 1
         new_tag_sentence_splitted = tag_sentence_splitted.copy()
-        new_tag_sentence_splitted.remove("ENTITYSTART")
-        new_tag_sentence_splitted.remove("ENTITYEND")
-        new_tag_sentence_splitted.remove("ENTITYOTHERSTART")
-        new_tag_sentence_splitted.remove("ENTITYOTHEREND")
+        new_tag_sentence_splitted.remove(self.entity_name+"START")
+        new_tag_sentence_splitted.remove(self.entity_name+"END")
+        new_tag_sentence_splitted.remove(self.entity_name+"OTHERSTART")
+        new_tag_sentence_splitted.remove(self.entity_name+"OTHEREND")
         new_sentence = " ".join(new_tag_sentence_splitted)
         doc = self.nlp(tag_sentence)
         doc_edges = self.nlp(new_sentence)
+        sdp = ''
         if self.nlp_tool == "spacy":
             tokenized = [token.text for token in doc]
             upos = [token.pos_ for token in doc]
             deps = [token.dep_.lower() for token in doc]
             ner = ["O"] * len(tokenized)
             edges = [(token.lower_, child.lower_) for token in doc_edges for child in token.children]
-            e1_idx = [i for i, token in enumerate(doc) if token.text == 'ENTITYEND'][0] - 1
-            e2_idx = [i for i, token in enumerate(doc) if token.text == 'ENTITYOTHEREND'][0] - 1
-            sdp = nx.shortest_path(nx.Graph(edges), source=doc[e1_idx].lower_, target=doc[e2_idx].lower_)
-            sdp = " ".join(sdp)
+            e1_idx = [i for i, token in enumerate(doc) if token.text == self.entity_name+'END'][0] - 1
+            e2_idx = [i for i, token in enumerate(doc) if token.text == self.entity_name+'OTHEREND'][0] - 1
+            #sdp = nx.shortest_path(nx.Graph(edges), source=doc[e1_idx].lower_, target=doc[e2_idx].lower_)
+            #sdp = " ".join(sdp)
             for ent in doc.ents:
                 for i in range(ent.start, ent.end):
                     ner[i] = ent.label_
@@ -83,7 +84,7 @@ class ConverterDataset():
             deps = [token.deprel for sent in doc.sentences for token in sent.words]
             ner = [token.ner for sent in doc.sentences for token in sent.tokens]
             edges = [(token[0].text.lower(), token[2].text) for token in doc_edges.sentences[0].dependencies if token[0].text.lower() != 'root']
-            sdp = nx.shortest_path(nx.Graph(edges), source=tag_sentence_splitted[e1_idx].lower(), target=tag_sentence_splitted[e2_idx].lower())
+            #sdp = nx.shortest_path(nx.Graph(edges), source=tag_sentence_splitted[e1_idx].lower(), target=tag_sentence_splitted[e2_idx].lower())
         assert len(tokenized) == len(upos) == len(deps) == len(ner)
         return tokenized, upos, deps, ner, sdp
 
