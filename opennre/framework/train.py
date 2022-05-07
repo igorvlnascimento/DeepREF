@@ -32,7 +32,7 @@ class Training():
                 
                 self.preprocessing_str = 'original'
                 if self.preprocessing != 0:
-                        self.preprocessing_str = "_".join(sorted(config.PREPROCESSING_COMBINATION[self.preprocessing]))
+                        self.preprocessing_str = "_".join(sorted(self.preprocessing))
                         print(self.preprocessing_str)
                         
                 self.hyper_params = {
@@ -198,7 +198,7 @@ class Training():
                         sentence_encoder = opennre.encoder.BERTEncoder(
                                 max_length=self.max_length, 
                                 pretrain_path=self.pretrain,
-                                pos_tags_embedding=self.pos_embed,
+                                pos_tags_embedding=self.pos_tags_embed,
                                 deps_embedding=self.deps_embed,
                                 upos2id=upos2id,
                                 deps2id=deps2id
@@ -212,6 +212,7 @@ class Training():
                                 sk_embedding=self.sk_embed,
                                 pos_tags_embedding=self.pos_tags_embed,
                                 deps_embedding=self.deps_embed,
+                                sdp_embedding=self.sdp_embed,
                                 upos2id=upos2id,
                                 deps2id=deps2id
                         )

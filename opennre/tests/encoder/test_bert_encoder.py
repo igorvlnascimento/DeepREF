@@ -19,7 +19,6 @@ def upos2id_and_deps2id():
     deps2id = json.loads(open(os.path.join('opennre', 'data', f'{DATASET}_deps2id.json'), 'r').read())
     return upos2id, deps2id
 
-#@mock.patch('opennre.encoder.bert_encoder.BERTEntityEncoder.__init__')
 def test_should_return_tokens_concatenated_with_sdp_without_entities_having_only_sdp_embedding(upos2id_and_deps2id):
     #mock_bert_entity.return_value = None
     upos2id, deps2id = upos2id_and_deps2id
@@ -29,7 +28,6 @@ def test_should_return_tokens_concatenated_with_sdp_without_entities_having_only
     indexed_token = result[0]
     assert (indexed_token == 0).nonzero(as_tuple=True)[1][0].item() == len(item["token"]) + len(item["sdp"][1:-1]) + 7
     
-#@mock.patch('opennre.encoder.bert_encoder.BERTEntityEncoder.__init__')
 def test_should_return_tokens_concatenated_with_empty_sdp_without_entities_having_only_sdp_emebdding(upos2id_and_deps2id):
     #mock_bert_entity.return_value = None
     upos2id, deps2id = upos2id_and_deps2id

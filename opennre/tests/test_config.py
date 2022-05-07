@@ -27,3 +27,6 @@ def test_should_return_correct_embeddings_combinations_while_combining(embedding
     embed_combination = config.combine(config.TYPE_EMBEDDINGS)
     assert len(embed_combination) == len(embeddings_combination)
     assert set(embed_combination) == set(embeddings_combination)
+    
+def test_should_contain_correct_embeddings_keys_for_config_hparams():
+    assert "sk_embed" in config.HPARAMS and "pos_tags_embed" in config.HPARAMS and "position_embed" in config.HPARAMS and "deps_embed" in config.HPARAMS

@@ -32,7 +32,7 @@ TYPE_EMBEDDINGS_COMBINATION = combine(TYPE_EMBEDDINGS)
 NLP_TOOLS = ["stanza", "spacy"]
 NLP_MODEL = ["general", "scientific"]
 HPARAMS = {
-    "model": "bert_cls",
+    "model": "bert_entity",
     "pretrain": "bert-base-uncased",
     "batch_size": 16,
     "preprocessing": [],

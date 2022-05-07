@@ -4,8 +4,6 @@ from opennre import config
 from unittest import mock
 
 import os
-import sys
-import subprocess
 
 @mock.patch('opennre.framework.train.Training.__init__')
 @mock.patch('opennre.framework.train.Training.train')
@@ -18,15 +16,6 @@ def test_should_return_only_sdp_experiments(mock_training, mock_training_init):
     only_sdp = sum(['sdp' in embed for embed in ablation["embeddings"]]) == len(ablation["embeddings"])
     assert only_sdp
     os.remove('opennre/ablation/semeval2010_bert_entity_ablation_studies.csv')
-    
-# @mock.patch('opennre.framework.train.Training.__init__')
-# @mock.patch('opennre.framework.train.Training.train')
-# def test_should_return_only_sdp_experiments_while_executing_on_line_command(mock_training, mock_training_init):
-#     mock_training_init.return_value = None
-#     mock_training.return_value = {'micro_f1': 0, 'macro_f1': 0}
-#     output = subprocess.check_output(['python', 'opennre/ablation/ablation_studies.py', '-e', 'sdp'])
-#     sys.stderr.write(str(output)+"\n")
-#     os.remove('opennre/ablation/semeval2010_bert_entity_ablation_studies.csv')
     
 @mock.patch('opennre.framework.train.Training.__init__')
 @mock.patch('opennre.framework.train.Training.train')
