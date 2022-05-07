@@ -150,7 +150,7 @@ class ConverterSemEval2010(ConverterDataset):
             dict["pos"] = row.upos_sentence.split(" ")
             dict["deps"] = row.deps_sentence.split(" ")
             dict["ner"] = row.ner_sentence.split(" ")
-            dict["sdp"] = row.sdp.split(" ")
+            #dict["sdp"] = row.sdp.split(" ")
             dict["relation"] = row.relation_type
             outfile.write(str(dict)+"\n")
         outfile.close()        
