@@ -303,12 +303,12 @@ class BERTEntityEncoder(nn.Module):
 
         if self.sk_embedding:
             if self.sdp_embedding:
-                re_tokens = ['[CLS]'] + sent0 + ent0 + sent1 + ent1 + sent2 + sk0 + sk1 + sdp + ['[SEP]']
+                re_tokens = ['[CLS]'] + sent0 + ent0 + sent1 + ent1 + sent2 + sk0 + sk1 + ['[SEP]']
             else:
                 re_tokens = ['[CLS]'] + sent0 + ent0 + sent1 + ent1 + sent2 + sk0 + sk1 + ['[SEP]']
         else:
             if self.sdp_embedding:
-                re_tokens = ['[CLS]'] + sent0 + ent0 + sent1 + ent1 + sent2 + sdp + ['[SEP]']
+                re_tokens = ['[CLS]'] + sent0 + ent0 + sent1 + ent1 + sent2 + ['[SEP]']
             else:
                 re_tokens = ['[CLS]'] + sent0 + ent0 + sent1 + ent1 + sent2 + ['[SEP]']
         pos1 = 2 + len(sent0) if not rev else 2 + len(sent0 + ent0 + sent1)
