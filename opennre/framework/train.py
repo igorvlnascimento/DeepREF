@@ -25,6 +25,7 @@ class Training():
                 self.position_embed = parameters["position_embed"]
                 self.pos_tags_embed = parameters["pos_tags_embed"]
                 self.deps_embed = parameters["deps_embed"]
+                self.sdp_embed = parameters["sdp_embed"]
                 self.sk_embed = parameters["sk_embed"]
                 self.batch_size = parameters["batch_size"]
                 self.lr = parameters["lr"]
