@@ -161,6 +161,7 @@ class BERTEntityEncoder(nn.Module):
         print("deps:",self.deps_embedding)
         print("sk:",self.sk_embedding)
         print("position:",self.position_embedding)
+        print("sdp:",self.sdp_embedding)
 
     def forward(self, token, att_mask, pos1, pos2, sk_pos1, sk_pos2, pos_tag1, pos_tag2, deps1, deps2):
         """
@@ -253,12 +254,8 @@ class BERTEntityEncoder(nn.Module):
         pos_head = item['h']['pos']
         pos_tail = item['t']['pos']
         
-        pos_tags = []
-        deps = []
-        if self.pos_tags_embedding:
-            pos_tags = item['pos'] if self.pos_tags_embedding else []
-        if self.deps_embedding:
-            deps = item['deps'] if self.deps_embedding else []
+        pos_tags = item['pos'] if self.pos_tags_embedding else []
+        deps = item['deps'] if self.deps_embedding else []
 
         pos_min = pos_head
         pos_max = pos_tail
@@ -281,12 +278,31 @@ class BERTEntityEncoder(nn.Module):
             sent1 = self.tokenizer.tokenize(' '.join(sentence[pos_min[1]:pos_max[0]]))
             ent1 = self.tokenizer.tokenize(' '.join(sentence[pos_max[0]:pos_max[1]]))
             sent2 = self.tokenizer.tokenize(' '.join(sentence[pos_max[1]:]))
-            
+        
+        re_tokens = []
+        sk_pos1 = []
+        sk_pos2 = []
         if self.sk_embedding:
             sk_ents = SemanticKNWL().extract([sentence[pos_head[0]:pos_head[1]][-1], sentence[pos_tail[0]:pos_tail[1]][-1]])
+            sk1_father = self.tokenizer.tokenize(sk_ents["ses1"][0])
+            sk1_grandpa = self.tokenizer.tokenize(sk_ents["ses1"][-1])
+            sk2_father = self.tokenizer.tokenize(sk_ents["ses2"][0])
+            sk2_grandpa = self.tokenizer.tokenize(sk_ents["ses2"][-1])
             
-            sk0 = self.tokenizer.tokenize(sk_ents["ses1"])
-            sk1 = self.tokenizer.tokenize(sk_ents["ses2"])
+            sk1 = ['[unused6]'] + sk1_father + sk1_grandpa + ['[unused7]'] if not rev else ['[unused8]'] + sk1_father + sk1_grandpa + ['[unused9]']
+            sk2 = ['[unused8]'] + sk2_father + sk2_grandpa + ['[unused9]'] if not rev else ['[unused6]'] + sk2_father + sk2_grandpa + ['[unused7]']
+            re_tokens = ['[CLS]'] + sent0 + ent0 + sent1 + ent1 + sent2 + sk1 + sk2 + ['[SEP]']
+            
+            sk_pos1_father = re_tokens.index('[unused6]') + 1 if not rev else re_tokens.index('[unused8]') + 1
+            sk_pos1_grandpa = re_tokens.index('[unused7]') - len(sk1_grandpa) if not rev else re_tokens.index('[unused9]') - len(sk1_grandpa)
+            sk_pos2_father = re_tokens.index('[unused8]') + 1 if not rev else re_tokens.index('[unused6]') + 1
+            sk_pos2_grandpa = re_tokens.index('[unused9]') - len(sk2_grandpa) if not rev else re_tokens.index('[unused7]') - len(sk2_grandpa)
+            sk_pos1_father = min(self.max_length - 1, sk_pos1_father)
+            sk_pos1_grandpa = min(self.max_length - 1, sk_pos1_grandpa)
+            sk_pos2_father = min(self.max_length - 1, sk_pos2_father)
+            sk_pos2_grandpa = min(self.max_length - 1, sk_pos2_grandpa)
+            sk_pos1 = [sk_pos1_father, sk_pos1_grandpa]
+            sk_pos2 = [sk_pos2_father, sk_pos2_grandpa]
 
         if self.mask_entity:
             ent0 = ['[unused4]'] if not rev else ['[unused5]']
@@ -294,28 +310,14 @@ class BERTEntityEncoder(nn.Module):
         else:
             ent0 = ['[unused0]'] + ent0 + ['[unused1]'] if not rev else ['[unused2]'] + ent0 + ['[unused3]']
             ent1 = ['[unused2]'] + ent1 + ['[unused3]'] if not rev else ['[unused0]'] + ent1 + ['[unused1]']
-            if self.sk_embedding:
-                sk0 = ['[unused0]'] + sk0 + ['[unused1]'] if not rev else ['[unused2]'] + sk0 + ['[unused3]']
-                sk1 = ['[unused2]'] + sk1 + ['[unused3]'] if not rev else ['[unused0]'] + sk1 + ['[unused1]']
 
-        if self.sk_embedding:
-            re_tokens = ['[CLS]'] + sent0 + ent0 + sent1 + ent1 + sent2 + sk0 + sk1 + ['[SEP]']
-        else:
+        if not re_tokens:
             re_tokens = ['[CLS]'] + sent0 + ent0 + sent1 + ent1 + sent2 + ['[SEP]']
+            
         pos1 = 2 + len(sent0) if not rev else 2 + len(sent0 + ent0 + sent1)
         pos2 = 2 + len(sent0 + ent0 + sent1) if not rev else 2 + len(sent0)
         pos1 = min(self.max_length - 1, pos1)
         pos2 = min(self.max_length - 1, pos2)
-        
-        sk_pos1 = []
-        sk_pos2 = []
-        if self.sk_embedding:
-            sk_pos1 = list(range(2 + len(sent0 + ent0+ sent1 + ent1 + sent2), 4 + len(sent0 + ent0+ sent1 + ent1 + sent2)))
-            sk_pos2 = list(range(3 + sk_pos1[-1], len(re_tokens) - 2))
-            sk_pos1 = list(range(self.max_length - len(sk_pos1) - 1)) if sk_pos1[-1] > (self.max_length - 1) else sk_pos1
-            sk_pos2 = list(range(self.max_length - len(sk_pos2) - 1)) if sk_pos2[-1] > (self.max_length - 1) else sk_pos2
-            sk_pos1 = sk_pos1[:2]
-            sk_pos2 = sk_pos2[:2]
                 
         indexed_tokens = self.tokenizer.convert_tokens_to_ids(re_tokens)
         avai_len = len(indexed_tokens)
