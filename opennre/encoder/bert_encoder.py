@@ -16,12 +16,14 @@ class BERTEncoder(nn.Module):
                  mask_entity=False, 
                  sk_embedding=False, 
                  pos_tags_embedding=False, 
-                 deps_embedding=False):
+                 deps_embedding=False,
+                 sdp_embedding=True):
         """
         Args:
             max_length: max length of sentence
             pretrain_path: path of pretrain model
         """
+        print("bert_cls")
         super().__init__()
         self.max_length = max_length
         self.blank_padding = blank_padding
@@ -119,12 +121,14 @@ class BERTEntityEncoder(nn.Module):
                  position_embedding=False,
                  sk_embedding=False, 
                  pos_tags_embedding=False, 
-                 deps_embedding=False):
+                 deps_embedding=False,
+                 sdp_embedding=False):
         """
         Args:
             max_length: max length of sentence
             pretrain_path: path of pretrain model
         """
+        print("bert_entity")
         super().__init__()
         self.upos2id = upos2id
         self.deps2id = deps2id
@@ -138,6 +142,7 @@ class BERTEntityEncoder(nn.Module):
         self.sk_embedding = sk_embedding
         self.pos_tags_embedding = pos_tags_embedding
         self.deps_embedding = deps_embedding
+        self.sdp_embedding = sdp_embedding
         
         self.input_size = 768 * 2 + (self.position_embedding * self.max_length_embed * 2) + ((self.pos_tags_embedding + self.deps_embedding) * (self.max_length_embed * 2)) + self.sk_embedding * 768 * 2
         self.hidden_size = self.input_size // 4
@@ -256,7 +261,7 @@ class BERTEntityEncoder(nn.Module):
         
         pos_tags = item['pos'] if self.pos_tags_embedding else []
         deps = item['deps'] if self.deps_embedding else []
-
+        sdp = item['sdp'][1:-1] if self.sdp_embedding else []
         pos_min = pos_head
         pos_max = pos_tail
         if pos_head[0] > pos_tail[0]:
@@ -314,6 +319,9 @@ class BERTEntityEncoder(nn.Module):
         if not re_tokens:
             re_tokens = ['[CLS]'] + sent0 + ent0 + sent1 + ent1 + sent2 + ['[SEP]']
             
+        if self.sdp_embedding:
+                re_tokens += sdp
+                
         pos1 = 2 + len(sent0) if not rev else 2 + len(sent0 + ent0 + sent1)
         pos2 = 2 + len(sent0 + ent0 + sent1) if not rev else 2 + len(sent0)
         pos1 = min(self.max_length - 1, pos1)

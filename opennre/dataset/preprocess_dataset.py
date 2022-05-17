@@ -9,7 +9,7 @@ from opennre.dataset.preprocess import Preprocess
 class PreprocessDataset():
     def __init__(self, dataset_name, preprocessing_type):
         self.dataset_name = dataset_name
-        self.preprocessing_type = sorted(config.PREPROCESSING_COMBINATION[preprocessing_type])
+        self.preprocessing_type = sorted(preprocessing_type)
         self.preprocessing_type_str = "_".join(self.preprocessing_type)
         self.output_path = os.path.join('benchmark', dataset_name, self.preprocessing_type_str)
 

@@ -1,11 +1,7 @@
-import os
 import glob
 from pyexpat import ExpatError
 from xml.dom import minidom
 import argparse
-import subprocess
-import spacy
-import stanza
 
 from opennre import config
 
@@ -119,12 +115,12 @@ class ConverterDDI(ConverterDataset):
                     self.get_entity_start_and_end(token, ending_token, tokens_for_indexing, upos_for_indexing, deps_for_indexing, ner_for_indexing)
 
                 ner = None
-                for i in range(e_idx[-1], e_idx[0], -1):
+                for i in range(e_idx[0][-1], e_idx[0][0], -1):
                     if ner_for_indexing[i] != 'O':
                         ner = ner_for_indexing[i]
                         
                 replace_by = {'entity': token[:-5], 'ner': (ner if ner is not None else 'O')}
-                entity_replacement = self.get_entity_replacement_dictionary(e_idx, entity_replacement, replace_by)
+                entity_replacement = self.get_entity_replacement_dictionary(e_idx[0], entity_replacement, replace_by)
                 if token == 'DRUGSTART' or token == 'DRUGEITHERSTART':
                     e1_idx.append(e_idx)
                 if token == 'DRUGOTHERSTART' or token == 'DRUGEITHERSTART':
@@ -167,7 +163,7 @@ class ConverterDDI(ConverterDataset):
                 e2_data = entity_dict[e2_id]
                 
                 tagged_sentence = self.tag_sentence(sentence_text, e1_data, e2_data, other_entities)
-                tokens, upos, deps, ner = self.tokenize(tagged_sentence)
+                tokens, upos, deps, ner, sdp = self.tokenize(tagged_sentence)
 
                 e1_idx, e2_idx, entity_replacement, tokens_for_indexing, upos_for_indexing, deps_for_indexing, ner_for_indexing = \
                         self.get_entity_positions_and_replacement_dictionary(tokens, upos, deps, ner)
@@ -233,8 +229,8 @@ class ConverterDDI(ConverterDataset):
                 row = df.iloc[i]
                 metadata = row.metadata
                 # TODO: need to change below in order to contain a sorted list of the positions
-                e1 = self.flatten_list_of_tuples(metadata['e1']['word_index'])
-                e2 = self.flatten_list_of_tuples(metadata['e2']['word_index'])
+                e1 = self.flatten_list_of_tuples(metadata['e1']['word_index'][0])
+                e2 = self.flatten_list_of_tuples(metadata['e2']['word_index'][0])
                 e1 = sorted(e1)
                 e2 = sorted(e2)
                 head["name"] = metadata['e1']['word']

@@ -1,23 +1,19 @@
-import argparse
-import json
 import os
-
+import json
+import argparse
 import pandas as pd
-
 from opennre import config
-
 from pathlib import Path
-
 from opennre.framework.train import Training
 
-EMBEDDINGS_COMBINATION = [[0,0,0,0],[0,0,0,1],[0,0,1,0],[0,0,1,1],[0,1,0,0],[0,1,0,1],[0,1,1,0],[0,1,1,1],[1,0,0,0],[1,0,0,1],[1,0,1,0],[1,0,1,1],[1,1,0,0],[1,1,0,1],[1,1,1,0],[1,1,1,1]]
-
 class AblationStudies():
-    def __init__(self, dataset, model, best_hparams):
+    def __init__(self, dataset, model, embeddings=[], best_hparams=False):
         self.dataset = dataset
         self.model = model
+        self.embeddings = embeddings
         self.csv_path = f'opennre/ablation/{self.dataset}_{self.model}_ablation_studies.csv'
         self.ablation = {'preprocessing': [], 'embeddings': [], 'micro_f1': [], 'macro_f1': []}
+        self.embeddings_combination = self.embed_combinations(len(config.TYPE_EMBEDDINGS))
         self.exp = 0
         
         if os.path.exists(self.csv_path):
@@ -29,8 +25,6 @@ class AblationStudies():
                 self.ablation['micro_f1'].append(data[2])
                 self.ablation['macro_f1'].append(data[3])
             self.exp = len(self.ablation['preprocessing'])
-            print(self.exp)
-            print(self.ablation)
         
         if not os.path.exists(config.BEST_HPARAMS_FILE_PATH.format(dataset)) or not best_hparams:
             dict_params = config.HPARAMS
@@ -41,20 +35,25 @@ class AblationStudies():
         with open(config.BEST_HPARAMS_FILE_PATH.format(dataset), 'r') as f:
             self.best_hparams = json.load(f)
             
-    def execute_ablation(self, having_preprocessing=None):
+    def execute_ablation(self):
         parameters = self.best_hparams
         parameters["dataset"] = self.dataset
-        
+
         index = 0
+        embed_indexes = [config.TYPE_EMBEDDINGS.index(embed) for embed in self.embeddings]
         for preprocessing in config.PREPROCESSING_COMBINATION:
-            for embed in EMBEDDINGS_COMBINATION:
-                
+            for embed in self.embeddings_combination:
+                has_embed = sum([embed[idx] for idx in embed_indexes]) == len(embed_indexes)
+                if not has_embed:
+                    continue
                 if index > self.exp - 1:
                 
-                    parameters["pos_tags_embed"] = embed[0]
-                    parameters["deps_embed"] = embed[1]
-                    parameters["sk_embed"] = embed[2]
-                    parameters["position_embed"] = embed[3]
+                    parameters["model"] = self.model
+                    parameters["pos_tags_embed"] = embed[config.TYPE_EMBEDDINGS.index('pos_tags')]
+                    parameters["deps_embed"] = embed[config.TYPE_EMBEDDINGS.index('deps')]
+                    parameters["sk_embed"] = embed[config.TYPE_EMBEDDINGS.index('sk')]
+                    parameters["position_embed"] = embed[config.TYPE_EMBEDDINGS.index('position')]
+                    parameters["sdp_embed"] = embed[config.TYPE_EMBEDDINGS.index('sdp')]
                     parameters["preprocessing"] = config.PREPROCESSING_COMBINATION.index(preprocessing)
                     
                     train = Training(self.dataset, parameters)
@@ -63,13 +62,15 @@ class AblationStudies():
                     micro_f1 = result["micro_f1"]
                     macro_f1 = result["macro_f1"]
                     
-                    self.ablation["preprocessing"].append(preprocessing)
-                    embeddings = ("pos_tag" * embed[0] + ' ' + "deps" * embed[1] + ' ' + "sk" * embed[2] + ' ' + "position" * embed[3]).strip()
-                    self.ablation["embeddings"].append(embeddings)
+                    embeddings = ''
+                    for i in range(len(config.TYPE_EMBEDDINGS)):
+                        embeddings += ' ' + config.TYPE_EMBEDDINGS[i] * embed[i]
+                    embeddings = embeddings.strip()          
                     self.ablation["macro_f1"].append(macro_f1)
                     self.ablation["micro_f1"].append(micro_f1)
+                    self.ablation["embeddings"].append(embeddings)
+                    self.ablation["preprocessing"].append(preprocessing)
                     
-                    print(self.ablation)
                     self.save_ablation()
                 
                 index += 1
@@ -80,16 +81,32 @@ class AblationStudies():
         df = pd.DataFrame.from_dict(self.ablation)
         filepath = Path(f'opennre/ablation/{self.dataset}_{self.model}_ablation_studies.csv')
         df.to_csv(filepath, index=False)
+        
+    def embed_combinations(self, number_of_combinations):
+        combinations = []
+        sum_binary = bin(0)
+        for _ in range(2**number_of_combinations):
+            list_comb = [int(i) for i in list(sum_binary[2:])]
+            list_comb = ((number_of_combinations - len(list_comb)) * [0]) + list_comb
+            sum_binary = bin(int(sum_binary, 2) + int("1", 2))
+            
+            if len(list_comb) == number_of_combinations:
+                combinations.append(list_comb)
+            
+        return combinations
+            
     
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('-d','--dataset', default="semeval2010", choices=config.DATASETS, 
                 help='Dataset')
-    parser.add_argument('-m','--model', default="bert_cls", choices=config.MODELS, 
+    parser.add_argument('-m','--model', default="bert_entity", choices=config.MODELS, 
                 help='Models')
+    parser.add_argument('-e','--embeddings', nargs="+", default=[], choices=config.TYPE_EMBEDDINGS, 
+                help='Embeddings')
     parser.add_argument('--best_hyperparameters', action='store_true', 
         help='Run with best hyperparameters (True) or default (False)')
     args = parser.parse_args()
     
-    ablation = AblationStudies(args.dataset, args.model, args.best_hyperparameters)
+    ablation = AblationStudies(args.dataset, args.model, args.embeddings, args.best_hyperparameters)
     ablation.execute_ablation()

@@ -95,7 +95,7 @@ class ConverterSemEval2010(ConverterDataset):
                 data.append([original_sentence.lower(), e1, e2, rel, metadata, tokenized_sent.lower(),tokenized_upos, tokenized_deps, tokenized_ner, edges])
 
             df = pd.DataFrame(data,
-                    columns='original_sentence,e1,e2,relation_type,metadata,tokenized_sentence,upos_sentence,deps_sentence,ner_sentence,edges'.split(','))
+                    columns='original_sentence,e1,e2,relation_type,metadata,tokenized_sentence,upos_sentence,deps_sentence,ner_sentence,sdp'.split(','))
             return df
 
     # The goal here is to make sure that the df that is written into memory is the same one that is read
@@ -150,43 +150,10 @@ class ConverterSemEval2010(ConverterDataset):
             dict["pos"] = row.upos_sentence.split(" ")
             dict["deps"] = row.deps_sentence.split(" ")
             dict["ner"] = row.ner_sentence.split(" ")
-            dict["sdp"] = row.sdp.split(" ")
+            #dict["sdp"] = row.sdp.split(" ")
             dict["relation"] = row.relation_type
             outfile.write(str(dict)+"\n")
-        outfile.close()
-            
-    # def sdp_write_into_txt(self, df, file_path):
-    #     path = file_path[:file_path.rfind('/')]
-    #     os.makedirs(path, exist_ok=True)
-    #     new_file = open(file_path, 'w')
-    #     blinding = 'eb_sdp' in file_path or 'nb_sdp' in file_path
-    #     for i in tqdm(range(len(df))):
-    #         dict = {}
-    #         row = df.iloc[i]
-    #         metadata = row.metadata
-    #         e1_idx = metadata['e1']['word_index'][0][-1]-1
-    #         e2_idx = metadata['e2']['word_index'][0][-1]-1
-    #         upos = row.upos_sentence.split(" ")
-    #         deps = row.deps_sentence.split(" ")
-    #         ner = row.ner_sentence.split(" ")
-    #         dict["token"] = row.sdp.split(" ")
-    #         if blinding:
-    #             if 'eb_sdp' in file_path:
-    #                 dict["token"][0] = self.entity_name
-    #                 dict["token"][-1] = self.entity_name
-    #             else:
-    #                 dict["token"][0] = ner[e1_idx]
-    #                 dict["token"][-1] = ner[e2_idx]
-    #         dict["h"] = {'name': metadata['e1']['word'], 'pos': [0, 1]}
-    #         dict["t"] = {'name': metadata['e2']['word'], 'pos': [len(dict["token"])-1, len(dict["token"])]}
-    #         dict["pos"] = [upos[e1_idx]] + ['X'] * (len(dict["token"]) - 2) + [upos[e2_idx]]
-    #         dict["deps"] = [deps[e1_idx]] + ['xcomp'] * (len(dict["token"]) - 2) + [deps[e2_idx]]
-    #         dict["ner"] = [ner[e1_idx]] + ['O'] * (len(dict["token"]) - 2) + [ner[e2_idx]]
-    #         dict["sdp"] = row.sdp.split(" ")
-    #         dict["relation"] = row.relation_type
-    #         new_file.write(str(dict)+"\n")
-    #     new_file.close()
-        
+        outfile.close()        
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()

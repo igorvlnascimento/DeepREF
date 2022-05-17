@@ -63,36 +63,6 @@ class Optimizer():
             self.best_result = result
         
         return new_value
-    
-    def evaluate_model(self, trial):
-        
-        model = trial.suggest_categorical("model", config.MODELS)
-        embedding = trial.suggest_categorical("embedding", config.PRETRAIN_WEIGHTS) if model == 'bert' else trial.suggest_categorical("embedding", config.EMBEDDINGS)
-        
-        parameters = self.best_hparams
-        parameters["dataset"] = self.dataset
-        parameters["metric"] = self.metric
-        parameters["model"] = model
-        parameters["embedding"] = embedding
-        
-        print("parameters:",parameters)
-        
-        train = Training(self.dataset, parameters, trial)
-        result = train.train()
-        new_value = result[self.metric]
-        
-        if new_value > self.value:
-            self.value = new_value
-            self.best_result = result
-        
-        return new_value
-
-    def optimize_model(self):
-        self.study_model.optimize(self.evaluate_model, n_trials=self.trials)
-    
-        params = self.study_model.best_params
-        
-        return params
         
     def optimize_hyperparameters(self):
         self.study_params.optimize(self.evaluate_hyperparameters, n_trials=self.trials)

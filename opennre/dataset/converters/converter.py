@@ -35,7 +35,7 @@ class ConverterDataset():
                 stanza.download('en', package=nlp_info["package"], processors={'ner': nlp_info["ner_model"]})
                 self.nlp = stanza.Pipeline(nlp_info["language_model"], package=nlp_info["package"], processors={"ner": nlp_info["ner_model"]}, tokenize_no_ssplit=True)
         elif nlp_tool == 'spacy':
-                #subprocess.call(["python", "-m", "spacy", "download", nlp_info["package"]])
+                subprocess.call(["python", "-m", "spacy", "download", nlp_info["package"]])
                 self.nlp = spacy.load(nlp_info["package"])
                 
         with open(config.RELATIONS_TYPE, 'r') as f:
@@ -54,26 +54,27 @@ class ConverterDataset():
         tag_sentence = tag_sentence.replace('(','')
         tag_sentence = tag_sentence.replace(')','')
         tag_sentence_splitted = tag_sentence.split(" ")
-        e1_idx = tag_sentence_splitted.index("ENTITYEND") - 1
-        e2_idx = tag_sentence_splitted.index("ENTITYOTHEREND") - 1
+        e1_idx = tag_sentence_splitted.index(self.entity_name+"END") - 1
+        e2_idx = tag_sentence_splitted.index(self.entity_name+"OTHEREND") - 1
         new_tag_sentence_splitted = tag_sentence_splitted.copy()
-        new_tag_sentence_splitted.remove("ENTITYSTART")
-        new_tag_sentence_splitted.remove("ENTITYEND")
-        new_tag_sentence_splitted.remove("ENTITYOTHERSTART")
-        new_tag_sentence_splitted.remove("ENTITYOTHEREND")
+        new_tag_sentence_splitted.remove(self.entity_name+"START")
+        new_tag_sentence_splitted.remove(self.entity_name+"END")
+        new_tag_sentence_splitted.remove(self.entity_name+"OTHERSTART")
+        new_tag_sentence_splitted.remove(self.entity_name+"OTHEREND")
         new_sentence = " ".join(new_tag_sentence_splitted)
         doc = self.nlp(tag_sentence)
         doc_edges = self.nlp(new_sentence)
+        sdp = ''
         if self.nlp_tool == "spacy":
             tokenized = [token.text for token in doc]
             upos = [token.pos_ for token in doc]
             deps = [token.dep_.lower() for token in doc]
             ner = ["O"] * len(tokenized)
             edges = [(token.lower_, child.lower_) for token in doc_edges for child in token.children]
-            e1_idx = [i for i, token in enumerate(doc) if token.text == 'ENTITYEND'][0] - 1
-            e2_idx = [i for i, token in enumerate(doc) if token.text == 'ENTITYOTHEREND'][0] - 1
-            sdp = nx.shortest_path(nx.Graph(edges), source=doc[e1_idx].lower_, target=doc[e2_idx].lower_)
-            sdp = " ".join(sdp)
+            e1_idx = [i for i, token in enumerate(doc) if token.text == self.entity_name+'END'][0] - 1
+            e2_idx = [i for i, token in enumerate(doc) if token.text == self.entity_name+'OTHEREND'][0] - 1
+            #sdp = nx.shortest_path(nx.Graph(edges), source=doc[e1_idx].lower_, target=doc[e2_idx].lower_)
+            #sdp = " ".join(sdp)
             for ent in doc.ents:
                 for i in range(ent.start, ent.end):
                     ner[i] = ent.label_
@@ -83,7 +84,7 @@ class ConverterDataset():
             deps = [token.deprel for sent in doc.sentences for token in sent.words]
             ner = [token.ner for sent in doc.sentences for token in sent.tokens]
             edges = [(token[0].text.lower(), token[2].text) for token in doc_edges.sentences[0].dependencies if token[0].text.lower() != 'root']
-            sdp = nx.shortest_path(nx.Graph(edges), source=tag_sentence_splitted[e1_idx].lower(), target=tag_sentence_splitted[e2_idx].lower())
+            #sdp = nx.shortest_path(nx.Graph(edges), source=tag_sentence_splitted[e1_idx].lower(), target=tag_sentence_splitted[e2_idx].lower())
         assert len(tokenized) == len(upos) == len(deps) == len(ner)
         return tokenized, upos, deps, ner, sdp
 
@@ -258,15 +259,3 @@ class ConverterDataset():
             if file.endswith(".csv"):
                 df = self.read_dataframe(os.path.join(output_path, file))
                 self.write_into_txt(df, os.path.join(output_path, file[:file.rfind('.')] + '.txt'))
-                parent_dir = output_path[:output_path.rfind('/')]
-                
-                dataset_type = 'test'
-                if '_train_' in file:
-                    dataset_type = 'train'
-                elif '_val_' in file:
-                    dataset_type = 'val'
-                elif '_test_' in file:
-                    dataset_type = 'test'
-                # self.sdp_write_into_txt(df, parent_dir + "/sdp/{}_{}_sdp.txt".format(self.dataset_name, dataset_type))
-                # self.sdp_write_into_txt(df, parent_dir + "/eb_sdp/{}_{}_eb_sdp.txt".format(self.dataset_name, dataset_type))
-                # self.sdp_write_into_txt(df, parent_dir + "/nb_sdp/{}_{}_nb_sdp.txt".format(self.dataset_name, dataset_type))
