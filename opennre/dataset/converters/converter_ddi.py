@@ -7,6 +7,7 @@ from opennre import config
 
 import pandas as pd
 from tqdm import tqdm
+from pathlib import Path
 
 from opennre.dataset.converters.converter import ConverterDataset
 
@@ -134,12 +135,12 @@ class ConverterDDI(ConverterDataset):
         '''
         data = []
         print(directory)
-        total_files_to_read = glob.glob(directory + '**/*.xml', recursive=True)
-        print('total_files_to_read:' , len(total_files_to_read) , ' from dir: ' , directory)
+        total_files_to_read = Path(directory).rglob('*.xml')
+        #print('total_files_to_read:' , len(total_files_to_read) , ' from dir: ' , directory)
         sentences_file = []
         for file in tqdm(total_files_to_read):
             try:
-                DOMTree = minidom.parse(file)
+                DOMTree = minidom.parse(str(file))
                 sentences_file.append(DOMTree.getElementsByTagName('sentence'))
             except ExpatError:
                 pass
@@ -163,7 +164,7 @@ class ConverterDDI(ConverterDataset):
                 e2_data = entity_dict[e2_id]
                 
                 tagged_sentence = self.tag_sentence(sentence_text, e1_data, e2_data, other_entities)
-                tokens, upos, deps, ner, sdp = self.tokenize(tagged_sentence)
+                tokens, upos, deps, ner = self.tokenize(tagged_sentence)
 
                 e1_idx, e2_idx, entity_replacement, tokens_for_indexing, upos_for_indexing, deps_for_indexing, ner_for_indexing = \
                         self.get_entity_positions_and_replacement_dictionary(tokens, upos, deps, ner)

@@ -70,9 +70,9 @@ class ConverterDataset():
             upos = [token.pos_ for token in doc]
             deps = [token.dep_.lower() for token in doc]
             ner = ["O"] * len(tokenized)
-            edges = [(token.lower_, child.lower_) for token in doc_edges for child in token.children]
-            e1_idx = [i for i, token in enumerate(doc) if token.text == self.entity_name+'END'][0] - 1
-            e2_idx = [i for i, token in enumerate(doc) if token.text == self.entity_name+'OTHEREND'][0] - 1
+            # edges = [(token.lower_, child.lower_) for token in doc_edges for child in token.children]
+            # e1_idx = [i for i, token in enumerate(doc) if token.text == self.entity_name+'END'][0] - 1
+            # e2_idx = [i for i, token in enumerate(doc) if token.text == self.entity_name+'OTHEREND'][0] - 1
             #sdp = nx.shortest_path(nx.Graph(edges), source=doc[e1_idx].lower_, target=doc[e2_idx].lower_)
             #sdp = " ".join(sdp)
             for ent in doc.ents:
@@ -83,10 +83,10 @@ class ConverterDataset():
             upos = [token.upos for sent in doc.sentences for token in sent.words]
             deps = [token.deprel for sent in doc.sentences for token in sent.words]
             ner = [token.ner for sent in doc.sentences for token in sent.tokens]
-            edges = [(token[0].text.lower(), token[2].text) for token in doc_edges.sentences[0].dependencies if token[0].text.lower() != 'root']
-            #sdp = nx.shortest_path(nx.Graph(edges), source=tag_sentence_splitted[e1_idx].lower(), target=tag_sentence_splitted[e2_idx].lower())
+            # edges = [(token[0].text.lower(), token[2].text) for token in doc_edges.sentences[0].dependencies if token[0].text.lower() != 'root']
+            # sdp = nx.shortest_path(nx.Graph(edges), source=tag_sentence_splitted[e1_idx].lower(), target=tag_sentence_splitted[e2_idx].lower())
         assert len(tokenized) == len(upos) == len(deps) == len(ner)
-        return tokenized, upos, deps, ner, sdp
+        return tokenized, upos, deps, ner#, sdp
 
     # remove any additional whitespace within a line
     def remove_whitespace(self, line):

@@ -59,15 +59,21 @@ class AblationStudies():
                     train = Training(self.dataset, parameters)
                     
                     result = train.train()
+                    acc = result["acc"]
+                    micro_p = result["micro_p"]
+                    micro_r = result["micro_r"]
                     micro_f1 = result["micro_f1"]
                     macro_f1 = result["macro_f1"]
                     
                     embeddings = ''
                     for i in range(len(config.TYPE_EMBEDDINGS)):
                         embeddings += ' ' + config.TYPE_EMBEDDINGS[i] * embed[i]
-                    embeddings = embeddings.strip()          
-                    self.ablation["macro_f1"].append(macro_f1)
+                    embeddings = embeddings.strip()
+                    self.ablation["acc"].append(acc)
+                    self.ablation["micro_p"].append(micro_p)
+                    self.ablation["micro_r"].append(micro_r)
                     self.ablation["micro_f1"].append(micro_f1)
+                    self.ablation["macro_f1"].append(macro_f1)
                     self.ablation["embeddings"].append(embeddings)
                     self.ablation["preprocessing"].append(preprocessing)
                     

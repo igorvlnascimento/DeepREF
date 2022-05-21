@@ -58,7 +58,7 @@ class ConverterSemEval2010(ConverterDataset):
                 sent = sent.replace('</e2>', ' ENTITYOTHEREND ')
                 sent = self.remove_whitespace(sent) # to get rid of additional white space
 
-                tokens, upos, deps, ner, edges = self.tokenize(sent)
+                tokens, upos, deps, ner = self.tokenize(sent)
                 start_with_e1 = True
                 for token in tokens:
                     if token == 'ENTITYSTART':

@@ -154,12 +154,12 @@ class ConverterSemEval2018(ConverterDataset):
                     self.get_entity_start_and_end(token, ending_token, tokens_for_indexing, upos_for_indexing, deps_for_indexing, ner_for_indexing)
 
                 ner = None
-                for i in range(e_idx[-1], e_idx[0], -1):
+                for i in range(e_idx[0][-1], e_idx[0][0], -1):
                     if ner_for_indexing[i] != 'O':
                         ner = ner_for_indexing[i]
                         
                 replace_by = {'entity': token[:-5], 'ner': (ner if ner is not None else 'O')}
-                entity_replacement = self.get_entity_replacement_dictionary(e_idx, entity_replacement, replace_by)
+                entity_replacement = self.get_entity_replacement_dictionary(e_idx[0], entity_replacement, replace_by)
                 if token == 'ENTITYSTART' or token == 'ENTITYEITHERSTART':
                     e1_idx.append(e_idx)
                 if token == 'ENTITYOTHERSTART' or token == 'ENTITYEITHERSTART':
@@ -365,8 +365,8 @@ class ConverterSemEval2018(ConverterDataset):
                 row = df.iloc[i]
                 metadata = row.metadata
                 # TODO: need to change below in order to contain a sorted list of the positions
-                e1 = self.flatten_list_of_tuples(metadata['e1']['word_index'])
-                e2 = self.flatten_list_of_tuples(metadata['e2']['word_index'])
+                e1 = self.flatten_list_of_tuples(metadata['e1']['word_index'][0])
+                e2 = self.flatten_list_of_tuples(metadata['e2']['word_index'][0])
                 e1 = sorted(e1)
                 e2 = sorted(e2)
                 head["name"] = metadata['e1']['word']
