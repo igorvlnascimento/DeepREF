@@ -261,7 +261,7 @@ class BERTEntityEncoder(nn.Module):
         
         pos_tags = item['pos'] if self.pos_tags_embedding else []
         deps = item['deps'] if self.deps_embedding else []
-        sdp = item['sdp'][1:-1] if self.sdp_embedding else []
+        #sdp = item['sdp'][1:-1] if self.sdp_embedding else []
         pos_min = pos_head
         pos_max = pos_tail
         if pos_head[0] > pos_tail[0]:
@@ -319,8 +319,8 @@ class BERTEntityEncoder(nn.Module):
         if not re_tokens:
             re_tokens = ['[CLS]'] + sent0 + ent0 + sent1 + ent1 + sent2 + ['[SEP]']
             
-        if self.sdp_embedding:
-                re_tokens += sdp
+        # if self.sdp_embedding:
+        #         re_tokens += sdp
                 
         pos1 = 2 + len(sent0) if not rev else 2 + len(sent0 + ent0 + sent1)
         pos2 = 2 + len(sent0 + ent0 + sent1) if not rev else 2 + len(sent0)
