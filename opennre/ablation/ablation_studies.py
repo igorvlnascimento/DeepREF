@@ -12,7 +12,7 @@ class AblationStudies():
         self.model = model
         self.embeddings = embeddings
         self.csv_path = f'opennre/ablation/{self.dataset}_{self.model}_ablation_studies.csv'
-        self.ablation = {'preprocessing': [], 'embeddings': [], 'micro_f1': [], 'macro_f1': []}
+        self.ablation = {'preprocessing': [], 'embeddings': [], 'acc': [], 'micro_p':[], 'micro_r': [], 'micro_f1': [], 'macro_f1': []}
         self.embeddings_combination = self.embed_combinations(len(config.TYPE_EMBEDDINGS))
         self.exp = 0
         
