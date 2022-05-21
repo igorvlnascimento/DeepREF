@@ -92,10 +92,10 @@ class ConverterSemEval2010(ConverterDataset):
                 tokenized_deps = " ".join(deps)
                 tokenized_ner = " ".join(ner)
                 original_sentence = self.get_original_sentence(sent) # just to write into the dataframe, sent is manipulated
-                data.append([original_sentence.lower(), e1, e2, rel, metadata, tokenized_sent.lower(),tokenized_upos, tokenized_deps, tokenized_ner, edges])
+                data.append([original_sentence.lower(), e1, e2, rel, metadata, tokenized_sent.lower(),tokenized_upos, tokenized_deps, tokenized_ner])
 
             df = pd.DataFrame(data,
-                    columns='original_sentence,e1,e2,relation_type,metadata,tokenized_sentence,upos_sentence,deps_sentence,ner_sentence,sdp'.split(','))
+                    columns='original_sentence,e1,e2,relation_type,metadata,tokenized_sentence,upos_sentence,deps_sentence,ner_sentence'.split(','))
             return df
 
     # The goal here is to make sure that the df that is written into memory is the same one that is read
