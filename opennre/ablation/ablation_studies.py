@@ -54,7 +54,7 @@ class AblationStudies():
                     parameters["sk_embed"] = embed[config.TYPE_EMBEDDINGS.index('sk')]
                     parameters["position_embed"] = embed[config.TYPE_EMBEDDINGS.index('position')]
                     parameters["sdp_embed"] = embed[config.TYPE_EMBEDDINGS.index('sdp')]
-                    parameters["preprocessing"] = config.PREPROCESSING_COMBINATION.index(preprocessing)
+                    parameters["preprocessing"] = preprocessing
                     
                     train = Training(self.dataset, parameters)
                     
