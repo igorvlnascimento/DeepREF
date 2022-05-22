@@ -303,8 +303,8 @@ class Preprocess():
     
     def generate_tagged_sentence(self, row):
         sentence = row.tokenized_sentence.split(" ")
-        e1_indexes = row.metadata['e1']['word_index']
-        e2_indexes = row.metadata['e2']['word_index']
+        e1_indexes = row.metadata['e1']['word_index'][0]
+        e2_indexes = row.metadata['e2']['word_index'][0]
         if not 'ESTART' in sentence and not 'EEND' in sentence:
             sentence = self.get_new_sentence_with_entity_replacement(sentence, e1_indexes, e2_indexes)
         

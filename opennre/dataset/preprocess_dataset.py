@@ -9,7 +9,9 @@ from opennre.dataset.preprocess import Preprocess
 class PreprocessDataset():
     def __init__(self, dataset_name, preprocessing_type):
         self.dataset_name = dataset_name
-        self.preprocessing_type = sorted(preprocessing_type)
+        self.preprocessing_type = []
+        if len(preprocessing_type):
+            self.preprocessing_type = sorted(preprocessing_type)[0]
         self.preprocessing_type_str = "_".join(self.preprocessing_type)
         self.output_path = os.path.join('benchmark', dataset_name, self.preprocessing_type_str)
 
@@ -72,13 +74,15 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('-d', '--dataset', type=str, required=True, choices=config.DATASETS,
         help='Dataset name')
+    parser.add_argument('-p', '--preprocessing', type=list, required=True, choices=config.PREPROCESSING_COMBINATION, nargs='+',
+        help='Preprocessing types')
     
     args = parser.parse_args()
     
     with open(config.BEST_HPARAMS_FILE_PATH.format(args.dataset), 'r') as f:
         best_hparams = json.load(f)
         
-    preprocess_dataset = PreprocessDataset(args.dataset, best_hparams["preprocessing"])
+    preprocess_dataset = PreprocessDataset(args.dataset, args.preprocessing)
     preprocess_dataset.preprocess_dataset()
 
 
