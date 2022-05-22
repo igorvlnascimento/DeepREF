@@ -22,9 +22,13 @@ class AblationStudies():
             for data in ablation["data"]:
                 self.ablation['preprocessing'].append(data[0])
                 self.ablation['embeddings'].append(data[1])
-                self.ablation['micro_f1'].append(data[2])
-                self.ablation['macro_f1'].append(data[3])
+                self.ablation['acc'].append(data[2])
+                self.ablation['micro_p'].append(data[3])
+                self.ablation['micro_r'].append(data[4])
+                self.ablation['micro_f1'].append(data[5])
+                self.ablation['macro_f1'].append(data[6])
             self.exp = len(self.ablation['preprocessing'])
+            print(len(self.ablation["preprocessing"]))
         
         if not os.path.exists(config.BEST_HPARAMS_FILE_PATH.format(dataset)) or not best_hparams:
             dict_params = config.HPARAMS
