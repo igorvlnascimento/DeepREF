@@ -1,9 +1,8 @@
 import logging
-from turtle import pos
 import torch
 import torch.nn.functional as F
 import torch.nn as nn
-from ..utils.semantic_knowledge import SemanticKNWL
+from ast import literal_eval
 from transformers import AutoTokenizer, AutoModel
 
 class BERTEncoder(nn.Module):
@@ -271,6 +270,8 @@ class BERTEntityEncoder(nn.Module):
         else:
             rev = False
             
+        
+            
         if not is_token:
             sent0 = self.tokenizer.tokenize(sentence[:pos_min[0]])
             ent0 = self.tokenizer.tokenize(sentence[pos_min[0]:pos_min[1]])
@@ -288,11 +289,11 @@ class BERTEntityEncoder(nn.Module):
         sk_pos1 = []
         sk_pos2 = []
         if self.sk_embedding:
-            sk_ents = SemanticKNWL().extract([sentence[pos_head[0]:pos_head[1]][-1], sentence[pos_tail[0]:pos_tail[1]][-1]])
-            sk1_father = self.tokenizer.tokenize(sk_ents["ses1"][0])
-            sk1_grandpa = self.tokenizer.tokenize(sk_ents["ses1"][-1])
-            sk2_father = self.tokenizer.tokenize(sk_ents["ses2"][0])
-            sk2_grandpa = self.tokenizer.tokenize(sk_ents["ses2"][-1])
+            sk_ents = item["sk"]
+            sk1_father = self.tokenizer.tokenize(literal_eval(sk_ents)["ses1"][0])
+            sk1_grandpa = self.tokenizer.tokenize(literal_eval(sk_ents)["ses1"][-1])
+            sk2_father = self.tokenizer.tokenize(literal_eval(sk_ents)["ses2"][0])
+            sk2_grandpa = self.tokenizer.tokenize(literal_eval(sk_ents)["ses2"][-1])
             
             sk1 = ['[unused6]'] + sk1_father + sk1_grandpa + ['[unused7]'] if not rev else ['[unused8]'] + sk1_father + sk1_grandpa + ['[unused9]']
             sk2 = ['[unused8]'] + sk2_father + sk2_grandpa + ['[unused9]'] if not rev else ['[unused6]'] + sk2_father + sk2_grandpa + ['[unused7]']
@@ -330,13 +331,13 @@ class BERTEntityEncoder(nn.Module):
         indexed_tokens = self.tokenizer.convert_tokens_to_ids(re_tokens)
         avai_len = len(indexed_tokens)
         
-        if self.sk_embedding:
-            sk_ents = SemanticKNWL().extract([sentence[pos_head[0]:pos_head[1]][-1], sentence[pos_tail[0]:pos_tail[1]][-1]])
+        # if self.sk_embedding:
+        #     sk_ents = SemanticKNWL().extract([sentence[pos_head[0]:pos_head[1]][-1], sentence[pos_tail[0]:pos_tail[1]][-1]])
         
-            indexed_tokens_sk1 = self.tokenizer.convert_tokens_to_ids(sk_ents["ses1"])
-            indexed_tokens_sk2 = self.tokenizer.convert_tokens_to_ids(sk_ents["ses2"])
+        #     indexed_tokens_sk1 = self.tokenizer.convert_tokens_to_ids(sk_ents["ses1"])
+        #     indexed_tokens_sk2 = self.tokenizer.convert_tokens_to_ids(sk_ents["ses2"])
             
-            indexed_tokens = indexed_tokens + indexed_tokens_sk1 + indexed_tokens_sk2
+        #     indexed_tokens = indexed_tokens + indexed_tokens_sk1 + indexed_tokens_sk2
             
         pos_tag1 = self.upos2id[pos_tags[pos_head[0]]] if self.pos_tags_embedding else []
         pos_tag2 = self.upos2id[pos_tags[pos_tail[0]]] if self.pos_tags_embedding else []

@@ -275,7 +275,7 @@ class ConverterSemEval2018(ConverterDataset):
                                 continue
                             
                             tagged_sentence = self.tag_sentence(sentence, e1_data, e2_data, other_entities)
-                            tokens, upos, deps, ner = self.tokenize(tagged_sentence)
+                            tokens, upos, deps, ner, sk = self.tokenize(tagged_sentence)
                             
                             # rev_tokens = self.reverse_sentence(tokens)
                             # rev_tokens_copy = rev_tokens.copy()
@@ -315,7 +315,7 @@ class ConverterSemEval2018(ConverterDataset):
                             relation_type = pair[0].lower()
                             if not not relation_type: # not of empty string is True, but we don't want to append
                                 data.append([str(sentence.lower()), str(e1_data['word']).lower(), str(e2_data['word']).lower(),
-                                        str(relation_type), metadata, str(tokenized_sentence.lower()), new_upos, new_deps, new_ner])
+                                        str(relation_type), metadata, str(tokenized_sentence.lower()), new_upos, new_deps, new_ner, sk])
                                 #if reverse:
                                 #    data.append([str(rev_sentence.lower()), str(e1_data['word']).lower(), str(e2_data['word']).lower(),
                                 #            str(relation_type), rev_metadata, str(rev_tokenized_sentence.lower())])
@@ -344,7 +344,7 @@ class ConverterSemEval2018(ConverterDataset):
                             #             str(relation_type), rev_metadata, str(tokenized_sentence.lower())])
 
         df = pd.DataFrame(data,
-                columns='original_sentence,e1,e2,relation_type,metadata,tokenized_sentence,upos_sentence,deps_sentence,ner_sentence'.split(','))
+                columns='original_sentence,e1,e2,relation_type,metadata,tokenized_sentence,upos_sentence,deps_sentence,ner_sentence,sk'.split(','))
         return df
     
     # write the dataframe into the text format accepted by the cnn model
@@ -386,6 +386,7 @@ class ConverterSemEval2018(ConverterDataset):
                 dict["pos"] = row.upos_sentence.split(" ")
                 dict["deps"] = row.deps_sentence.split(" ")
                 dict["ner"] = row.ner_sentence.split(" ")
+                dict["sk"] = row.sk
                 dict["relation"] = row.relation_type
                 outfile.write(str(dict)+"\n")
             outfile.close()

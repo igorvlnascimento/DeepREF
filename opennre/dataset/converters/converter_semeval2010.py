@@ -58,7 +58,7 @@ class ConverterSemEval2010(ConverterDataset):
                 sent = sent.replace('</e2>', ' ENTITYOTHEREND ')
                 sent = self.remove_whitespace(sent) # to get rid of additional white space
 
-                tokens, upos, deps, ner = self.tokenize(sent)
+                tokens, upos, deps, ner, sk = self.tokenize(sent)
                 start_with_e1 = True
                 for token in tokens:
                     if token == 'ENTITYSTART':
@@ -92,10 +92,10 @@ class ConverterSemEval2010(ConverterDataset):
                 tokenized_deps = " ".join(deps)
                 tokenized_ner = " ".join(ner)
                 original_sentence = self.get_original_sentence(sent) # just to write into the dataframe, sent is manipulated
-                data.append([original_sentence.lower(), e1, e2, rel, metadata, tokenized_sent.lower(),tokenized_upos, tokenized_deps, tokenized_ner])
+                data.append([original_sentence.lower(), e1, e2, rel, metadata, tokenized_sent.lower(),tokenized_upos, tokenized_deps, tokenized_ner, sk])
 
             df = pd.DataFrame(data,
-                    columns='original_sentence,e1,e2,relation_type,metadata,tokenized_sentence,upos_sentence,deps_sentence,ner_sentence'.split(','))
+                    columns='original_sentence,e1,e2,relation_type,metadata,tokenized_sentence,upos_sentence,deps_sentence,ner_sentence,sk'.split(','))
             return df
 
     # The goal here is to make sure that the df that is written into memory is the same one that is read
@@ -150,6 +150,7 @@ class ConverterSemEval2010(ConverterDataset):
             dict["pos"] = row.upos_sentence.split(" ")
             dict["deps"] = row.deps_sentence.split(" ")
             dict["ner"] = row.ner_sentence.split(" ")
+            dict["sk"] = row.sk
             #dict["sdp"] = row.sdp.split(" ")
             dict["relation"] = row.relation_type
             outfile.write(str(dict)+"\n")

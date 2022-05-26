@@ -164,7 +164,7 @@ class ConverterDDI(ConverterDataset):
                 e2_data = entity_dict[e2_id]
                 
                 tagged_sentence = self.tag_sentence(sentence_text, e1_data, e2_data, other_entities)
-                tokens, upos, deps, ner = self.tokenize(tagged_sentence)
+                tokens, upos, deps, ner, sk = self.tokenize(tagged_sentence)
 
                 e1_idx, e2_idx, entity_replacement, tokens_for_indexing, upos_for_indexing, deps_for_indexing, ner_for_indexing = \
                         self.get_entity_positions_and_replacement_dictionary(tokens, upos, deps, ner)
@@ -185,15 +185,15 @@ class ConverterDDI(ConverterDataset):
                 if relation_extraction is True and ddi_flag == 'false':
                     relation_type = 'none'
                     data.append([sentence_text, e1_data['word'], e2_data['word'],
-                        relation_type, metadata, tokenized_sentence, new_upos, new_deps, new_ner])
+                        relation_type, metadata, tokenized_sentence, new_upos, new_deps, new_ner, sk])
                 if ddi_flag == 'true':
                     relation_type = pair.getAttribute('type')
                     if not not relation_type: # not of empty string is True, but we don't want to append
                         data.append([str(sentence_text).lower(), str(e1_data['word']), str(e2_data['word']),
-                            str(relation_type), metadata, str(tokenized_sentence).lower(), new_upos, new_deps, new_ner])
+                            str(relation_type), metadata, str(tokenized_sentence).lower(), new_upos, new_deps, new_ner, sk])
 
         df = pd.DataFrame(data,
-                columns='original_sentence,e1,e2,relation_type,metadata,tokenized_sentence,upos_sentence,deps_sentence,ner_sentence'.split(','))
+                columns='original_sentence,e1,e2,relation_type,metadata,tokenized_sentence,upos_sentence,deps_sentence,ner_sentence,sk'.split(','))
         return df
     
     # The goal here is to make sure that the df that is written into memory is the same one that is read
@@ -251,6 +251,7 @@ class ConverterDDI(ConverterDataset):
                 dict["pos"] = row.upos_sentence.split(" ")
                 dict["deps"] = row.deps_sentence.split(" ")
                 dict["ner"] = row.ner_sentence.split(" ")
+                dict["sk"] = row.sk
                 dict["relation"] = row.relation_type
                 outfile.write(str(dict)+"\n")
             outfile.close()

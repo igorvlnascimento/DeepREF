@@ -10,6 +10,7 @@ import pandas as pd
 import networkx as nx
 
 from opennre import config
+from opennre.utils.semantic_knowledge import SemanticKNWL
 
 class ConverterDataset():
     
@@ -63,8 +64,9 @@ class ConverterDataset():
         new_tag_sentence_splitted.remove(self.entity_name+"OTHEREND")
         new_sentence = " ".join(new_tag_sentence_splitted)
         doc = self.nlp(tag_sentence)
-        doc_edges = self.nlp(new_sentence)
-        sdp = ''
+        #doc_edges = self.nlp(new_sentence)
+        #sdp = ''
+        sk = SemanticKNWL().extract([tag_sentence_splitted[e1_idx].lower(), tag_sentence_splitted[e2_idx].lower()])
         if self.nlp_tool == "spacy":
             tokenized = [token.text for token in doc]
             upos = [token.pos_ for token in doc]
@@ -85,8 +87,8 @@ class ConverterDataset():
             ner = [token.ner for sent in doc.sentences for token in sent.tokens]
             # edges = [(token[0].text.lower(), token[2].text) for token in doc_edges.sentences[0].dependencies if token[0].text.lower() != 'root']
             # sdp = nx.shortest_path(nx.Graph(edges), source=tag_sentence_splitted[e1_idx].lower(), target=tag_sentence_splitted[e2_idx].lower())
-        assert len(tokenized) == len(upos) == len(deps) == len(ner)
-        return tokenized, upos, deps, ner#, sdp
+        assert len(tokenized) == len(upos) == len(deps) == len(ner) and len(sk) == 2
+        return tokenized, upos, deps, ner, sk#, sdp
 
     # remove any additional whitespace within a line
     def remove_whitespace(self, line):
