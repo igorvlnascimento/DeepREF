@@ -11,7 +11,7 @@ class PreprocessDataset():
         self.dataset_name = dataset_name
         self.preprocessing_type = []
         if len(preprocessing_type):
-            self.preprocessing_type = sorted(preprocessing_type)[0]
+            self.preprocessing_type = sorted(preprocessing_type)
         self.preprocessing_type_str = "_".join(self.preprocessing_type)
         self.output_path = os.path.join('benchmark', dataset_name, self.preprocessing_type_str)
 

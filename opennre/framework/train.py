@@ -32,6 +32,7 @@ class Training():
                 self.max_epoch = parameters["max_epoch"]
                 
                 self.preprocessing_str = 'original'
+                print("preprocessing:",self.preprocessing)
                 if self.preprocessing != []:
                         self.preprocessing_str = "_".join(sorted(self.preprocessing))
                         print(self.preprocessing_str)

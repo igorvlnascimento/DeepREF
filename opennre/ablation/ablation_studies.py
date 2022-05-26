@@ -7,7 +7,7 @@ from pathlib import Path
 from opennre.framework.train import Training
 
 class AblationStudies():
-    def __init__(self, dataset, model, embeddings=[], best_hparams=False):
+    def __init__(self, dataset, model, embeddings=[], best_hparams=True):
         self.dataset = dataset
         self.model = model
         self.embeddings = embeddings
@@ -114,7 +114,9 @@ if __name__ == '__main__':
                 help='Models')
     parser.add_argument('-e','--embeddings', nargs="+", default=[], choices=config.TYPE_EMBEDDINGS, 
                 help='Embeddings')
-    parser.add_argument('--best_hyperparameters', action='store_true', 
+    parser.add_argument('-p','--preprocessing', nargs="+", default=[], choices=config.PREPROCESSING_COMBINATION, 
+                help='Preprocessing')
+    parser.add_argument('--best_hyperparameters', action='store_true', default=True,
         help='Run with best hyperparameters (True) or default (False)')
     args = parser.parse_args()
     

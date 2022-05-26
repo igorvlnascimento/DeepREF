@@ -116,8 +116,8 @@ class Preprocess():
         upos = row.upos_sentence.split(" ")
         deps = row.deps_sentence.split(" ")
         ner = row.ner_sentence.split(" ")
-        e1_indexes = row.metadata['e1']['word_index']
-        e2_indexes = row.metadata['e2']['word_index'] # assuming that within the same entity indexes, no overlap
+        e1_indexes = row.metadata['e1']['word_index'][0]
+        e2_indexes = row.metadata['e2']['word_index'][0] # assuming that within the same entity indexes, no overlap
         new_sentence = ''
         new_upos = ''
         new_deps = ''
@@ -318,8 +318,8 @@ class Preprocess():
         upos = row.upos_sentence.split(" ")
         deps = row.deps_sentence.split(" ")
         ner = row.ner_sentence.split(" ")
-        e1_indexes = row.metadata['e1']['word_index']
-        e2_indexes = row.metadata['e2']['word_index']
+        e1_indexes = row.metadata['e1']['word_index'][0]
+        e2_indexes = row.metadata['e2']['word_index'][0]
         if not 'ESTART' in sentence and not 'EEND' in sentence:
             sentence = self.get_new_sentence_with_entity_replacement(sentence, e1_indexes, e2_indexes)
         
@@ -505,8 +505,8 @@ class Preprocess():
 
     def replace_ner(self, row, check_ner_overlap=False): # similar to concept_replace, with some caveats
         sentence = row.tokenized_sentence.split()
-        e1_indexes = row.metadata['e1']['word_index']
-        e2_indexes = row.metadata['e2']['word_index']
+        e1_indexes = row.metadata['e1']['word_index'][0]
+        e2_indexes = row.metadata['e2']['word_index'][0]
         e1_indexes = self.convert_indexes_to_int(e1_indexes)
         e2_indexes = self.convert_indexes_to_int(e2_indexes)
         only_e1_indexes, only_e2_indexes, common_indexes = \
@@ -742,6 +742,7 @@ class Preprocess():
                 dict["pos"] = row.upos_sentence.split(" ")
                 dict["deps"] = row.deps_sentence.split(" ")
                 dict["ner"] = row.ner_sentence.split(" ")
+                dict["sk"] = row.sk
                 dict["relation"] = row.relation_type
                 outfile.write(str(dict)+"\n")
             outfile.close()
