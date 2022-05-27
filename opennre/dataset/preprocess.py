@@ -116,8 +116,8 @@ class Preprocess():
         upos = row.upos_sentence.split(" ")
         deps = row.deps_sentence.split(" ")
         ner = row.ner_sentence.split(" ")
-        e1_indexes = row.metadata['e1']['word_index'][0]
-        e2_indexes = row.metadata['e2']['word_index'][0] # assuming that within the same entity indexes, no overlap
+        e1_indexes = row.metadata['e1']['word_index']
+        e2_indexes = row.metadata['e2']['word_index'] # assuming that within the same entity indexes, no overlap
         new_sentence = ''
         new_upos = ''
         new_deps = ''
