@@ -335,11 +335,11 @@ class Preprocess():
         for i, word in enumerate(sentence):
             is_entity = False
             word_index = i
-            for tup in e1_indexes:
+            for tup in e1_indexes[0]:
                 if word_index >= tup[0] and word_index <= tup[1]:
                     is_entity = True
                     index_to_keep_dict[i] = {'keep': True, 'replace_with': None}
-            for tup in e2_indexes:
+            for tup in e2_indexes[0]:
                 if word_index >= tup[0] and word_index <= tup[1]:
                     is_entity = True
                     index_to_keep_dict[i] = {'keep': True, 'replace_with': None}
