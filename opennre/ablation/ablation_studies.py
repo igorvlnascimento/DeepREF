@@ -12,7 +12,15 @@ class AblationStudies():
         self.model = model
         self.embeddings = embeddings
         self.csv_path = f'opennre/ablation/{self.dataset}_{self.model}_ablation_studies.csv'
-        self.ablation = {'preprocessing': [], 'embeddings': [], 'acc': [], 'micro_p':[], 'micro_r': [], 'micro_f1': [], 'macro_f1': []}
+        self.ablation = {
+            'preprocessing': [], 
+            'embeddings': [], 
+            'acc': [], 
+            'micro_p':[], 
+            'micro_r': [], 
+            'micro_f1': [], 
+            'macro_f1': []
+        }
         self.embeddings_combination = self.embed_combinations(len(config.TYPE_EMBEDDINGS))
         self.exp = 0
         
@@ -114,7 +122,7 @@ if __name__ == '__main__':
                 help='Models')
     parser.add_argument('-e','--embeddings', nargs="+", default=[], choices=config.TYPE_EMBEDDINGS, 
                 help='Embeddings')
-    parser.add_argument('-p','--preprocessing', nargs="+", default=[], choices=config.PREPROCESSING_COMBINATION, 
+    parser.add_argument('-p','--preprocessing', nargs="+", default=[],
                 help='Preprocessing')
     parser.add_argument('--best_hyperparameters', action='store_true', default=True,
         help='Run with best hyperparameters (True) or default (False)')

@@ -34,8 +34,8 @@ class Preprocess():
     # separate the indexes of entity 1 and entity 2 by what is intersecting 
     # and what is not
     def get_common_and_separate_entities(self, e1_indexes, e2_indexes):
-        e1_indexes = set(e1_indexes)
-        e2_indexes = set(e2_indexes)
+        e1_indexes = set(e1_indexes[0])
+        e2_indexes = set(e2_indexes[0])
         common_indexes = e1_indexes.intersection(e2_indexes)
         only_e1_indexes = list(e1_indexes.difference(common_indexes))
         only_e2_indexes = list(e2_indexes.difference(common_indexes))

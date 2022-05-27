@@ -258,7 +258,7 @@ class Training():
                                         if p .grad is not None:
                                                 del p.grad
                                 torch.cuda.empty_cache()
-                                return {"acc": 0, "micro_f1": 0, "macro_f1": 0}
+                                return {"acc": 0, "micro_p": 0, "micro_r": 0, "micro_f1": 0, "macro_f1": 0}
                         
                 # Test
                 result, pred, ground_truth = framework.eval_model(framework.test_loader)
