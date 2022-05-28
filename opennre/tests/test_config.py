@@ -1,8 +1,6 @@
 import pytest
 from opennre import config
 
-["position", "sk", "pos_tags", "deps", "sdp"]
-
 @pytest.fixture
 def preprocessing_combination():
     return [[], ['sw'], ['d'], ['b'], ['p'], ['eb'], ['nb'], ['sw', 'd'], ['sw', 'b'], ['sw', 'p'], ['sw', 'eb'], ['sw', 'nb'], ['d', 'b'], ['d', 'p'], ['d', 'eb'], ['d', 'nb'], ['b', 'p'], 
@@ -13,10 +11,8 @@ def preprocessing_combination():
 
 @pytest.fixture    
 def embeddings_combination():
-    return ['', 'position', 'sk', 'pos_tags', 'deps', 'sdp', 'position sk', 'position pos_tags', 'position deps', 'position sdp', 'sk pos_tags', 'sk deps', 'sk sdp', 'pos_tags deps', 
-            'pos_tags sdp', 'deps sdp', 'position sk pos_tags', 'position sk deps', 'position sk sdp', 'position pos_tags deps', 'position pos_tags sdp', 'position deps sdp', 
-            'sk pos_tags deps', 'sk pos_tags sdp', 'sk deps sdp', 'pos_tags deps sdp', 'position sk pos_tags deps', 'position sk pos_tags sdp', 'position sk deps sdp', 
-            'position pos_tags deps sdp', 'sk pos_tags deps sdp', 'position sk pos_tags deps sdp']
+    return ['', 'position', 'sk', 'pos_tags', 'deps', 'position sk', 'position pos_tags', 'position deps', 'sk pos_tags', 'sk deps', 'pos_tags deps', 
+            'position sk pos_tags', 'position sk deps', 'position pos_tags deps', 'sk pos_tags deps', 'position sk pos_tags deps']
 
 def test_should_return_correct_preprocessing_combinations_while_combining(preprocessing_combination):
     preprocess_combination = config.combine(config.PREPROCESSING_TYPES, 'preprocessing')
