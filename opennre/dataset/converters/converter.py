@@ -36,7 +36,7 @@ class ConverterDataset():
                 stanza.download('en', package=nlp_info["package"], processors={'ner': nlp_info["ner_model"]})
                 self.nlp = stanza.Pipeline(nlp_info["language_model"], package=nlp_info["package"], processors={"ner": nlp_info["ner_model"]}, tokenize_no_ssplit=True)
         elif nlp_tool == 'spacy':
-            if not spacy.util.is_package(nlp_info["package"]):
+            if nlp_info["package"] not in spacy.util.get_installed_models():
                 subprocess.call(["python", "-m", "spacy", "download", nlp_info["package"]])
             self.nlp = spacy.load(nlp_info["package"])
                 
