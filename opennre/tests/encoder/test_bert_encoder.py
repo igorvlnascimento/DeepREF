@@ -1,4 +1,4 @@
-from opennre.encoder.bert_encoder import BERTEntityEncoder, BERTEncoder
+from opennre.encoder.bert_encoder import BERTEntityEncoder
 from opennre.data.generate_parser_dict import save2json, csv2id
 
 from unittest import mock

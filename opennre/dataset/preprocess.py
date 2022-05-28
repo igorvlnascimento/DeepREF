@@ -34,8 +34,8 @@ class Preprocess():
     # separate the indexes of entity 1 and entity 2 by what is intersecting 
     # and what is not
     def get_common_and_separate_entities(self, e1_indexes, e2_indexes):
-        e1_indexes = set(e1_indexes[0])
-        e2_indexes = set(e2_indexes[0])
+        e1_indexes = set(e1_indexes)
+        e2_indexes = set(e2_indexes)
         common_indexes = e1_indexes.intersection(e2_indexes)
         only_e1_indexes = list(e1_indexes.difference(common_indexes))
         only_e2_indexes = list(e2_indexes.difference(common_indexes))
@@ -335,11 +335,11 @@ class Preprocess():
         for i, word in enumerate(sentence):
             is_entity = False
             word_index = i
-            for tup in e1_indexes[0]:
+            for tup in e1_indexes:
                 if word_index >= tup[0] and word_index <= tup[1]:
                     is_entity = True
                     index_to_keep_dict[i] = {'keep': True, 'replace_with': None}
-            for tup in e2_indexes[0]:
+            for tup in e2_indexes:
                 if word_index >= tup[0] and word_index <= tup[1]:
                     is_entity = True
                     index_to_keep_dict[i] = {'keep': True, 'replace_with': None}
