@@ -270,6 +270,9 @@ class Preprocess():
         new_upos = []
         new_deps = []
         new_ner = []
+        if len(sentence) > len(upos) + 4:
+            print(sentence)
+            print(upos)
         if isinstance(sentence, str):
             sentence = sentence.split(" ")
         idx = 0
@@ -303,8 +306,8 @@ class Preprocess():
     
     def generate_tagged_sentence(self, row):
         sentence = row.tokenized_sentence.split(" ")
-        e1_indexes = row.metadata['e1']['word_index'][0]
-        e2_indexes = row.metadata['e2']['word_index'][0]
+        e1_indexes = row.metadata['e1']['word_index']
+        e2_indexes = row.metadata['e2']['word_index']
         if not 'ESTART' in sentence and not 'EEND' in sentence:
             sentence = self.get_new_sentence_with_entity_replacement(sentence, e1_indexes, e2_indexes)
         
@@ -505,8 +508,8 @@ class Preprocess():
 
     def replace_ner(self, row, check_ner_overlap=False): # similar to concept_replace, with some caveats
         sentence = row.tokenized_sentence.split()
-        e1_indexes = row.metadata['e1']['word_index'][0]
-        e2_indexes = row.metadata['e2']['word_index'][0]
+        e1_indexes = row.metadata['e1']['word_index']
+        e2_indexes = row.metadata['e2']['word_index']
         e1_indexes = self.convert_indexes_to_int(e1_indexes)
         e2_indexes = self.convert_indexes_to_int(e2_indexes)
         only_e1_indexes, only_e2_indexes, common_indexes = \

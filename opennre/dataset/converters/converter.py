@@ -53,9 +53,9 @@ class ConverterDataset():
         json.dump(relation_dict, json_file)
 
     def tokenize(self, tag_sentence):
-        tag_sentence = tag_sentence.replace('(','')
-        tag_sentence = tag_sentence.replace(')','')
-        tag_sentence_splitted = tag_sentence.split(" ")
+        tag_sentence_wo_parenthesis = tag_sentence.replace('(','')
+        tag_sentence_wo_parenthesis = tag_sentence_wo_parenthesis.replace(')','')
+        tag_sentence_splitted = tag_sentence_wo_parenthesis.split(" ")
         e1_idx = tag_sentence_splitted.index(self.entity_name+"END") - 1
         e2_idx = tag_sentence_splitted.index(self.entity_name+"OTHEREND") - 1
         new_tag_sentence_splitted = tag_sentence_splitted.copy()
