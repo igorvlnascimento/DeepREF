@@ -38,13 +38,13 @@ class AblationStudies():
             self.exp = len(self.ablation['preprocessing'])
             print(len(self.ablation["preprocessing"]))
         
-        if not os.path.exists(config.BEST_HPARAMS_FILE_PATH.format(dataset)) or not best_hparams:
+        if not os.path.exists(config.HPARAMS_FILE_PATH.format(dataset)) or not best_hparams:
             dict_params = config.HPARAMS
             json_object = json.dumps(dict_params, indent=4)
-            with open(config.BEST_HPARAMS_FILE_PATH.format(dataset), 'w') as f:
+            with open(config.HPARAMS_FILE_PATH.format(dataset), 'w') as f:
                 f.write(json_object)
         self.best_hparams = {}
-        with open(config.BEST_HPARAMS_FILE_PATH.format(dataset), 'r') as f:
+        with open(config.HPARAMS_FILE_PATH.format(dataset), 'r') as f:
             self.best_hparams = json.load(f)
             
     def execute_ablation(self):
@@ -53,7 +53,7 @@ class AblationStudies():
 
         index = 0
         embed_indexes = [config.TYPE_EMBEDDINGS.index(embed) for embed in self.embeddings]
-        for preprocessing in [["sw", "eb"]]:#config.PREPROCESSING_COMBINATION:
+        for preprocessing in config.PREPROCESSING_COMBINATION:
             for embed in self.embeddings_combination:
                 has_embed = sum([embed[idx] for idx in embed_indexes]) == len(embed_indexes)
                 if not has_embed:
