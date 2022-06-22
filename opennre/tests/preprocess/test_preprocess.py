@@ -1,6 +1,6 @@
 import os
 
-from opennre.dataset.preprocess_dataset import PreprocessDataset
+from opennre.dataset.preprocessors.preprocess_dataset import PreprocessDataset
 
 def test_should_return_sw_eb_preprocessed_file_ddi():
     p = PreprocessDataset("ddi", ["sw", "eb"])

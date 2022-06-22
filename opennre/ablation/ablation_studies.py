@@ -53,7 +53,7 @@ class AblationStudies():
 
         index = 0
         embed_indexes = [config.TYPE_EMBEDDINGS.index(embed) for embed in self.embeddings]
-        for preprocessing in config.PREPROCESSING_COMBINATION:
+        for preprocessing in [["sw", "eb"]]:#config.PREPROCESSING_COMBINATION:
             for embed in self.embeddings_combination:
                 has_embed = sum([embed[idx] for idx in embed_indexes]) == len(embed_indexes)
                 if not has_embed:

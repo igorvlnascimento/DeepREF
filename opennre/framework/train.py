@@ -4,9 +4,14 @@ import numpy as np
 import json
 import opennre
 from opennre import config
-from opennre.dataset.preprocess_dataset import PreprocessDataset
+from opennre.dataset.dataset import Dataset
+from opennre.dataset.preprocessors.stop_word_preprocessor import StopWordPreprocessor
+from opennre.dataset.preprocessors.punctuation_preprocessor import PunctuationPreprocessor
+from opennre.dataset.preprocessors.brackets_or_parenthesis_preprocessor import BracketsPreprocessor
+from opennre.dataset.preprocessors.digit_blinding_preprocessor import DigitBlindingPreprocessor
+from opennre.dataset.preprocessors.entity_blinding_preprocessor import EntityBlindingPreprocessor
 from opennre.framework.word_embedding_loader import WordEmbeddingLoader
-from opennre.data.generate_parser_dict import save2json, csv2id
+from benchmark.generate_parser import save2json, csv2id
 import os
 import sys
 import argparse
@@ -32,9 +37,10 @@ class Training():
                 self.max_epoch = parameters["max_epoch"]
                 
                 self.preprocessing_str = 'original'
+                self.preprocessing = sorted(self.preprocessing)
                 print("preprocessing:",self.preprocessing)
                 if self.preprocessing != []:
-                        self.preprocessing_str = "_".join(sorted(self.preprocessing))
+                        self.preprocessing_str = "_".join(self.preprocessing)
                         print(self.preprocessing_str)
                         
                 self.hyper_params = {
@@ -47,8 +53,8 @@ class Training():
                 #if not os.path.exists(os.path.join('opennre', 'data', f'{self.dataset}_upos2id.json')):
                 upos2id, deps2id = csv2id(self.dataset)
                 save2json(self.dataset, upos2id, deps2id)
-                upos2id = json.loads(open(os.path.join('opennre', 'data', f'{self.dataset}_upos2id.json'), 'r').read())
-                deps2id = json.loads(open(os.path.join('opennre', 'data', f'{self.dataset}_deps2id.json'), 'r').read())
+                upos2id = json.loads(open(os.path.join('benchmark', f"{self.dataset}", f"{self.dataset}_upos2id.json"), 'r').read())
+                deps2id = json.loads(open(os.path.join('benchmark', f"{self.dataset}", f"{self.dataset}_deps2id.json"), 'r').read())
                         
                 
                 # Set random seed
@@ -86,8 +92,31 @@ class Training():
                                                 '{}_test_{}.txt'.format(self.dataset, self.preprocessing_str))
                         
                 if not (os.path.exists(self.train_file)) or not(os.path.exists(self.val_file)) or not(os.path.exists(self.test_file)):
-                        preprocess_dataset = PreprocessDataset(self.dataset, self.preprocessing)
-                        preprocess_dataset.preprocess_dataset()
+                        dataset = Dataset(self.dataset)
+                        dataset.load_dataset_csv()
+                        if 'sw' in self.preprocessing:
+                                StopWordPreprocessor(dataset, self.preprocessing)
+                        if 'p' in self.preprocessing:
+                                PunctuationPreprocessor(dataset, self.preprocessing)
+                        if 'b' in self.preprocessing:
+                                BracketsPreprocessor(dataset, self.preprocessing)
+                        if 'd' in self.preprocessing:
+                                DigitBlindingPreprocessor(dataset, self.preprocessing)
+                        if 'nb' in self.preprocessing and 'eb' in self.preprocessing:
+                                if dataset.name == 'ddi':
+                                        EntityBlindingPreprocessor(dataset, self.preprocessing, "DRUG")
+                                else:
+                                        EntityBlindingPreprocessor(dataset, self.preprocessing, "ENTITY")
+                        elif 'eb' in self.preprocessing:
+                                if dataset.name == 'ddi':
+                                        EntityBlindingPreprocessor(dataset, self. preprocessing, 'DRUG', 'entity')
+                                else:
+                                        EntityBlindingPreprocessor(dataset, self. preprocessing, 'ENTITY', 'entity')
+                        elif 'nb' in self.preprocessing:
+                                if dataset.name == 'ddi':
+                                        EntityBlindingPreprocessor(dataset, self.preprocessing, "DRUG")
+                                else:
+                                        EntityBlindingPreprocessor(dataset, self.preprocessing, "ENTITY")
                         
                 if not os.path.exists(self.test_file):
                         self.test_file = None
@@ -278,7 +307,7 @@ if __name__ == '__main__':
 
         args = parser.parse_args()
         
-        with open(config.BEST_HPARAMS_FILE_PATH.format(args.dataset), 'r') as f:
+        with open(config.HPARAMS_FILE_PATH.format(args.dataset), 'r') as f:
             best_hparams = json.load(f)
         
         train = Training(args.dataset, best_hparams)

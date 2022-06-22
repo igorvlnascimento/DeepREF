@@ -53,7 +53,7 @@ The POS and Deps encoding are optional and you can turn it off in `pos_embed` an
 
 To optimize hyperparameters or models, execute the following code:
 ```
-python opennre/optimization/optuna_optimizer.py -d <dataset> -m <metric> -t <trials_number> -o <optimization_type>
+python opennre/optimization/bo_optimizer.py -d <dataset> -m <metric> -t <trials_number>
 ```
 You can replace the following tags by:
 
@@ -61,9 +61,7 @@ You can replace the following tags by:
 
 `<metric>`: `micro_f1` (default), `macro_f1` and `acc`;
 
-`<trials_number>`: any integer;
-
-`<optimization_type>`: `hyperparams` and `model`.
+`<trials_number>`: any integer.
 
 
 Even if you don`t have any datasets preprocessed, the code above can automatically download and preprocess the dataset for you on the fly.

@@ -30,7 +30,6 @@ WORD_EMBEDDINGS = ["glove", "senna", "fasttext_wiki", "fasttext_crawl"]
 TYPE_EMBEDDINGS = ["position", "sk", "pos_tags", "deps"]
 TYPE_EMBEDDINGS_COMBINATION = combine(TYPE_EMBEDDINGS)
 NLP_TOOLS = ["stanza", "spacy"]
-NLP_MODEL = ["general", "scientific"]
 HPARAMS = {
     "model": "bert_entity",
     "pretrain": "bert-base-uncased",
@@ -48,7 +47,4 @@ HPARAMS = {
 
 ########################### PATHS #######################################
 RESULTS_PATH = "results"
-NLP_CONFIG = "opennre/data/nlp_config.json"
-RELATIONS_TYPE = "opennre/data/relations_type.json"
-DATASET_CLASSES = "opennre/data/dataset_classes.json"
-BEST_HPARAMS_FILE_PATH = "opennre/data/best_hparams_{}.json"
+HPARAMS_FILE_PATH = "opennre/hyperparameters/hyperparams_{}.json"

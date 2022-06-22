@@ -2,7 +2,7 @@
     "model": "bert_entity",
     "pretrain": "allenai/scibert_scivocab_uncased",
     "batch_size": 16,
-    "preprocessing": [],
+    "preprocessing": ["d", "b", "sw", "p", "eb"],
     "lr": 2e-05,
     "position_embed": 0,
     "pos_tags_embed": 0,

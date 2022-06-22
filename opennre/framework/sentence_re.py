@@ -38,10 +38,10 @@ class SentenceRE(nn.Module):
         self.dataset_name = train_path[train_path.rfind('/')+1:train_path.find('_', train_path.rfind('/'))]
         self.preprocessing = train_path[train_path.rfind('/', 0, -(len(train_path)-train_path.rfind('/')))+1:train_path.rfind('/')]
         
-        with open(config.DATASET_CLASSES, 'r') as f:
+        with open(f'benchmark/{self.dataset_name}/{self.dataset_name}_rel2id.json', 'r') as f:
             dataset_classes = json.load(f)
 
-        self.classes = dataset_classes[self.dataset_name]
+        self.classes = [classes for classes in dataset_classes]
             
         print("classes:",self.classes)
 

@@ -226,13 +226,7 @@ class BERTEntityEncoder(nn.Module):
             head_list.append(deps1)
             tail_list.append(deps2)  
             
-        concat_list = head_list + tail_list        
-        
-        # if self.pos_tags_embedding:
-        #     concat_list.extend([pos_tags])
-            
-        # if self.deps_embedding:
-        #     concat_list.extend([deps])
+        concat_list = head_list + tail_list
 
         x = torch.cat(concat_list, 1)
         x = self.linear1(x)
@@ -270,8 +264,6 @@ class BERTEntityEncoder(nn.Module):
         else:
             rev = False
             
-        
-            
         if not is_token:
             sent0 = self.tokenizer.tokenize(sentence[:pos_min[0]])
             ent0 = self.tokenizer.tokenize(sentence[pos_min[0]:pos_min[1]])
@@ -290,10 +282,10 @@ class BERTEntityEncoder(nn.Module):
         sk_pos2 = []
         if self.sk_embedding:
             sk_ents = item["sk"]
-            sk1_father = self.tokenizer.tokenize(literal_eval(sk_ents)["ses1"][0])
-            sk1_grandpa = self.tokenizer.tokenize(literal_eval(sk_ents)["ses1"][-1])
-            sk2_father = self.tokenizer.tokenize(literal_eval(sk_ents)["ses2"][0])
-            sk2_grandpa = self.tokenizer.tokenize(literal_eval(sk_ents)["ses2"][-1])
+            sk1_father = self.tokenizer.tokenize(sk_ents["ses1"][0])
+            sk1_grandpa = self.tokenizer.tokenize(sk_ents["ses1"][-1])
+            sk2_father = self.tokenizer.tokenize(sk_ents["ses2"][0])
+            sk2_grandpa = self.tokenizer.tokenize(sk_ents["ses2"][-1])
             
             sk1 = ['[unused6]'] + sk1_father + sk1_grandpa + ['[unused7]'] if not rev else ['[unused8]'] + sk1_father + sk1_grandpa + ['[unused9]']
             sk2 = ['[unused8]'] + sk2_father + sk2_grandpa + ['[unused9]'] if not rev else ['[unused6]'] + sk2_father + sk2_grandpa + ['[unused7]']
