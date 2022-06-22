@@ -2,17 +2,27 @@ import nltk
 import json
 from nltk.corpus import wordnet
 
+
 nltk.download('wordnet')
 nltk.download('omw-1.4')
 
 class SemanticKNWL:
     def __init__(self):
         self.vocabulary = []
+        
+        try:
+            nltk.data.find('wordnet')
+        except LookupError:
+            nltk.download('wordnet')
+        
+        try:
+            nltk.data.find('omw-1.4')
+        except LookupError:
+            nltk.download('omw-1.4')
 
     def extract(self, entities):
         ent_dict = []
         for entity in entities:
-            #self.vocabulary.append(entity)
             if len(wordnet.synsets(entity)) == 0:
                 ent_vector = [entity, entity]
             else:
