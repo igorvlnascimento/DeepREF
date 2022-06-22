@@ -252,7 +252,7 @@ class BERTEntityEncoder(nn.Module):
         pos_head = item['h']['pos']
         pos_tail = item['t']['pos']
         
-        pos_tags = item['pos'] if self.pos_tags_embedding else []
+        pos_tags = item['pos_tags'] if self.pos_tags_embedding else []
         deps = item['deps'] if self.deps_embedding else []
         #sdp = item['sdp'][1:-1] if self.sdp_embedding else []
         pos_min = pos_head
