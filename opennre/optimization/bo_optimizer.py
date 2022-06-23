@@ -7,26 +7,13 @@ from opennre import config
 import optuna
 
 from opennre.framework.train import Training
+from opennre.optimization.optimizer import Optimizer
 
-class Optimizer():
+class BOOptimizer(Optimizer):
     def __init__(self, dataset, metric, trials=50):
-        self.dataset = dataset
-        self.metric = metric
-        self.trials = trials
-        if not os.path.exists(config.HPARAMS_FILE_PATH.format(dataset)):
-            dict = config.HPARAMS
-            dict["{}".format(self.metric)] = 0
-            json_object = json.dumps(dict, indent=4)
-            with open(config.HPARAMS_FILE_PATH.format(dataset), 'w') as f:
-                f.write(json_object)
-        with open(config.HPARAMS_FILE_PATH.format(dataset), 'r') as f:
-            self.hparams = json.load(f)
+        super(BOOptimizer, self).__init__(dataset, metric, trials)
         
         self.study = optuna.create_study(direction="maximize")
-        
-        self.params = None
-        self.best_metric_value = 0
-        self.best_result = None
 
     def objective(self, trial):
         
@@ -72,7 +59,7 @@ if __name__ == "__main__":
     
     args = parser.parse_args()
     
-    opt = Optimizer(args.dataset, args.metric, int(args.trials))
+    opt = BOOptimizer(args.dataset, args.metric, int(args.trials))
     best_result = opt.best_result
     best_hparams = opt.best_hparams
     

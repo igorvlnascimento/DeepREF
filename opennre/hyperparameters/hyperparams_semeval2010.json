@@ -2,7 +2,7 @@
     "model": "bert_entity",
     "pretrain": "bert-base-uncased",
     "batch_size": 16,
-    "preprocessing": ["b", "p", "d", "sw", "nb"],
+    "preprocessing": [],
     "lr": 2e-05,
     "position_embed": 0,
     "pos_tags_embed": 0,
