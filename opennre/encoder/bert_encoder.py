@@ -159,7 +159,7 @@ class BERTEntityEncoder(nn.Module):
         self.linear1 = nn.Linear(self.input_size, self.input_size//2)
         self.linear2 = nn.Linear(self.input_size//2, self.input_size//4)
         self.linear3 = nn.Linear(self.input_size//4, self.hidden_size)
-        #self.drop = nn.Dropout(0.5)
+        self.drop = nn.Dropout(0.5)
         
         print("pos-tag:",self.pos_tags_embedding)
         print("deps:",self.deps_embedding)
@@ -232,7 +232,7 @@ class BERTEntityEncoder(nn.Module):
         x = self.linear1(x)
         x = self.linear2(x)
         x = self.linear3(x)
-        #x = self.drop(x)
+        x = self.drop(x)
         return x
 
     def tokenize(self, item):
@@ -289,7 +289,7 @@ class BERTEntityEncoder(nn.Module):
             
             sk1 = ['[unused6]'] + sk1_father + sk1_grandpa + ['[unused7]'] if not rev else ['[unused8]'] + sk1_father + sk1_grandpa + ['[unused9]']
             sk2 = ['[unused8]'] + sk2_father + sk2_grandpa + ['[unused9]'] if not rev else ['[unused6]'] + sk2_father + sk2_grandpa + ['[unused7]']
-            re_tokens = ['[CLS]'] + sent0 + ent0 + sent1 + ent1 + sent2 + sk1 + sk2 + ['[SEP]']
+            re_tokens = ['[CLS]'] + sent0 + ent0 + sk1 + sent1 + ent1 + sk2 +  sent2 + ['[SEP]']
             
             sk_pos1_father = re_tokens.index('[unused6]') + 1 if not rev else re_tokens.index('[unused8]') + 1
             sk_pos1_grandpa = re_tokens.index('[unused7]') - len(sk1_grandpa) if not rev else re_tokens.index('[unused9]') - len(sk1_grandpa)
@@ -311,9 +311,6 @@ class BERTEntityEncoder(nn.Module):
 
         if not re_tokens:
             re_tokens = ['[CLS]'] + sent0 + ent0 + sent1 + ent1 + sent2 + ['[SEP]']
-            
-        # if self.sdp_embedding:
-        #         re_tokens += sdp
                 
         pos1 = 2 + len(sent0) if not rev else 2 + len(sent0 + ent0 + sent1)
         pos2 = 2 + len(sent0 + ent0 + sent1) if not rev else 2 + len(sent0)
@@ -322,14 +319,6 @@ class BERTEntityEncoder(nn.Module):
                 
         indexed_tokens = self.tokenizer.convert_tokens_to_ids(re_tokens)
         avai_len = len(indexed_tokens)
-        
-        # if self.sk_embedding:
-        #     sk_ents = SemanticKNWL().extract([sentence[pos_head[0]:pos_head[1]][-1], sentence[pos_tail[0]:pos_tail[1]][-1]])
-        
-        #     indexed_tokens_sk1 = self.tokenizer.convert_tokens_to_ids(sk_ents["ses1"])
-        #     indexed_tokens_sk2 = self.tokenizer.convert_tokens_to_ids(sk_ents["ses2"])
-            
-        #     indexed_tokens = indexed_tokens + indexed_tokens_sk1 + indexed_tokens_sk2
             
         pos_tag1 = self.upos2id[pos_tags[pos_head[0]]] if self.pos_tags_embedding else []
         pos_tag2 = self.upos2id[pos_tags[pos_tail[0]]] if self.pos_tags_embedding else []
