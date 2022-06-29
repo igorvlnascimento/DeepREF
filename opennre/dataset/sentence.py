@@ -4,7 +4,7 @@ from opennre.utils.semantic_knowledge import SemanticKNWL
 from ast import literal_eval
 
 class Sentence():
-    def __init__(self, tagged_sentence:str, relation_type:str, nlp_tool:NLPTool = None):
+    def __init__(self, tagged_sentence:str, relation_type:str, nlp_tool:NLPTool=None):
         self.nlp_tool = nlp_tool
         self.tokens, self.pos_tags, self.dependencies_labels, self.ner = self.nlp_tool.parse(tagged_sentence) if self.nlp_tool is not None else (None, None, None, None)
         self.original_sentence = self.nlp_tool.untag_sentence(" ".join(self.tokens)).split() if self.nlp_tool is not None else None

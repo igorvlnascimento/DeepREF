@@ -30,7 +30,6 @@ class Training():
                 self.position_embed = parameters["position_embed"]
                 self.pos_tags_embed = parameters["pos_tags_embed"]
                 self.deps_embed = parameters["deps_embed"]
-                self.sdp_embed = parameters["sdp_embed"]
                 self.sk_embed = parameters["sk_embed"]
                 self.batch_size = parameters["batch_size"]
                 self.lr = parameters["lr"]
@@ -243,7 +242,6 @@ class Training():
                                 sk_embedding=self.sk_embed,
                                 pos_tags_embedding=self.pos_tags_embed,
                                 deps_embedding=self.deps_embed,
-                                sdp_embedding=self.sdp_embed,
                                 upos2id=upos2id,
                                 deps2id=deps2id
                         )
@@ -308,7 +306,7 @@ if __name__ == '__main__':
         args = parser.parse_args()
         
         with open(config.HPARAMS_FILE_PATH.format(args.dataset), 'r') as f:
-            best_hparams = json.load(f)
+            hparams = json.load(f)
         
-        train = Training(args.dataset, best_hparams)
+        train = Training(args.dataset, hparams)
         train.train()
