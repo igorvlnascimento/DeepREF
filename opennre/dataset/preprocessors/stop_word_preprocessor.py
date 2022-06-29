@@ -1,7 +1,10 @@
+import nltk
 from nltk.corpus import stopwords
 
 from opennre.dataset.sentence import Sentence
 from opennre.dataset.preprocessors.preprocessor import Preprocessor
+
+nltk.download('stopwords')
 
 class StopWordPreprocessor(Preprocessor):
     def __init__(self, dataset, preprocessing_types, entity_replacement=None):

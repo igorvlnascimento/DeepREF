@@ -21,6 +21,7 @@ class Dataset():
         random.seed(config.SEED)
         
     def split_val_sentences(self, val_perc):
+        self.set_seed()
         train_length = len(self.train_sentences)
         val_length = math.ceil(train_length*val_perc)
         train_sentences_copy = copy.deepcopy(self.train_sentences)
