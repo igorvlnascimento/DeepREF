@@ -8,7 +8,7 @@ from deepref.framework.train import Training
 from deepref.dataset.dataset import Dataset
 
 class AblationStudies():
-    def __init__(self, dataset, model, embeddings=[], best_hparams=True):
+    def __init__(self, dataset, model, embeddings=[]):
         self.dataset = dataset
         self.model = model
         self.embeddings = embeddings
@@ -39,17 +39,17 @@ class AblationStudies():
             self.exp = len(self.ablation['preprocessing'])
             print(len(self.ablation["preprocessing"]))
         
-        if not os.path.exists(config.HPARAMS_FILE_PATH.format(dataset.name)) or not best_hparams:
+        if not os.path.exists(config.HPARAMS_FILE_PATH.format(dataset.name)):
             dict_params = config.HPARAMS
             json_object = json.dumps(dict_params, indent=4)
             with open(config.HPARAMS_FILE_PATH.format(dataset.name), 'w') as f:
                 f.write(json_object)
-        self.best_hparams = {}
+        self.hparams = {}
         with open(config.HPARAMS_FILE_PATH.format(dataset.name), 'r') as f:
-            self.best_hparams = json.load(f)
+            self.hparams = json.load(f)
             
     def execute_ablation(self):
-        parameters = {}
+        parameters = self.hparams
 
         index = 0
         embed_indexes = [config.TYPE_EMBEDDINGS.index(embed) for embed in self.embeddings]
@@ -124,12 +124,10 @@ if __name__ == '__main__':
                 help='Embeddings')
     parser.add_argument('-p','--preprocessing', nargs="+", default=[],
                 help='Preprocessing')
-    parser.add_argument('--hyperparameters', action='store_true', default=True,
-        help='Run with the hyperparameters defined in file')
     args = parser.parse_args()
     
     dataset = Dataset(args.dataset)
     dataset.load_dataset_csv()
     
-    ablation = AblationStudies(dataset, args.model, args.embeddings, args.best_hyperparameters)
+    ablation = AblationStudies(dataset, args.model, args.embeddings)
     ablation.execute_ablation()
