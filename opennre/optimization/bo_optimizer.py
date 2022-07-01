@@ -7,11 +7,13 @@ from opennre import config
 import optuna
 
 from opennre.framework.train import Training
+from opennre.framework.cross_validation import CrossValidation
 from opennre.optimization.optimizer import Optimizer
+from opennre.dataset.dataset import Dataset
 
 class BOOptimizer(Optimizer):
-    def __init__(self, dataset, metric, trials=50):
-        super(BOOptimizer, self).__init__(dataset, metric, trials)
+    def __init__(self, dataset:Dataset, metric:str, trials:int=50, cross_validation:bool=False):
+        super(BOOptimizer, self).__init__(dataset, metric, trials, cross_validation)
         
         self.study = optuna.create_study(direction="maximize")
 
@@ -23,7 +25,7 @@ class BOOptimizer(Optimizer):
         max_epoch = trial.suggest_int("max_epoch", 2, 8)
         
         parameters = self.hparams
-        parameters["dataset"] = self.dataset
+        parameters["dataset"] = self.dataset.name
         parameters["metric"] = self.metric
         parameters["batch_size"] = batch_size
         parameters["lr"] = lr
@@ -32,9 +34,15 @@ class BOOptimizer(Optimizer):
         
         print("parameters:",parameters)
         
-        train = Training(self.dataset, parameters, trial)
-        result = train.train()
+        if self.cross_validation:
+            cv = CrossValidation(self.dataset)
+            result = cv.validate(self.hparams)
+        else:
+            train = Training(self.dataset, parameters, trial)
+            result = train.train()
         result_value = result[self.metric]
+        if "avg" in result_value:
+            result_value = result_value["avg"]
         
         if result_value > self.best_metric_value:
             self.best_metric_value = result_value
@@ -55,16 +63,20 @@ if __name__ == "__main__":
                 help='Dataset')
     parser.add_argument('-m','--metric', default="micro_f1", choices=config.METRICS, 
                 help='Metric to optimize')
-    parser.add_argument('-t','--trials', default=50, help='Number of trials to optimize')
+    parser.add_argument('-t','--trials', default=50, 
+                        help='Number of trials to optimize')
+    parser.add_argument('-cv','--cross_validation', action='store_true', 
+                        help='Optimize using cross validation')
     
     args = parser.parse_args()
     
-    opt = BOOptimizer(args.dataset, args.metric, int(args.trials))
+    dataset = Dataset(args.dataset)
+    dataset.load_dataset_csv()
+    opt = BOOptimizer(dataset, args.metric, int(args.trials), args.cross_validation)
     best_result = opt.best_result
-    best_hparams = opt.best_hparams
+    best_hparams = opt.optimize()
     
-    hof = opt.params
-    print("Best params:",hof)
+    print("Best params:",best_hparams)
     print("Best result:",best_result)
     
     

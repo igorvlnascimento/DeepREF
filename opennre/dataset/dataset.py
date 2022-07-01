@@ -12,6 +12,7 @@ class Dataset():
     def __init__(self, name:str, train_sentences:list=[], test_sentences:list=[], val_sentences:list=[], val_perc:float=0.2, preprocessing_type:str ="original"):
         self.name = name
         self.preprocessing_type = preprocessing_type
+        self.path = f'benchmark/{self.name}/{self.preprocessing_type}/'
         self.train_sentences = train_sentences
         self.test_sentences = test_sentences
         self.val_sentences = val_sentences if val_sentences else self.split_val_sentences(val_perc)
@@ -26,6 +27,7 @@ class Dataset():
         val_length = math.ceil(train_length*val_perc)
         train_sentences_copy = copy.deepcopy(self.train_sentences)
         random.shuffle(train_sentences_copy)
+        self.train_sentences = train_sentences_copy[val_length:]
         return train_sentences_copy[:val_length]
     
     def get_classes(self):
@@ -79,13 +81,13 @@ class Dataset():
             sentence_dict = self.set_sentence_dict(sentence.get_sentence_info())
             test_data.append(sentence_dict)
         os.makedirs(f'benchmark/{self.name}/{preprocessing_types}/', exist_ok=True)
-        with open(f'benchmark/{self.name}/{preprocessing_types}/{self.name}_train_{preprocessing_types}.txt', 'w') as f:
+        with open(self.path+f'{self.name}_train_{preprocessing_types}.txt', 'w') as f:
             for data in train_data:
                 f.write(str(data)+'\n')
-        with open(f'benchmark/{self.name}/{preprocessing_types}/{self.name}_val_{preprocessing_types}.txt', 'w') as f:
+        with open(self.path+f'{self.name}_val_{preprocessing_types}.txt', 'w') as f:
             for data in val_data:
                 f.write(str(data)+'\n')
-        with open(f'benchmark/{self.name}/{preprocessing_types}/{self.name}_test_{preprocessing_types}.txt', 'w') as f:
+        with open(self.path+f'{self.name}_test_{preprocessing_types}.txt', 'w') as f:
             for data in test_data:
                 f.write(str(data)+'\n')
                 
@@ -101,10 +103,11 @@ class Dataset():
         sentence_dict["sk"] = sentence_info[7]
         return sentence_dict
         
-    def load_dataset_csv(self):
-         train_df = pd.read_csv(f'benchmark/{self.name}/original/{self.name}_train_original.csv', sep='\t')
-         val_df = pd.read_csv(f'benchmark/{self.name}/original/{self.name}_val_original.csv', sep='\t')
-         test_df = pd.read_csv(f'benchmark/{self.name}/original/{self.name}_test_original.csv', sep='\t')
+    def load_dataset_csv(self, preprocessing_types='original'):
+         self.path = f'benchmark/{self.name}/{preprocessing_types}/'
+         train_df = pd.read_csv(self.path+f'{self.name}_train_original.csv', sep='\t')
+         val_df = pd.read_csv(self.path+f'{self.name}_val_original.csv', sep='\t')
+         test_df = pd.read_csv(self.path+f'{self.name}_test_original.csv', sep='\t')
          train_sentences = self.csv_to_sentences(train_df)
          val_sentences = self.csv_to_sentences(val_df)
          test_sentences = self.csv_to_sentences(test_df)

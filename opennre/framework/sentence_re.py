@@ -17,6 +17,7 @@ class SentenceRE(nn.Module):
 
     def __init__(self, 
                  model,
+                 dataset,
                  train_path, 
                  val_path, 
                  test_path,
@@ -34,7 +35,7 @@ class SentenceRE(nn.Module):
         self.trial = trial
         self.max_epoch = max_epoch
         # Load data
-        self.train_path = train_path
+        # self.train_path = train_path
         self.dataset_name = train_path[train_path.rfind('/')+1:train_path.find('_', train_path.rfind('/'))]
         self.preprocessing = train_path[train_path.rfind('/', 0, -(len(train_path)-train_path.rfind('/')))+1:train_path.rfind('/')]
         
@@ -44,26 +45,29 @@ class SentenceRE(nn.Module):
         self.classes = [classes for classes in dataset_classes]
             
         print("classes:",self.classes)
-
-        if train_path != None:
+        if dataset is not None:
+        #if train_path != None:
             self.train_loader = SentenceRELoader(
                 train_path,
+                dataset.train_sentences,
                 model.rel2id,
                 model.sentence_encoder.tokenize,
                 batch_size,
                 True)
 
-        if val_path != None:
+        #if val_path != None:
             self.val_loader = SentenceRELoader(
                 val_path,
+                dataset.val_sentences,
                 model.rel2id,
                 model.sentence_encoder.tokenize,
                 batch_size,
                 False)
         
-        if test_path != None:
+        #if test_path != None:
             self.test_loader = SentenceRELoader(
                 test_path,
+                dataset.test_sentences,
                 model.rel2id,
                 model.sentence_encoder.tokenize,
                 batch_size,

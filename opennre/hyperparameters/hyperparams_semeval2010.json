@@ -1,7 +1,7 @@
 {
     "model": "bert_entity",
     "pretrain": "bert-base-uncased",
-    "batch_size": 16,
+    "batch_size": 8,
     "preprocessing": [],
     "lr": 2e-05,
     "position_embed": 0,

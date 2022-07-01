@@ -8,7 +8,7 @@ class SentenceREDataset(data.Dataset):
     """
     Sentence-level relation extraction dataset
     """
-    def __init__(self, path, rel2id, tokenizer, kwargs):
+    def __init__(self, path, sentences, rel2id, tokenizer, kwargs):
         """
         Args:
             path: path of the input file
@@ -16,19 +16,20 @@ class SentenceREDataset(data.Dataset):
             tokenizer: function of tokenizing
         """
         super().__init__()
-        self.path = path
+        #self.path = path
+        self.sentences = sentences
         self.tokenizer = tokenizer
         self.rel2id = rel2id
         self.kwargs = kwargs
 
         # Load the file
-        f = open(path)
-        self.data = []
-        for line in f.readlines():
-            line = line.rstrip()
-            if len(line) > 0:
-                self.data.append(eval(line))
-        f.close()
+        #f = open(path)
+        self.data = sentences#[]
+        # for line in f.readlines():
+        #     line = line.rstrip()
+        #     if len(line) > 0:
+        #         self.data.append(eval(line))
+        # f.close()
         logging.info("Loaded sentence RE dataset {} with {} lines and {} relations.".format(path, len(self.data), len(self.rel2id)))
         
     def __len__(self):
@@ -37,8 +38,7 @@ class SentenceREDataset(data.Dataset):
     def __getitem__(self, index):
         item = self.data[index]
         seq = list(self.tokenizer(item, **self.kwargs))
-        res = [self.rel2id[item['relation']]] + seq
-        return [self.rel2id[item['relation']]] + seq # label, seq1, seq2, ...
+        return [self.rel2id[item.relation_type]] + seq # label, seq1, seq2, ...
     
     def collate_fn(data):
         data = list(zip(*data))
@@ -75,10 +75,10 @@ class SentenceREDataset(data.Dataset):
                 break
         for i in range(total):
             if use_name:
-                golden = self.data[i]['relation']
+                golden = self.data[i].relation_type
                 goldens.append(golden)
             else:
-                golden = self.rel2id[self.data[i]['relation']]
+                golden = self.rel2id[self.data[i].relation_type]
                 goldens.append(golden)
             if golden == pred_result[i]:
                 correct += 1
@@ -110,9 +110,9 @@ class SentenceREDataset(data.Dataset):
         logging.info('Evaluation result: \n {}.'.format(result))
         return result
     
-def SentenceRELoader(path, rel2id, tokenizer, batch_size, 
+def SentenceRELoader(path, sentences, rel2id, tokenizer, batch_size, 
         shuffle, num_workers=8, collate_fn=SentenceREDataset.collate_fn, **kwargs):
-    dataset = SentenceREDataset(path = path, rel2id = rel2id, tokenizer = tokenizer, kwargs=kwargs)
+    dataset = SentenceREDataset(path = path, sentences=sentences, rel2id = rel2id, tokenizer = tokenizer, kwargs=kwargs)
     data_loader = data.DataLoader(dataset=dataset,
             batch_size=batch_size,
             shuffle=shuffle,

@@ -18,7 +18,7 @@ import argparse
 import random
 
 class Training():
-        def __init__(self, dataset, parameters, trial=None):
+        def __init__(self, dataset:Dataset, parameters, trial=None):
                 self.dataset = dataset
                 self.trial = trial
         
@@ -49,11 +49,10 @@ class Training():
                         "lr": self.lr
                 }
                 
-                #if not os.path.exists(os.path.join('opennre', 'data', f'{self.dataset}_upos2id.json')):
-                upos2id, deps2id = csv2id(self.dataset)
-                save2json(self.dataset, upos2id, deps2id)
-                upos2id = json.loads(open(os.path.join('benchmark', f"{self.dataset}", f"{self.dataset}_upos2id.json"), 'r').read())
-                deps2id = json.loads(open(os.path.join('benchmark', f"{self.dataset}", f"{self.dataset}_deps2id.json"), 'r').read())
+                upos2id, deps2id = csv2id(self.dataset.name)
+                save2json(self.dataset.name, upos2id, deps2id)
+                upos2id = json.loads(open(os.path.join('benchmark', f"{self.dataset.name}", f"{self.dataset.name}_upos2id.json"), 'r').read())
+                deps2id = json.loads(open(os.path.join('benchmark', f"{self.dataset.name}", f"{self.dataset.name}_deps2id.json"), 'r').read())
                         
                 
                 # Set random seed
@@ -63,7 +62,7 @@ class Training():
                 sys.path.append(root_path)
                 if not os.path.exists('ckpt'):
                         os.mkdir('ckpt')
-                ckpt = '{}_{}'.format(self.dataset, self.model)
+                ckpt = '{}_{}'.format(self.dataset.name, self.model)
                 self.ckpt = 'ckpt/{}.pth.tar'.format(ckpt)
                 
                 self.train_file = ''
@@ -71,55 +70,53 @@ class Training():
                 self.test_file = ''
                 self.rel2id_file = ''
                 
-                if not os.path.exists(os.path.join(root_path, 'benchmark', self.dataset)):
-                        opennre.download(self.dataset, root_path=root_path)
+                if not os.path.exists(os.path.join(root_path, 'benchmark', self.dataset.name)):
+                        opennre.download(self.dataset.name, root_path=root_path)
                         
                 self.train_file = os.path.join(root_path, 
                                                 'benchmark', 
-                                                self.dataset, 
+                                                self.dataset.name, 
                                                 self.preprocessing_str, 
-                                                '{}_train_{}.txt'.format(self.dataset, self.preprocessing_str))
+                                                '{}_train_{}.txt'.format(self.dataset.name, self.preprocessing_str))
                 self.val_file = os.path.join(root_path, 
                                                 'benchmark', 
-                                                self.dataset, 
+                                                self.dataset.name, 
                                                 self.preprocessing_str, 
-                                                '{}_val_{}.txt'.format(self.dataset, self.preprocessing_str))
+                                                '{}_val_{}.txt'.format(self.dataset.name, self.preprocessing_str))
                 self.test_file = os.path.join(root_path, 
                                                 'benchmark', 
-                                                self.dataset, 
+                                                self.dataset.name, 
                                                 self.preprocessing_str, 
-                                                '{}_test_{}.txt'.format(self.dataset, self.preprocessing_str))
+                                                '{}_test_{}.txt'.format(self.dataset.name, self.preprocessing_str))
                         
                 if not (os.path.exists(self.train_file)) or not(os.path.exists(self.val_file)) or not(os.path.exists(self.test_file)):
-                        dataset = Dataset(self.dataset)
-                        dataset.load_dataset_csv()
                         if 'sw' in self.preprocessing:
-                                StopWordPreprocessor(dataset, self.preprocessing)
+                                StopWordPreprocessor(self.dataset, self.preprocessing)
                         if 'p' in self.preprocessing:
-                                PunctuationPreprocessor(dataset, self.preprocessing)
+                                PunctuationPreprocessor(self.dataset, self.preprocessing)
                         if 'b' in self.preprocessing:
-                                BracketsPreprocessor(dataset, self.preprocessing)
+                                BracketsPreprocessor(self.dataset, self.preprocessing)
                         if 'd' in self.preprocessing:
-                                DigitBlindingPreprocessor(dataset, self.preprocessing)
+                                DigitBlindingPreprocessor(self.dataset, self.preprocessing)
                         if 'nb' in self.preprocessing and 'eb' in self.preprocessing:
-                                if dataset.name == 'ddi':
-                                        EntityBlindingPreprocessor(dataset, self.preprocessing, "DRUG")
+                                if self.dataset.name == 'ddi':
+                                        EntityBlindingPreprocessor(self.dataset, self.preprocessing, "DRUG")
                                 else:
-                                        EntityBlindingPreprocessor(dataset, self.preprocessing, "ENTITY")
+                                        EntityBlindingPreprocessor(self.dataset, self.preprocessing, "ENTITY")
                         elif 'eb' in self.preprocessing:
-                                if dataset.name == 'ddi':
-                                        EntityBlindingPreprocessor(dataset, self. preprocessing, 'DRUG', 'entity')
+                                if self.dataset.name == 'ddi':
+                                        EntityBlindingPreprocessor(self.dataset, self. preprocessing, 'DRUG', 'entity')
                                 else:
-                                        EntityBlindingPreprocessor(dataset, self. preprocessing, 'ENTITY', 'entity')
+                                        EntityBlindingPreprocessor(self.dataset, self. preprocessing, 'ENTITY', 'entity')
                         elif 'nb' in self.preprocessing:
-                                if dataset.name == 'ddi':
-                                        EntityBlindingPreprocessor(dataset, self.preprocessing, "DRUG")
+                                if self.dataset.name == 'ddi':
+                                        EntityBlindingPreprocessor(self.dataset, self.preprocessing, "DRUG")
                                 else:
-                                        EntityBlindingPreprocessor(dataset, self.preprocessing, "ENTITY")
+                                        EntityBlindingPreprocessor(self.dataset, self.preprocessing, "ENTITY")
                         
                 if not os.path.exists(self.test_file):
                         self.test_file = None
-                self.rel2id_file = os.path.join(root_path, 'benchmark', self.dataset, '{}_rel2id.json'.format(self.dataset))
+                self.rel2id_file = os.path.join(root_path, 'benchmark', self.dataset.name, '{}_rel2id.json'.format(self.dataset.name))
                 
                 rel2id = json.load(open(self.rel2id_file))
 
@@ -248,7 +245,6 @@ class Training():
 
                 # Define the model
                 self.model_opennre = opennre.model.SoftmaxNN(sentence_encoder, len(rel2id), rel2id)
-                        
                 
                 self.criterion = opennre.model.PairwiseRankingLoss() if self.model == 'crcnn' else None
                 
@@ -262,6 +258,7 @@ class Training():
 
                 # Define the whole training framework
                 framework = opennre.framework.SentenceRE(
+                        dataset=self.dataset,
                         train_path=self.train_file,
                         val_path=self.val_file,
                         test_path=self.test_file,
@@ -292,6 +289,8 @@ class Training():
 
                 # Print the result
                 framework.test_set_results(ground_truth, pred, result, self.model, self.pretrain, self.hyper_params)
+                
+                torch.cuda.empty_cache()
                 
                 return result
                 

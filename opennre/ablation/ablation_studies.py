@@ -7,11 +7,11 @@ from pathlib import Path
 from opennre.framework.train import Training
 
 class AblationStudies():
-    def __init__(self, dataset, model, embeddings=[], best_hparams=True):
-        self.dataset = dataset
+    def __init__(self, dataset_name, model, embeddings=[], best_hparams=True):
+        self.dataset_name = dataset_name
         self.model = model
         self.embeddings = embeddings
-        self.csv_path = f'opennre/ablation/{self.dataset}_{self.model}_ablation_studies.csv'
+        self.csv_path = f'opennre/ablation/{self.dataset_name}_{self.model}_ablation_studies.csv'
         self.ablation = {
             'preprocessing': [], 
             'embeddings': [], 
@@ -38,18 +38,18 @@ class AblationStudies():
             self.exp = len(self.ablation['preprocessing'])
             print(len(self.ablation["preprocessing"]))
         
-        if not os.path.exists(config.HPARAMS_FILE_PATH.format(dataset)) or not best_hparams:
+        if not os.path.exists(config.HPARAMS_FILE_PATH.format(dataset_name)) or not best_hparams:
             dict_params = config.HPARAMS
             json_object = json.dumps(dict_params, indent=4)
-            with open(config.HPARAMS_FILE_PATH.format(dataset), 'w') as f:
+            with open(config.HPARAMS_FILE_PATH.format(dataset_name), 'w') as f:
                 f.write(json_object)
         self.best_hparams = {}
-        with open(config.HPARAMS_FILE_PATH.format(dataset), 'r') as f:
+        with open(config.HPARAMS_FILE_PATH.format(dataset_name), 'r') as f:
             self.best_hparams = json.load(f)
             
     def execute_ablation(self):
         parameters = self.best_hparams
-        parameters["dataset"] = self.dataset
+        parameters["dataset_name"] = self.dataset_name
 
         index = 0
         embed_indexes = [config.TYPE_EMBEDDINGS.index(embed) for embed in self.embeddings]
@@ -68,7 +68,7 @@ class AblationStudies():
                     parameters["sdp_embed"] = 0
                     parameters["preprocessing"] = preprocessing
                     
-                    train = Training(self.dataset, parameters)
+                    train = Training(self.dataset_name, parameters)
                     
                     result = train.train()
                     acc = result["acc"]
@@ -97,7 +97,7 @@ class AblationStudies():
         
     def save_ablation(self):
         df = pd.DataFrame.from_dict(self.ablation)
-        filepath = Path(f'opennre/ablation/{self.dataset}_{self.model}_ablation_studies.csv')
+        filepath = Path(f'opennre/ablation/{self.dataset_name}_{self.model}_ablation_studies.csv')
         df.to_csv(filepath, index=False)
         
     def embed_combinations(self, number_of_combinations):
