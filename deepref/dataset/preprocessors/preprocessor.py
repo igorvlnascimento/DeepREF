@@ -1,3 +1,4 @@
+import argparse
 from tqdm import tqdm
 
 from deepref.dataset.dataset import Dataset
@@ -12,19 +13,9 @@ class Preprocessor():
         dataset = self.preprocess_dataset()    
         dataset.write_text(self.preprocessing_types)
         
-    def preprocess(self, sentence: Sentence):
-        """ Preprocess sentence. """
-        pass
-        
     def preprocess_dataset(self):
-        for i, sentence in tqdm(enumerate(self.dataset.train_sentences)):
-            self.dataset.train_sentences[i] = self.preprocess(sentence)
-        for i, sentence in tqdm(enumerate(self.dataset.test_sentences)):
-            self.dataset.test_sentences[i] = self.preprocess(sentence)
-        for i, sentence in tqdm(enumerate(self.dataset.val_sentences)):
-            self.dataset.val_sentences[i] = self.preprocess(sentence)
-            
-        return self.dataset
+        """ Preprocess dataset. """
+        pass
         
     def process_sentence(self, sentence: Sentence, indexes:list):
         entity1_indexes = list(range(sentence.entity1['position'][0], sentence.entity1['position'][1]))
@@ -48,4 +39,3 @@ class Preprocessor():
         assert " ".join(sentence.original_sentence[sentence.entity2['position'][0]:sentence.entity2['position'][1]]) == sentence.entity2['name']
         assert len(sentence.original_sentence) == len(sentence.pos_tags) == len(sentence.dependencies_labels) == len(sentence.ner)
         return sentence
-        

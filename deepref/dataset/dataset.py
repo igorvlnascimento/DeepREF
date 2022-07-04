@@ -9,7 +9,7 @@ from deepref import config
 from deepref.dataset.sentence import Sentence
 
 class Dataset():
-    def __init__(self, name:str, train_sentences:list=[], test_sentences:list=[], val_sentences:list=[], val_perc:float=0.2, preprocessing_type:str ="original"):
+    def __init__(self, name:str, train_sentences:list=[], test_sentences:list=[], val_sentences:list=[], val_perc:float=0.1, preprocessing_type:str ="original"):
         self.name = name
         self.preprocessing_type = preprocessing_type
         self.path = f'benchmark/{self.name}/{self.preprocessing_type}/'
