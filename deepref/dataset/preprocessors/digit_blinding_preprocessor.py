@@ -18,8 +18,8 @@ class DigitBlindingPreprocessor(Preprocessor):
         return self.dataset
     
     def digit_blinding(self, sentence: Sentence):
-        for j, pos in enumerate(sentence.pos_tags):
+        for i, pos in enumerate(sentence.pos_tags):
             if pos == 'NUM':
-                sentence.original_sentence[j] = "DIGIT"
+                sentence.original_sentence[i] = "DIGIT"
         return sentence        
     
