@@ -51,8 +51,8 @@ class Training():
                 
                 upos2id, deps2id = csv2id(self.dataset.name)
                 save2json(self.dataset.name, upos2id, deps2id)
-                upos2id = json.loads(open(os.path.join('benchmark', f"{self.dataset.name}", f"{self.dataset.name}_upos2id.json"), 'r').read())
-                deps2id = json.loads(open(os.path.join('benchmark', f"{self.dataset.name}", f"{self.dataset.name}_deps2id.json"), 'r').read())
+                upos2id = json.loads(open(os.path.join('benchmark', self.dataset.name, f"{self.dataset.name}_upos2id.json"), 'r').read())
+                deps2id = json.loads(open(os.path.join('benchmark', self.dataset.name, f"{self.dataset.name}_deps2id.json"), 'r').read())
                         
                 
                 # Set random seed
@@ -258,7 +258,6 @@ class Training():
 
                 # Define the whole training framework
                 framework = deepref.framework.SentenceRE(
-                        dataset=self.dataset,
                         train_path=self.train_file,
                         val_path=self.val_file,
                         test_path=self.test_file,

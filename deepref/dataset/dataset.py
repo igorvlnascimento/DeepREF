@@ -9,7 +9,7 @@ from deepref import config
 from deepref.dataset.sentence import Sentence
 
 class Dataset():
-    def __init__(self, name:str, train_sentences:list=[], test_sentences:list=[], val_sentences:list=[], val_perc:float=0.1, preprocessing_type:str ="original"):
+    def __init__(self, name:str, train_sentences:list=[], test_sentences:list=[], val_sentences:list=[], val_perc:float=0.2, preprocessing_type:str ="original"):
         self.name = name
         self.preprocessing_type = preprocessing_type
         self.path = f'benchmark/{self.name}/{self.preprocessing_type}/'
@@ -62,7 +62,7 @@ class Dataset():
         val_df.to_csv(f"benchmark/{self.name}/original/{self.name}_val_original.csv", sep='\t', encoding='utf-8', index=False)
         test_df.to_csv(f"benchmark/{self.name}/original/{self.name}_test_original.csv", sep='\t', encoding='utf-8', index=False)
         
-    def write_text(self, preprocessing_types=[]):
+    def write_text(self, preprocessing_types):
         if len(preprocessing_types):
             preprocessing_types = sorted(preprocessing_types)
             preprocessing_types = "_".join(preprocessing_types)
@@ -81,13 +81,13 @@ class Dataset():
             sentence_dict = self.set_sentence_dict(sentence.get_sentence_info())
             test_data.append(sentence_dict)
         os.makedirs(f'benchmark/{self.name}/{preprocessing_types}/', exist_ok=True)
-        with open(self.path+f'{self.name}_train_{preprocessing_types}.txt', 'w') as f:
+        with open(os.path.join("benchmark", self.name, preprocessing_types, f'{self.name}_train_{preprocessing_types}.txt'), 'w') as f:
             for data in train_data:
                 f.write(str(data)+'\n')
-        with open(self.path+f'{self.name}_val_{preprocessing_types}.txt', 'w') as f:
+        with open(os.path.join("benchmark", self.name, preprocessing_types, f'{self.name}_val_{preprocessing_types}.txt'), 'w') as f:
             for data in val_data:
                 f.write(str(data)+'\n')
-        with open(self.path+f'{self.name}_test_{preprocessing_types}.txt', 'w') as f:
+        with open(os.path.join("benchmark", self.name, preprocessing_types, f'{self.name}_test_{preprocessing_types}.txt'), 'w') as f:
             for data in test_data:
                 f.write(str(data)+'\n')
                 

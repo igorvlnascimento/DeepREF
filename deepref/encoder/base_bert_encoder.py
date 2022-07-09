@@ -80,17 +80,17 @@ class BaseBERTEncoder(nn.Module):
             Name of the relation of the sentence
         """
         # Sentence -> token
-        # if 'text' in item:
-        #     sentence = item['text']
-        #     is_token = False
-        #else:
-        sentence = item.original_sentence
-        #is_token = True
-        pos_head = item.entity1['position']
-        pos_tail = item.entity2['position']
+        if 'text' in item:
+            sentence = item['text']
+            is_token = False
+        else:
+            sentence = item['token']
+            is_token = True
+        pos_head = item['h']['pos']
+        pos_tail = item['t']['pos']
         
-        pos_tags = item.pos_tags if self.pos_tags_embedding else []
-        deps = item.dependencies_labels if self.deps_embedding else []
+        pos_tags = item['pos_tags'] if self.pos_tags_embedding else []
+        deps = item['deps'] if self.deps_embedding else []
         pos_min = pos_head
         pos_max = pos_tail
         if pos_head[0] > pos_tail[0]:
@@ -100,24 +100,24 @@ class BaseBERTEncoder(nn.Module):
         else:
             rev = False
             
-        # if not is_token:
-        #     sent0 = self.tokenizer.tokenize(sentence[:pos_min[0]])
-        #     ent0 = self.tokenizer.tokenize(sentence[pos_min[0]:pos_min[1]])
-        #     sent1 = self.tokenizer.tokenize(sentence[pos_min[1]:pos_max[0]])
-        #     ent1 = self.tokenizer.tokenize(sentence[pos_max[0]:pos_max[1]])
-        #     sent2 = self.tokenizer.tokenize(sentence[pos_max[1]:])
-        # else:
-        sent0 = self.tokenizer.tokenize(' '.join(sentence[:pos_min[0]]))
-        ent0 = self.tokenizer.tokenize(' '.join(sentence[pos_min[0]:pos_min[1]]))
-        sent1 = self.tokenizer.tokenize(' '.join(sentence[pos_min[1]:pos_max[0]]))
-        ent1 = self.tokenizer.tokenize(' '.join(sentence[pos_max[0]:pos_max[1]]))
-        sent2 = self.tokenizer.tokenize(' '.join(sentence[pos_max[1]:]))
+        if not is_token:
+            sent0 = self.tokenizer.tokenize(sentence[:pos_min[0]])
+            ent0 = self.tokenizer.tokenize(sentence[pos_min[0]:pos_min[1]])
+            sent1 = self.tokenizer.tokenize(sentence[pos_min[1]:pos_max[0]])
+            ent1 = self.tokenizer.tokenize(sentence[pos_max[0]:pos_max[1]])
+            sent2 = self.tokenizer.tokenize(sentence[pos_max[1]:])
+        else:
+            sent0 = self.tokenizer.tokenize(' '.join(sentence[:pos_min[0]]))
+            ent0 = self.tokenizer.tokenize(' '.join(sentence[pos_min[0]:pos_min[1]]))
+            sent1 = self.tokenizer.tokenize(' '.join(sentence[pos_min[1]:pos_max[0]]))
+            ent1 = self.tokenizer.tokenize(' '.join(sentence[pos_max[0]:pos_max[1]]))
+            sent2 = self.tokenizer.tokenize(' '.join(sentence[pos_max[1]:]))
         
         re_tokens = []
         sk_pos1 = []
         sk_pos2 = []
         if self.sk_embedding:
-            sk_ents = item.sk_entities
+            sk_ents = item['sk']
             sk1_father = self.tokenizer.tokenize(sk_ents["ses1"][0])
             sk1_grandpa = self.tokenizer.tokenize(sk_ents["ses1"][-1])
             sk2_father = self.tokenizer.tokenize(sk_ents["ses2"][0])

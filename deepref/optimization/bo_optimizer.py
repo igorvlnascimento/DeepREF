@@ -34,15 +34,15 @@ class BOOptimizer(Optimizer):
         
         print("parameters:",parameters)
         
-        if self.cross_validation:
-            cv = CrossValidation(self.dataset)
-            result = cv.validate(self.hparams)
-        else:
-            train = Training(self.dataset, parameters, trial)
-            result = train.train()
+        # if self.cross_validation:
+        #     cv = CrossValidation(self.dataset)
+        #     result = cv.validate(self.hparams)
+        # else:
+        train = Training(self.dataset, parameters, trial)
+        result = train.train()
         result_value = result[self.metric]
-        if "avg" in result_value:
-            result_value = result_value["avg"]
+        # if "avg" in result_value:
+        #     result_value = result_value["avg"]
         
         if result_value > self.best_metric_value:
             self.best_metric_value = result_value
@@ -65,14 +65,14 @@ if __name__ == "__main__":
                 help='Metric to optimize')
     parser.add_argument('-t','--trials', default=50, 
                         help='Number of trials to optimize')
-    parser.add_argument('-cv','--cross_validation', action='store_true', 
-                        help='Optimize using cross validation')
+    # parser.add_argument('-cv','--cross_validation', action='store_true', 
+    #                     help='Optimize using cross validation')
     
     args = parser.parse_args()
     
     dataset = Dataset(args.dataset)
     dataset.load_dataset_csv()
-    opt = BOOptimizer(dataset, args.metric, int(args.trials), args.cross_validation)
+    opt = BOOptimizer(dataset, args.metric, int(args.trials))
     best_result = opt.best_result
     best_hparams = opt.optimize()
     

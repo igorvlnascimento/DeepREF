@@ -108,6 +108,6 @@ class DatasetConverter():
             dataset = DDIDataset(self.dataset_name, train_sentences_processed, test_sentences_processed)
         
         dataset.write_dataframe()
-        dataset.write_text()
+        dataset.write_text([])
         dataset.write_classes_json()
         return dataset
