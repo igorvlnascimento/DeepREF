@@ -38,7 +38,7 @@ class BOOptimizer(Optimizer):
         #     cv = CrossValidation(self.dataset)
         #     result = cv.validate(self.hparams)
         # else:
-        train = Training(self.dataset, parameters, trial)
+        train = Training(self.dataset.name, parameters, trial)
         result = train.train()
         result_value = result[self.metric]
         # if "avg" in result_value:
