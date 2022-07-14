@@ -1,6 +1,8 @@
 import nltk
 from nltk.corpus import stopwords
 
+from tqdm import tqdm
+
 from deepref.dataset.sentence import Sentence
 from deepref.dataset.preprocessors.preprocessor import Preprocessor
 
@@ -9,8 +11,18 @@ nltk.download('stopwords')
 class StopWordPreprocessor(Preprocessor):
     def __init__(self, dataset, preprocessing_types, entity_replacement=None):
         super(StopWordPreprocessor, self).__init__(dataset, preprocessing_types, entity_replacement)
+        
+    def preprocess_dataset(self):
+        for i, sentence in tqdm(enumerate(self.dataset.train_sentences)):
+            self.dataset.train_sentences[i] = self.stop_words_removal(sentence)
+        for i, sentence in tqdm(enumerate(self.dataset.test_sentences)):
+            self.dataset.test_sentences[i] = self.stop_words_removal(sentence)
+        for i, sentence in tqdm(enumerate(self.dataset.val_sentences)):
+            self.dataset.val_sentences[i] = self.stop_words_removal(sentence)
             
-    def preprocess(self, sentence: Sentence):
+        return self.dataset
+            
+    def stop_words_removal(self, sentence: Sentence):
         stop_words = set(stopwords.words('english'))
         stop_words.remove('o')
         indexes = []

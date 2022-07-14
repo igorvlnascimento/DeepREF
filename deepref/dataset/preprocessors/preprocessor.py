@@ -9,9 +9,6 @@ class Preprocessor():
         self.dataset = dataset
         self.preprocessing_types = preprocessing_types
         self.entity_replacement = entity_replacement
-
-        dataset = self.preprocess_dataset()    
-        dataset.write_text(self.preprocessing_types)
         
     def preprocess_dataset(self):
         """ Preprocess dataset. """

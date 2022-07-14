@@ -12,7 +12,7 @@ class AblationStudies():
         self.dataset = dataset
         self.model = model
         self.embeddings = embeddings
-        self.csv_path = f'deepref/ablation/{self.dataset.name}_{self.model}_ablation_studies.csv'
+        self.csv_path = f'deepref/ablation/{self.dataset}_{self.model}_ablation_studies.csv'
         self.ablation = {
             'preprocessing': [], 
             'embeddings': [], 
@@ -39,13 +39,13 @@ class AblationStudies():
             self.exp = len(self.ablation['preprocessing'])
             print(len(self.ablation["preprocessing"]))
         
-        if not os.path.exists(config.HPARAMS_FILE_PATH.format(dataset.name)):
+        if not os.path.exists(config.HPARAMS_FILE_PATH.format(dataset)):
             dict_params = config.HPARAMS
             json_object = json.dumps(dict_params, indent=4)
-            with open(config.HPARAMS_FILE_PATH.format(dataset.name), 'w') as f:
+            with open(config.HPARAMS_FILE_PATH.format(dataset), 'w') as f:
                 f.write(json_object)
         self.hparams = {}
-        with open(config.HPARAMS_FILE_PATH.format(dataset.name), 'r') as f:
+        with open(config.HPARAMS_FILE_PATH.format(dataset), 'r') as f:
             self.hparams = json.load(f)
             
     def execute_ablation(self):
@@ -97,7 +97,7 @@ class AblationStudies():
         
     def save_ablation(self):
         df = pd.DataFrame.from_dict(self.ablation)
-        filepath = Path(f'deepref/ablation/{self.dataset.name}_{self.model}_ablation_studies.csv')
+        filepath = Path(f'deepref/ablation/{self.dataset}_{self.model}_ablation_studies.csv')
         df.to_csv(filepath, index=False)
         
     def embed_combinations(self, number_of_combinations):
@@ -126,8 +126,5 @@ if __name__ == '__main__':
                 help='Preprocessing')
     args = parser.parse_args()
     
-    dataset = Dataset(args.dataset)
-    dataset.load_dataset_csv()
-    
-    ablation = AblationStudies(dataset, args.model, args.embeddings)
+    ablation = AblationStudies(args.dataset, args.model, args.embeddings)
     ablation.execute_ablation()

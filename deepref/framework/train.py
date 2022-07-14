@@ -18,8 +18,10 @@ import argparse
 import random
 
 class Training():
-        def __init__(self, dataset:Dataset, parameters, trial=None):
-                self.dataset = dataset
+        def __init__(self, dataset:str, parameters, trial=None):
+                dataset_obj = Dataset(dataset)
+                dataset_obj.load_dataset_csv()
+                self.dataset = dataset_obj
                 self.trial = trial
         
                 self.preprocessing = parameters["preprocessing"]
@@ -91,28 +93,48 @@ class Training():
                         
                 if not (os.path.exists(self.train_file)) or not(os.path.exists(self.val_file)) or not(os.path.exists(self.test_file)):
                         if 'sw' in self.preprocessing:
-                                StopWordPreprocessor(self.dataset, self.preprocessing)
+                                p = StopWordPreprocessor(self.dataset, self.preprocessing)
+                                dataset = p.preprocess_dataset()
+                                dataset.write_text(self.preprocessing)
                         if 'p' in self.preprocessing:
-                                PunctuationPreprocessor(self.dataset, self.preprocessing)
+                                p = PunctuationPreprocessor(self.dataset, self.preprocessing)
+                                dataset = p.preprocess_dataset()
+                                dataset.write_text(self.preprocessing)
                         if 'b' in self.preprocessing:
-                                BracketsPreprocessor(self.dataset, self.preprocessing)
+                                p = BracketsPreprocessor(self.dataset, self.preprocessing)
+                                dataset = p.preprocess_dataset()
+                                dataset.write_text(self.preprocessing)
                         if 'd' in self.preprocessing:
-                                DigitBlindingPreprocessor(self.dataset, self.preprocessing)
+                                p = DigitBlindingPreprocessor(self.dataset, self.preprocessing)
+                                dataset = p.preprocess_dataset()
+                                dataset.write_text(self.preprocessing)
                         if 'nb' in self.preprocessing and 'eb' in self.preprocessing:
                                 if self.dataset.name == 'ddi':
-                                        EntityBlindingPreprocessor(self.dataset, self.preprocessing, "DRUG")
+                                        p = EntityBlindingPreprocessor(self.dataset, self.preprocessing, "DRUG")
+                                        dataset = p.preprocess_dataset()
+                                        dataset.write_text(self.preprocessing)
                                 else:
-                                        EntityBlindingPreprocessor(self.dataset, self.preprocessing, "ENTITY")
+                                        p = EntityBlindingPreprocessor(self.dataset, self.preprocessing, "ENTITY")
+                                        dataset = p.preprocess_dataset()
+                                        dataset.write_text(self.preprocessing)
                         elif 'eb' in self.preprocessing:
                                 if self.dataset.name == 'ddi':
-                                        EntityBlindingPreprocessor(self.dataset, self. preprocessing, 'DRUG', 'entity')
+                                        p = EntityBlindingPreprocessor(self.dataset, self. preprocessing, 'DRUG', 'entity')
+                                        dataset = p.preprocess_dataset()
+                                        dataset.write_text(self.preprocessing)     
                                 else:
-                                        EntityBlindingPreprocessor(self.dataset, self. preprocessing, 'ENTITY', 'entity')
+                                        p = EntityBlindingPreprocessor(self.dataset, self. preprocessing, 'ENTITY', 'entity')
+                                        dataset = p.preprocess_dataset()
+                                        dataset.write_text(self.preprocessing)
                         elif 'nb' in self.preprocessing:
                                 if self.dataset.name == 'ddi':
-                                        EntityBlindingPreprocessor(self.dataset, self.preprocessing, "DRUG")
+                                        p = EntityBlindingPreprocessor(self.dataset, self.preprocessing, "DRUG")
+                                        dataset = p.preprocess_dataset()
+                                        dataset.write_text(self.preprocessing)
                                 else:
-                                        EntityBlindingPreprocessor(self.dataset, self.preprocessing, "ENTITY")
+                                        p = EntityBlindingPreprocessor(self.dataset, self.preprocessing, "ENTITY")
+                                        dataset = p.preprocess_dataset()
+                                        dataset.write_text(self.preprocessing)
                         
                 if not os.path.exists(self.test_file):
                         self.test_file = None
@@ -303,11 +325,8 @@ if __name__ == '__main__':
 
         args = parser.parse_args()
         
-        dataset = Dataset(args.dataset)
-        dataset.load_dataset_csv()
-        
-        with open(config.HPARAMS_FILE_PATH.format(dataset.name), 'r') as f:
+        with open(config.HPARAMS_FILE_PATH.format(args.dataset), 'r') as f:
             hparams = json.load(f)
         
-        train = Training(dataset, hparams)
+        train = Training(args.dataset, hparams)
         train.train()
