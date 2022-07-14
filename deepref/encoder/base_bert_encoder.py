@@ -137,11 +137,14 @@ class BaseBERTEncoder(nn.Module):
             sk_pos2_grandpa = min(self.max_length - 1, sk_pos2_grandpa)
             sk_pos1 = [sk_pos1_father, sk_pos1_grandpa]
             sk_pos2 = [sk_pos2_father, sk_pos2_grandpa]
-            
-            assert re_tokens[sk_pos1_father] == sk1_father[0]
-            assert re_tokens[sk_pos1_grandpa] == sk1_grandpa[0]
-            assert re_tokens[sk_pos2_father] == sk2_father[0]
-            assert re_tokens[sk_pos2_grandpa] == sk2_grandpa[0]
+            sk1_father_name = re_tokens[sk_pos1_father] if sk_pos1_father == self.max_length - 1 else sk1_father[0]
+            sk1_grandpa_name = re_tokens[sk_pos1_grandpa] if sk_pos1_grandpa == self.max_length - 1 else sk1_grandpa[0]
+            sk2_father_name = re_tokens[sk_pos2_father] if sk_pos2_father == self.max_length - 1 else sk2_father[0]
+            sk2_grandpa_name = re_tokens[sk_pos2_grandpa] if sk_pos2_grandpa == self.max_length - 1 else sk2_grandpa[0]
+            assert re_tokens[sk_pos1_father] == sk1_father_name
+            assert re_tokens[sk_pos1_grandpa] == sk1_grandpa_name
+            assert re_tokens[sk_pos2_father] == sk2_father_name
+            assert re_tokens[sk_pos2_grandpa] == sk2_grandpa_name
 
         if self.mask_entity:
             ent0 = ['[unused4]'] if not rev else ['[unused5]']
@@ -153,17 +156,14 @@ class BaseBERTEncoder(nn.Module):
         if not re_tokens:
             re_tokens = ['[CLS]'] + sent0 + ent0 + sent1 + ent1 + sent2 + ['[SEP]']
                 
-        if self.sk_embedding:
-            pos1 = 2 + len(sent0) if not rev else 2 + len(sent0 + sk1 + sent1)
-            pos2 = 2 + len(sent0 + sk1 + sent1) if not rev else 2 + len(sent0)
-        else:
-            pos1 = 2 + len(sent0) if not rev else 2 + len(sent0 + ent0 + sent1)
-            pos2 = 2 + len(sent0 + ent0 + sent1) if not rev else 2 + len(sent0)
+        pos1 = re_tokens.index('[unused0]') + 1 if not self.mask_entity else re_tokens.index('[unused4]')
+        pos2 = re_tokens.index('[unused2]') + 1 if not self.mask_entity else re_tokens.index('[unused5]')
         pos1 = min(self.max_length - 1, pos1)
         pos2 = min(self.max_length - 1, pos2)
-        
-        assert re_tokens[pos1] == ent0[1]
-        assert re_tokens[pos2] == ent1[1]
+        ent0_name = re_tokens[pos1] if pos1 == self.max_length - 1 else ent0[1]
+        ent1_name = re_tokens[pos2] if pos2 == self.max_length - 1 else ent1[1]
+        assert re_tokens[pos1] == ent0_name
+        assert re_tokens[pos2] == ent1_name
                 
         indexed_tokens = self.tokenizer.convert_tokens_to_ids(re_tokens)
         avai_len = len(indexed_tokens)
