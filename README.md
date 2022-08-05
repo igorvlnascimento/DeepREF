@@ -83,10 +83,11 @@ That code will get the hyperparameters, embeddings and preprocessing types from 
 
 ## Preprocessing
 
-It`s easy to preprocess the datasets on DeepREF. Just execute the code below to train a model and choose the preprocessing types on the variable `preprocessing` in the `deepref/hyperparameters/hyperparams_<dataset>.json` file.
+It's easy to preprocess the datasets on DeepREF. Just execute the code below to train a model and choose the preprocessing types on the variable `preprocessing` in the `deepref/hyperparameters/hyperparams_<dataset>.json` file.
 
 ```
 python deefref/framework/train.py --dataset <dataset_name>
+```
 
 The `dataset_name` can be one of theses options: `semeval2010` (default), `semeval20181-1`, `semeval20181-2` and `ddi`.
 

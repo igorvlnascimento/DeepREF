@@ -18,21 +18,18 @@ import argparse
 import random
 
 class Training():
-        def __init__(self, dataset:str, parameters, trial=None):
-                dataset_obj = Dataset(dataset)
-                dataset_obj.load_dataset_csv()
-                self.dataset = dataset_obj
+        def __init__(self, dataset_name:str, parameters, trial=None):
+                self.dataset_name = dataset_name
                 self.trial = trial
         
                 self.preprocessing = parameters["preprocessing"]
                 self.model = parameters["model"]
                 self.max_length = parameters["max_length"]
-                self.opt = "adamw" if self.model == "bert_entity" or self.model == "bert_cls" else "sgd"
+                self.opt = "adamw" if self.model == "bert_entity" or self.model == "bert_cls" or self.model == "ebem" else "sgd"
                 self.pretrain = parameters["pretrain"]
                 self.position_embed = parameters["position_embed"]
                 self.pos_tags_embed = parameters["pos_tags_embed"]
                 self.deps_embed = parameters["deps_embed"]
-                self.sk_embed = parameters["sk_embed"]
                 self.batch_size = parameters["batch_size"]
                 self.lr = parameters["lr"]
                 self.max_epoch = parameters["max_epoch"]
@@ -51,10 +48,10 @@ class Training():
                         "lr": self.lr
                 }
                 
-                upos2id, deps2id = csv2id(self.dataset.name)
-                save2json(self.dataset.name, upos2id, deps2id)
-                upos2id = json.loads(open(os.path.join('benchmark', self.dataset.name, f"{self.dataset.name}_upos2id.json"), 'r').read())
-                deps2id = json.loads(open(os.path.join('benchmark', self.dataset.name, f"{self.dataset.name}_deps2id.json"), 'r').read())
+                upos2id, deps2id = csv2id(self.dataset_name)
+                save2json(self.dataset_name, upos2id, deps2id)
+                upos2id = json.loads(open(os.path.join('benchmark', self.dataset_name, f"{self.dataset_name}_upos2id.json"), 'r').read())
+                deps2id = json.loads(open(os.path.join('benchmark', self.dataset_name, f"{self.dataset_name}_deps2id.json"), 'r').read())
                         
                 
                 # Set random seed
@@ -64,7 +61,7 @@ class Training():
                 sys.path.append(root_path)
                 if not os.path.exists('ckpt'):
                         os.mkdir('ckpt')
-                ckpt = '{}_{}'.format(self.dataset.name, self.model)
+                ckpt = '{}_{}'.format(self.dataset_name, self.model)
                 self.ckpt = 'ckpt/{}.pth.tar'.format(ckpt)
                 
                 self.train_file = ''
@@ -72,78 +69,68 @@ class Training():
                 self.test_file = ''
                 self.rel2id_file = ''
                 
-                if not os.path.exists(os.path.join(root_path, 'benchmark', self.dataset.name)):
-                        deepref.download(self.dataset.name, root_path=root_path)
+                if not os.path.exists(os.path.join(root_path, 'benchmark', self.dataset_name)):
+                        deepref.download(self.dataset_name, root_path=root_path)
                         
                 self.train_file = os.path.join(root_path, 
                                                 'benchmark', 
-                                                self.dataset.name, 
+                                                self.dataset_name, 
                                                 self.preprocessing_str, 
-                                                '{}_train_{}.txt'.format(self.dataset.name, self.preprocessing_str))
+                                                '{}_train_{}.txt'.format(self.dataset_name, self.preprocessing_str))
                 self.val_file = os.path.join(root_path, 
                                                 'benchmark', 
-                                                self.dataset.name, 
+                                                self.dataset_name, 
                                                 self.preprocessing_str, 
-                                                '{}_val_{}.txt'.format(self.dataset.name, self.preprocessing_str))
+                                                '{}_val_{}.txt'.format(self.dataset_name, self.preprocessing_str))
                 self.test_file = os.path.join(root_path, 
                                                 'benchmark', 
-                                                self.dataset.name, 
+                                                self.dataset_name, 
                                                 self.preprocessing_str, 
-                                                '{}_test_{}.txt'.format(self.dataset.name, self.preprocessing_str))
+                                                '{}_test_{}.txt'.format(self.dataset_name, self.preprocessing_str))
                         
                 if not (os.path.exists(self.train_file)) or not(os.path.exists(self.val_file)) or not(os.path.exists(self.test_file)):
                         if 'sw' in self.preprocessing:
-                                p = StopWordPreprocessor(self.dataset, self.preprocessing)
-                                dataset = p.preprocess_dataset()
+                                dataset = StopWordPreprocessor(self.dataset_name, self.preprocessing).preprocess_dataset()
                                 dataset.write_text(self.preprocessing)
                         if 'p' in self.preprocessing:
-                                p = PunctuationPreprocessor(self.dataset, self.preprocessing)
-                                dataset = p.preprocess_dataset()
+                                dataset = PunctuationPreprocessor(self.dataset_name, self.preprocessing).preprocess_dataset()
                                 dataset.write_text(self.preprocessing)
                         if 'b' in self.preprocessing:
-                                p = BracketsPreprocessor(self.dataset, self.preprocessing)
-                                dataset = p.preprocess_dataset()
+                                dataset = BracketsPreprocessor(self.dataset_name, self.preprocessing).preprocess_dataset()
                                 dataset.write_text(self.preprocessing)
                         if 'd' in self.preprocessing:
-                                p = DigitBlindingPreprocessor(self.dataset, self.preprocessing)
-                                dataset = p.preprocess_dataset()
+                                dataset = DigitBlindingPreprocessor(self.dataset_name, self.preprocessing).preprocess_dataset()
                                 dataset.write_text(self.preprocessing)
                         if 'nb' in self.preprocessing and 'eb' in self.preprocessing:
-                                if self.dataset.name == 'ddi':
-                                        p = EntityBlindingPreprocessor(self.dataset, self.preprocessing, "DRUG")
-                                        dataset = p.preprocess_dataset()
+                                if self.dataset_name == 'ddi':
+                                        dataset = EntityBlindingPreprocessor(self.dataset_name, self.preprocessing, "DRUG").preprocess_dataset()
                                         dataset.write_text(self.preprocessing)
                                 else:
-                                        p = EntityBlindingPreprocessor(self.dataset, self.preprocessing, "ENTITY")
-                                        dataset = p.preprocess_dataset()
+                                        dataset = EntityBlindingPreprocessor(self.dataset_name, self.preprocessing, "ENTITY").preprocess_dataset()
                                         dataset.write_text(self.preprocessing)
                         elif 'eb' in self.preprocessing:
-                                if self.dataset.name == 'ddi':
-                                        p = EntityBlindingPreprocessor(self.dataset, self. preprocessing, 'DRUG', 'entity')
-                                        dataset = p.preprocess_dataset()
+                                if self.dataset_name == 'ddi':
+                                        dataset = EntityBlindingPreprocessor(self.dataset_name, self. preprocessing, 'DRUG', 'entity').preprocess_dataset()
                                         dataset.write_text(self.preprocessing)     
                                 else:
-                                        p = EntityBlindingPreprocessor(self.dataset, self. preprocessing, 'ENTITY', 'entity')
-                                        dataset = p.preprocess_dataset()
+                                        dataset = EntityBlindingPreprocessor(self.dataset_name, self. preprocessing, 'ENTITY', 'entity').preprocess_dataset()
                                         dataset.write_text(self.preprocessing)
                         elif 'nb' in self.preprocessing:
-                                if self.dataset.name == 'ddi':
-                                        p = EntityBlindingPreprocessor(self.dataset, self.preprocessing, "DRUG")
-                                        dataset = p.preprocess_dataset()
+                                if self.dataset_name == 'ddi':
+                                        dataset = EntityBlindingPreprocessor(self.dataset_name, self.preprocessing, "DRUG").preprocess_dataset()
                                         dataset.write_text(self.preprocessing)
                                 else:
-                                        p = EntityBlindingPreprocessor(self.dataset, self.preprocessing, "ENTITY")
-                                        dataset = p.preprocess_dataset()
+                                        dataset = EntityBlindingPreprocessor(self.dataset_name, self.preprocessing, "ENTITY").preprocess_dataset()
                                         dataset.write_text(self.preprocessing)
                         
                 if not os.path.exists(self.test_file):
                         self.test_file = None
-                self.rel2id_file = os.path.join(root_path, 'benchmark', self.dataset.name, '{}_rel2id.json'.format(self.dataset.name))
+                self.rel2id_file = os.path.join(root_path, 'benchmark', self.dataset_name, '{}_rel2id.json'.format(self.dataset_name))
                 
                 rel2id = json.load(open(self.rel2id_file))
 
                 print("pretrain:",self.pretrain)
-                if 'bert_' not in self.model:
+                if 'bert_' not in self.model and self.model != 'ebem':
                         print(self.model)
                         word2id, word2vec = WordEmbeddingLoader("glove").load_embedding()
                         word_dim = word2vec.shape[1]
@@ -256,9 +243,14 @@ class Training():
                 elif self.model == "bert_entity":
                         sentence_encoder = deepref.encoder.BERTEntityEncoder(
                                 max_length=self.max_length,
-                                pretrain_path=self.pretrain, 
+                                pretrain_path=self.pretrain
+                        )
+                
+                elif self.model == "ebem":
+                        sentence_encoder = deepref.encoder.EBEMEncoder(
+                                max_length=self.max_length,
+                                pretrain_path=self.pretrain,
                                 position_embedding=self.position_embed,
-                                sk_embedding=self.sk_embed,
                                 pos_tags_embedding=self.pos_tags_embed,
                                 deps_embedding=self.deps_embed,
                                 upos2id=upos2id,

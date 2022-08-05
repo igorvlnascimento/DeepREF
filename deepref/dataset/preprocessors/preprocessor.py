@@ -5,8 +5,10 @@ from deepref.dataset.dataset import Dataset
 from deepref.dataset.sentence import Sentence
 
 class Preprocessor():
-    def __init__(self, dataset: Dataset, preprocessing_types: list=[], entity_replacement: str=None):
-        self.dataset = dataset
+    def __init__(self, dataset: str, preprocessing_types: list=[], entity_replacement: str=None):
+        dataset_obj = Dataset(dataset)
+        dataset_obj.load_dataset_csv()
+        self.dataset = dataset_obj
         self.preprocessing_types = preprocessing_types
         self.entity_replacement = entity_replacement
         

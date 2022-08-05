@@ -7,8 +7,7 @@ from .lstm_encoder import LSTMEncoder
 from .gru_encoder import GRUEncoder
 from .crcnn_encoder import CRCNNEncoder
 from .pcnn_encoder import PCNNEncoder
-from .bert_encoder import BERTEncoder, BERTEntityEncoder
-from .base_bert_encoder import BaseBERTEncoder
+from .bert_encoder import BERTEncoder, BERTEntityEncoder, EBEMEncoder
 
 __all__ = [
     'CNNEncoder',
@@ -19,5 +18,5 @@ __all__ = [
     'GGNNEncoder',
     'BERTEncoder',
     'BERTEntityEncoder',
-    'BaseBERTEncoder'
+    'EBEMEncoder'
 ]

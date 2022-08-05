@@ -27,8 +27,8 @@ DATASETS = ['semeval2010', 'semeval20181-1', 'semeval20181-2', 'ddi'] # TODO : A
 MODELS = ["cnn", "pcnn", "crcnn", "gru", "bigru", "lstm", "bilstm", "bert_cls", "bert_entity"]
 PRETRAIN_WEIGHTS = ["bert-base-uncased", "dmis-lab/biobert-v1.1", "allenai/scibert_scivocab_uncased", "deepset/sentence_bert"]
 WORD_EMBEDDINGS = ["glove", "senna", "fasttext_wiki", "fasttext_crawl"]
-TYPE_EMBEDDINGS = ["position", "sk", "pos_tags", "deps"]
-TYPE_EMBEDDINGS_COMBINATION = combine(TYPE_EMBEDDINGS)
+TYPE_EMBEDDINGS = ["position", "pos_tags", "deps"]
+TYPE_EMBEDDINGS_COMBINATION = combine(TYPE_EMBEDDINGS)[1:]
 NLP_TOOLS = ["stanza", "spacy"]
 HPARAMS = {
     "model": "bert_entity",
