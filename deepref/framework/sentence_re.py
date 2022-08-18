@@ -8,6 +8,8 @@ from datetime import datetime
 
 from sklearn import metrics
 import numpy as np
+import seaborn as sns
+import matplotlib.pyplot as plt
 
 import optuna
 
@@ -211,16 +213,27 @@ class SentenceRE(nn.Module):
         logging.info('Test set results:')
         logging.info('Trained with dataset {}, model {}, embedding {} and preprocessing {}:\n'.format(self.dataset_name, model, embedding, self.preprocessing))
         logging.info('Hyperparams: {}'.format(hyper_params))
-        file_path = config.RESULTS_PATH+'/{}/ResultsDeepREF_{}_{}.txt'.format(self.dataset_name, self.dataset_name, datetime.now().isoformat(timespec="seconds"))
+        time = datetime.now().isoformat(timespec="seconds")
+        os.makedirs(os.path.join(config.RESULTS_PATH, self.dataset_name, 'exp', time), exist_ok=True)
+        file_path = config.RESULTS_PATH+'/{}/exp/{}/{}_ResultsDeepREF_{}.txt'.format(self.dataset_name, time, time, self.dataset_name)
         report = metrics.classification_report(ground_truth, pred, target_names=self.classes, digits=5, zero_division=1)
         confusion_matrix = metrics.confusion_matrix(ground_truth, pred)
+        # for input, prediction, label in zip(inputs, pred, ground_truth):
+        #     if prediction != label:
+        #         print(input, 'has been classified as ', prediction, 'and should be ', label)
+        sns_plot = sns.heatmap(confusion_matrix, annot=True, xticklabels=self.classes, yticklabels=self.classes, cmap='binary', annot_kws={"fontsize":8}, linewidths=0.1, square=True)
+        #sns_plot.set_xticklabels(sns_plot.get_xmajorticklabels(), fontsize = 8)
+        #sns_plot.set_yticklabels(sns_plot.get_ymajorticklabels(), fontsize = 8)
+        fig = sns_plot.get_figure()
+        plt.gcf().set_size_inches(17, 15)
+        fig.savefig(f"{config.RESULTS_PATH}/{self.dataset_name}/exp/{time}/{self.dataset_name}_confusion_matrix.png")
+        plt.clf()
         logging.info('\n'+report)
         logging.info('Accuracy: {}'.format(result['acc']))
         logging.info('Micro precision: {}'.format(result['micro_p']))
         logging.info('Micro recall: {}'.format(result['micro_r']))
         logging.info('Micro F1: {}'.format(result['micro_f1']))
         logging.info('Macro F1: {}'.format(result['macro_f1']))
-        os.makedirs(os.path.join(config.RESULTS_PATH, self.dataset_name), exist_ok=True)
         if os.path.isfile(file_path):
             with open(file_path, 'a') as ablation_file:
                 self.write_test_results(ablation_file, model, embedding, hyper_params, result, report, confusion_matrix)
