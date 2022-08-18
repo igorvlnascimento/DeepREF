@@ -12,11 +12,11 @@ class Preprocessor():
         self.preprocessing_types = preprocessing_types
         self.entity_replacement = entity_replacement
         
-    def preprocess_dataset(self):
+    def preprocess_dataset(self) -> Dataset:
         """ Preprocess dataset. """
         pass
         
-    def process_sentence(self, sentence: Sentence, indexes:list):
+    def process_sentence(self, sentence: Sentence, indexes:list) -> Sentence:
         entity1_indexes = list(range(sentence.entity1['position'][0], sentence.entity1['position'][1]))
         entity2_indexes = list(range(sentence.entity2['position'][0], sentence.entity2['position'][1]))
         indexes_before_ent1 = 0
