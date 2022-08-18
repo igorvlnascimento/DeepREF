@@ -2,9 +2,14 @@ import os
 import json
 import argparse
 import itertools
+from random import seed
 from deepref import config
 
 import optuna
+from optuna.visualization import plot_param_importances
+from optuna.visualization import plot_parallel_coordinate
+
+import plotly
 
 from deepref.framework.train import Training
 from deepref.framework.cross_validation import CrossValidation
@@ -12,25 +17,28 @@ from deepref.optimization.optimizer import Optimizer
 from deepref.dataset.dataset import Dataset
 
 class BOOptimizer(Optimizer):
-    def __init__(self, dataset:Dataset, metric:str, trials:int=50, cross_validation:bool=False):
+    def __init__(self, dataset:str, metric:str, trials:int=50, cross_validation:bool=False):
         super(BOOptimizer, self).__init__(dataset, metric, trials, cross_validation)
         
-        self.study = optuna.create_study(direction="maximize")
+        self.study = optuna.create_study(
+            direction="maximize",
+            sampler=optuna.samplers.TPESampler(),
+            pruner=optuna.pruners.HyperbandPruner(),
+        )
 
     def objective(self, trial):
         
-        batch_size =  trial.suggest_int("batch_size", 2, 64, log=True)
-        lr =  trial.suggest_float("lr", 1e-6, 1e-1, log=True)
-        max_length =  trial.suggest_int("max_length", 16, 256, log=True)
-        max_epoch = trial.suggest_int("max_epoch", 2, 8)
+        #batch_size =  trial.suggest_int("batch_size", 2, 16, log=True)
+        lr =  trial.suggest_float("lr", 1e-7, 1e-4, log=True)
+        #max_length =  trial.suggest_int("max_length", 16, 128, log=True)
+        #max_epoch = trial.suggest_int("max_epoch", 2, 8)
         
         parameters = self.hparams
-        parameters["dataset"] = self.dataset.name
-        parameters["metric"] = self.metric
-        parameters["batch_size"] = batch_size
+        parameters["dataset"] = self.dataset
+        #parameters["batch_size"] = batch_size
         parameters["lr"] = lr
-        parameters["max_length"] = max_length
-        parameters["max_epoch"] = max_epoch
+        #parameters["max_length"] = max_length
+        #parameters["max_epoch"] = max_epoch
         
         print("parameters:",parameters)
         
@@ -38,7 +46,7 @@ class BOOptimizer(Optimizer):
         #     cv = CrossValidation(self.dataset)
         #     result = cv.validate(self.hparams)
         # else:
-        train = Training(self.dataset.name, parameters, trial)
+        train = Training(self.dataset, parameters, trial)
         result = train.train()
         result_value = result[self.metric]
         # if "avg" in result_value:
@@ -48,10 +56,16 @@ class BOOptimizer(Optimizer):
             self.best_metric_value = result_value
             self.best_result = result
         
-        return self.best_metric_value
+        return result_value
         
     def optimize(self):
         self.study.optimize(self.objective, n_trials=self.trials)
+        
+        fig1 = plot_param_importances(self.study, target_name=self.metric)
+        fig2 = plot_parallel_coordinate(self.study, target_name=self.metric)
+        RESULT_PATH = f'results/{self.dataset}/'
+        fig1.write_image(RESULT_PATH+f'/{self.dataset}_param_inportances.png')
+        fig2.write_image(RESULT_PATH+f'/{self.dataset}_parallel_coordinate.png')
     
         params = self.study.best_params
         
@@ -70,11 +84,9 @@ if __name__ == "__main__":
     
     args = parser.parse_args()
     
-    dataset = Dataset(args.dataset)
-    dataset.load_dataset_csv()
-    opt = BOOptimizer(dataset, args.metric, int(args.trials))
-    best_result = opt.best_result
+    opt = BOOptimizer(args.dataset, args.metric, int(args.trials))
     best_hparams = opt.optimize()
+    best_result = opt.best_result
     
     print("Best params:",best_hparams)
     print("Best result:",best_result)
