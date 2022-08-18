@@ -112,6 +112,13 @@ class BaseBERTEncoder(nn.Module):
             sent1 = self.tokenizer.tokenize(' '.join(sentence[pos_min[1]:pos_max[0]]))
             ent1 = self.tokenizer.tokenize(' '.join(sentence[pos_max[0]:pos_max[1]]))
             sent2 = self.tokenizer.tokenize(' '.join(sentence[pos_max[1]:]))
+            
+        if self.mask_entity:
+            ent0 = ['[unused4]'] if not rev else ['[unused5]']
+            ent1 = ['[unused5]'] if not rev else ['[unused4]']
+        else:
+            ent0 = ['[unused0]'] + ent0 + ['[unused1]'] if not rev else ['[unused2]'] + ent0 + ['[unused3]']
+            ent1 = ['[unused2]'] + ent1 + ['[unused3]'] if not rev else ['[unused0]'] + ent1 + ['[unused1]']
         
         re_tokens = []
         sk_pos1 = []
@@ -127,43 +134,59 @@ class BaseBERTEncoder(nn.Module):
             sk2 = ['[unused2]'] + ent1 + sk2_father + sk2_grandpa + ['[unused3]'] if not rev else ['[unused0]'] + ent1 + sk2_father + sk2_grandpa + ['[unused1]']
             re_tokens = ['[CLS]'] + sent0 + sk1 + sent1 + sk2 +  sent2 + ['[SEP]']
             
+            # sk1 = ['[unused4]'] + sk1_father + sk1_grandpa + ['[unused5]'] if not rev else ['[unused6]'] + sk1_father + sk1_grandpa + ['[unused7]']
+            # sk2 = ['[unused6]'] + sk2_father + sk2_grandpa + ['[unused7]'] if not rev else ['[unused4]'] + sk2_father + sk2_grandpa + ['[unused5]']
+            # re_tokens = ['[CLS]'] + sent0 + ent0 + sent1 + ent1 + sent2 + sk1 + sk2 ['[SEP]']
+            
+            print(re_tokens)
+            
             sk_pos1_father = re_tokens.index('[unused0]') + len(ent0) + 1 if not rev else re_tokens.index('[unused2]') + len(ent0) + 1
             sk_pos1_grandpa = re_tokens.index('[unused1]') - len(sk1_grandpa) if not rev else re_tokens.index('[unused3]') - len(sk1_grandpa)
             sk_pos2_father = re_tokens.index('[unused2]') + len(ent1) + 1 if not rev else re_tokens.index('[unused0]') + len(ent1) + 1
-            sk_pos2_grandpa = re_tokens.index('[unused3]') - len(sk2_grandpa) if not rev else re_tokens.index('[unused2]') - len(sk2_grandpa)
+            sk_pos2_grandpa = re_tokens.index('[unused3]') - len(sk2_grandpa) if not rev else re_tokens.index('[unused1]') - len(sk2_grandpa)
+            # sk_pos1_father = re_tokens.index('[unused4]') if not rev else re_tokens.index('[unused6]')
+            # sk_pos1_grandpa = re_tokens.index('[unused6]') if not rev else re_tokens.index('[unused7]')
+            # sk_pos2_father = re_tokens.index('[unused6]') if not rev else re_tokens.index('[unused4]')
+            # sk_pos2_grandpa = re_tokens.index('[unused7]') if not rev else re_tokens.index('[unused6]')
             sk_pos1_father = min(self.max_length - 1, sk_pos1_father)
             sk_pos1_grandpa = min(self.max_length - 1, sk_pos1_grandpa)
             sk_pos2_father = min(self.max_length - 1, sk_pos2_father)
             sk_pos2_grandpa = min(self.max_length - 1, sk_pos2_grandpa)
             sk_pos1 = [sk_pos1_father, sk_pos1_grandpa]
             sk_pos2 = [sk_pos2_father, sk_pos2_grandpa]
-            sk1_father_name = re_tokens[sk_pos1_father] if sk_pos1_father == self.max_length - 1 else sk1_father[0]
-            sk1_grandpa_name = re_tokens[sk_pos1_grandpa] if sk_pos1_grandpa == self.max_length - 1 else sk1_grandpa[0]
-            sk2_father_name = re_tokens[sk_pos2_father] if sk_pos2_father == self.max_length - 1 else sk2_father[0]
-            sk2_grandpa_name = re_tokens[sk_pos2_grandpa] if sk_pos2_grandpa == self.max_length - 1 else sk2_grandpa[0]
+            sk1_father_name = re_tokens[sk_pos1_father] if sk_pos1_father >= self.max_length - 1 else sk1_father[0]
+            sk1_grandpa_name = re_tokens[sk_pos1_grandpa] if sk_pos1_grandpa >= self.max_length - 1 else sk1_grandpa[0]
+            sk2_father_name = re_tokens[sk_pos2_father] if sk_pos2_father >= self.max_length - 1 else sk2_father[0]
+            sk2_grandpa_name = re_tokens[sk_pos2_grandpa] if sk_pos2_grandpa >= self.max_length - 1 else sk2_grandpa[0]
             assert re_tokens[sk_pos1_father] == sk1_father_name
             assert re_tokens[sk_pos1_grandpa] == sk1_grandpa_name
             assert re_tokens[sk_pos2_father] == sk2_father_name
             assert re_tokens[sk_pos2_grandpa] == sk2_grandpa_name
-
-        if self.mask_entity:
-            ent0 = ['[unused4]'] if not rev else ['[unused5]']
-            ent1 = ['[unused5]'] if not rev else ['[unused4]']
-        else:
-            ent0 = ['[unused0]'] + ent0 + ['[unused1]'] if not rev else ['[unused2]'] + ent0 + ['[unused3]']
-            ent1 = ['[unused2]'] + ent1 + ['[unused3]'] if not rev else ['[unused0]'] + ent1 + ['[unused1]']
     
         if not re_tokens:
             re_tokens = ['[CLS]'] + sent0 + ent0 + sent1 + ent1 + sent2 + ['[SEP]']
+            
+        if self.sk_embedding:
+            pos1 = 1 + len(sent0) if not rev else 1 + len(sent0 + sk1 + sent1)
+            pos2 = 1 + len(sent0 + sk1 + sent1) if not rev else 1 + len(sent0)
+        else:
+            pos1 = 1 + len(sent0) if not rev else 1 + len(sent0 + ent0 + sent1)
+            pos2 = 1 + len(sent0 + ent0 + sent1) if not rev else 1 + len(sent0)
                 
-        pos1 = re_tokens.index('[unused0]') + 1 if not self.mask_entity else re_tokens.index('[unused4]')
-        pos2 = re_tokens.index('[unused2]') + 1 if not self.mask_entity else re_tokens.index('[unused5]')
+        # if not rev:
+        # pos1 = re_tokens.index('[unused0]') if not self.mask_entity else re_tokens.index('[unused4]')
+        # pos2 = re_tokens.index('[unused2]') if not self.mask_entity else re_tokens.index('[unused5]')
+        # else:
+        #     pos1 = re_tokens.index('[unused2]') if not self.mask_entity else re_tokens.index('[unused5]')
+        #     pos2 = re_tokens.index('[unused0]') if not self.mask_entity else re_tokens.index('[unused4]')
         pos1 = min(self.max_length - 1, pos1)
         pos2 = min(self.max_length - 1, pos2)
-        ent0_name = re_tokens[pos1] if pos1 == self.max_length - 1 else ent0[1]
-        ent1_name = re_tokens[pos2] if pos2 == self.max_length - 1 else ent1[1]
-        assert re_tokens[pos1] == ent0_name
-        assert re_tokens[pos2] == ent1_name
+        # ent0_name = re_tokens[pos1] if pos1 >= self.max_length - 1 else ent0[1]
+        # ent1_name = re_tokens[pos2] if pos2 >= self.max_length - 1 else ent1[1]
+        # print(ent0_name, ent1_name)
+        # print(re_tokens[pos1], re_tokens[pos2])
+        # assert re_tokens[pos1] == ent0_name
+        # assert re_tokens[pos2] == ent1_name
                 
         indexed_tokens = self.tokenizer.convert_tokens_to_ids(re_tokens)
         avai_len = len(indexed_tokens)
