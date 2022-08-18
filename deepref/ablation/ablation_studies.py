@@ -19,8 +19,8 @@ class AblationStudies():
         with open(config.HPARAMS_FILE_PATH.format(dataset), 'r') as f:
             self.hparams = json.load(f)
             
-        model = self.hparams["model"]
-        self.csv_path = f'deepref/ablation/{self.dataset}_{model}_ablation_studies.csv'
+        self.model = self.hparams["model"]
+        self.csv_path = f'deepref/ablation/{self.dataset}_{self.model}_ablation_studies.csv'
         
         self.ablation = {
             'preprocessing': [], 
