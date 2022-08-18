@@ -14,3 +14,5 @@ sentence-transformers==2.1.0
 pandas==1.1.5
 matplotlib==3.3.4
 networkx==2.5.1
+kaleido==0.2.1
+seaborn==0.11.2
