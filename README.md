@@ -6,6 +6,25 @@ Relation extraction is a natural language processing (NLP) task aiming at classi
 
 Relation classification is a crucial technique in automatic knowledge graph construction. By using relation classification, we can accumulatively classify new relation facts and expand the knowledge graph, which, as a way for machines to understand the human world, has many downstream applications like question answering, recommender system and search engine. 
 
+## How to cite
+```
+@inproceedings{nascimento-etal-2022-deepref,
+    title = "{D}eep{REF}: A Framework for Optimized Deep Learning-based Relation Classification",
+    author = "Nascimento, Igor  and
+      Lima, Rinaldo  and
+      Chifu, Adrian-Gabriel  and
+      Espinasse, Bernard  and
+      Fournier, S{\'e}bastien",
+    booktitle = "Proceedings of the Thirteenth Language Resources and Evaluation Conference",
+    month = jun,
+    year = "2022",
+    address = "Marseille, France",
+    publisher = "European Language Resources Association",
+    url = "https://aclanthology.org/2022.lrec-1.480",
+    pages = "4513--4522",
+    abstract = "The Relation Extraction (RE) is an important basic Natural Language Processing (NLP) for many applications, such as search engines, recommender systems, question-answering systems and others. There are many studies in this subarea of NLP that continue to be explored, such as SemEval campaigns (2010 to 2018), or DDI Extraction (2013).For more than ten years, different RE systems using mainly statistical models have been proposed as well as the frameworks to develop them. This paper focuses on frameworks allowing to develop such RE systems using deep learning models. Such frameworks should make it possible to reproduce experiments of various deep learning models and pre-processing techniques proposed in various publications. Currently, there are very few frameworks of this type, and we propose a new open and optimizable framework, called DeepREF, which is inspired by the OpenNRE and REflex existing frameworks. DeepREF allows the employment of various deep learning models, to optimize their use, to identify the best inputs and to get better results with each data set for RE and compare with other experiments, making ablation studies possible. The DeepREF Framework is evaluated on several reference corpora from various application domains.",
+}
+```
 ### Using Git Repository
 
 Clone the repository from our github page (don`t forget to star us!)
