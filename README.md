@@ -118,7 +118,3 @@ If you want to add a new architecture to the framework, first, create a encoder 
 To add a new dataset you have it's important to create a new .sh file on `benchmark` folder to download the dataset named `download_<dataset_name>.sh`. Follow the other preexistent .sh scripts to create a new one. After this, create a class converter inheriting from `DatasetConverter` in the format `<dataset>_converter.py` to the dataset in `deepref/dataset/converters` directory to transform the downloaded dataset into a .csv file in a standard format to preprocess and generate .txt to train in the framework. Follow the other preexistent .py scripts to converter a custom dataset. You have to tag the sentences in the dataset and return this tagged sentence and the relation type associated using a generator (with `yield`). So, you have to only override the methods `get_etity_dict`, that returns a dictionary with the `id` as a key and, the entity `word`and the indexes where begin the entity starts and finishes, and the method `get_sentences`tha return a generator with the tagged sentence with head and tail entity and the relation type of this sentence. 
 
 Add the dataset name to the `DATASETS` list on `deepref/config.py` file. 
-
-## Framework Test
-
-You can test the scripts easily on the `deepref-framework-test.ipynb` file. Execute the cells in the notebook to get the results.
