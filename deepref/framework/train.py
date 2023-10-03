@@ -18,7 +18,7 @@ import argparse
 import random
 
 class Training():
-        def __init__(self, dataset_name:str, parameters, trial=None):
+        def __init__(self, dataset_name:str, parameters, trial=None, seed=42):
                 self.dataset_name = dataset_name
                 self.trial = trial
         
@@ -55,7 +55,7 @@ class Training():
                         
                 
                 # Set random seed
-                self.set_seed(config.SEED)
+                self.set_seed(seed)
 
                 root_path = '.'
                 sys.path.append(root_path)
