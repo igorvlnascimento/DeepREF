@@ -15,22 +15,22 @@ class EntityBlindingPreprocessor(Preprocessor):
                 self.dataset.train_sentences[i] = self.entity_blinding(sentence, type='ner')
             for i, sentence in tqdm(enumerate(self.dataset.test_sentences)):
                 self.dataset.test_sentences[i] = self.entity_blinding(sentence, type='ner')
-            for i, sentence in tqdm(enumerate(self.dataset.val_sentences)):
-                self.dataset.val_sentences[i] = self.entity_blinding(sentence, type='ner')
+            # for i, sentence in tqdm(enumerate(self.dataset.val_sentences)):
+            #     self.dataset.val_sentences[i] = self.entity_blinding(sentence, type='ner')
         elif self.type == 'entity':
             for i, sentence in tqdm(enumerate(self.dataset.train_sentences)):
                 self.dataset.train_sentences[i] = self.entity_blinding(sentence)
             for i, sentence in tqdm(enumerate(self.dataset.test_sentences)):
                 self.dataset.test_sentences[i] = self.entity_blinding(sentence)
-            for i, sentence in tqdm(enumerate(self.dataset.val_sentences)):
-                self.dataset.val_sentences[i] = self.entity_blinding(sentence)
+            # for i, sentence in tqdm(enumerate(self.dataset.val_sentences)):
+            #     self.dataset.val_sentences[i] = self.entity_blinding(sentence)
         else:
             for i, sentence in tqdm(enumerate(self.dataset.train_sentences)):
                 self.dataset.train_sentences[i] = self.entity_blinding(sentence)
             for i, sentence in tqdm(enumerate(self.dataset.test_sentences)):
                 self.dataset.test_sentences[i] = self.entity_blinding(sentence)
-            for i, sentence in tqdm(enumerate(self.dataset.val_sentences)):
-                self.dataset.val_sentences[i] = self.entity_blinding(sentence)
+            # for i, sentence in tqdm(enumerate(self.dataset.val_sentences)):
+            #     self.dataset.val_sentences[i] = self.entity_blinding(sentence)
                 
         return self.dataset
     

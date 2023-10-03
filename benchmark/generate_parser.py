@@ -6,12 +6,12 @@ from collections import Counter
 
 def csv2id(dataset_name):
     train_df = pd.read_csv(f"benchmark/{dataset_name}/original/{dataset_name}_train_original.csv", sep="\t")
-    val_df = pd.read_csv(f"benchmark/{dataset_name}/original/{dataset_name}_val_original.csv", sep="\t")
+    #val_df = pd.read_csv(f"benchmark/{dataset_name}/original/{dataset_name}_val_original.csv", sep="\t")
     test_df = pd.read_csv(f"benchmark/{dataset_name}/original/{dataset_name}_test_original.csv", sep="\t")
     
-    upos_list = list(train_df['pos_tags']) + list(val_df['pos_tags']) + list(test_df['pos_tags'])
+    upos_list = list(train_df['pos_tags']) + list(test_df['pos_tags'])
     upos_counter_dict = dict(Counter([item for sublist in [upos.split() for upos in upos_list] for item in sublist]))
-    deps_list = list(train_df['dependencies_labels']) + list(val_df['dependencies_labels']) + list(test_df['dependencies_labels'])
+    deps_list = list(train_df['dependencies_labels']) + list(test_df['dependencies_labels'])
     deps_counter_dict = dict(Counter([item for sublist in [deps.split() for deps in deps_list] for item in sublist]))
     
     upos2id = {k:i for i, (k, v) in enumerate(upos_counter_dict.items())}

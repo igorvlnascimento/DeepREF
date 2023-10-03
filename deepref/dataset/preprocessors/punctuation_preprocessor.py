@@ -12,8 +12,8 @@ class PunctuationPreprocessor(Preprocessor):
             self.dataset.train_sentences[i] = self.remove_punctuaction(sentence)
         for i, sentence in tqdm(enumerate(self.dataset.test_sentences)):
             self.dataset.test_sentences[i] = self.remove_punctuaction(sentence)
-        for i, sentence in tqdm(enumerate(self.dataset.val_sentences)):
-            self.dataset.val_sentences[i] = self.remove_punctuaction(sentence)
+        # for i, sentence in tqdm(enumerate(self.dataset.val_sentences)):
+        #     self.dataset.val_sentences[i] = self.remove_punctuaction(sentence)
             
         return self.dataset
             
