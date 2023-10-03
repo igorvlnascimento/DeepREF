@@ -162,7 +162,7 @@ class SentenceRE(nn.Module):
                 global_step += 1
             # Val 
             logging.info("=== Epoch %d val ===" % epoch)
-            result, pred_labels, ground_truth  = self.eval_model(self.val_loader)
+            result, pred_labels, ground_truth  = self.eval_model(self.test_loader)
             self.results_per_epoch(ground_truth, pred_labels, result, epoch)
             logging.info('Metric {} current / best: {} / {}'.format(metric, result[metric], best_metric))
             if self.trial is not None:

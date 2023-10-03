@@ -17,8 +17,8 @@ class StopWordPreprocessor(Preprocessor):
             self.dataset.train_sentences[i] = self.stop_words_removal(sentence)
         for i, sentence in tqdm(enumerate(self.dataset.test_sentences)):
             self.dataset.test_sentences[i] = self.stop_words_removal(sentence)
-        for i, sentence in tqdm(enumerate(self.dataset.val_sentences)):
-            self.dataset.val_sentences[i] = self.stop_words_removal(sentence)
+        # for i, sentence in tqdm(enumerate(self.dataset.val_sentences)):
+        #     self.dataset.val_sentences[i] = self.stop_words_removal(sentence)
             
         return self.dataset
             
