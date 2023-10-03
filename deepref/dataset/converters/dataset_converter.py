@@ -1,7 +1,7 @@
 import os
 
-from deepref.utils.spacy_nlp_tool import SpacyNLPTool
-from deepref.utils.stanza_nlp_tool import StanzaNLPTool
+from deepref.nlp.spacy_nlp_tool import SpacyNLPTool
+from deepref.nlp.stanza_nlp_tool import StanzaNLPTool
 
 from deepref.dataset.dataset import Dataset
 from deepref.dataset.sentence import Sentence

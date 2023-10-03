@@ -15,20 +15,20 @@ class Dataset():
         self.path = f'benchmark/{self.name}/{self.preprocessing_type}/'
         self.train_sentences = train_sentences
         self.test_sentences = test_sentences
-        self.val_sentences = val_sentences if val_sentences else self.split_val_sentences(val_perc)
+        #self.val_sentences = val_sentences if val_sentences else self.split_val_sentences(val_perc)
         self.classes = self.get_classes()
         
     def set_seed(self):
         random.seed(config.SEED)
         
-    def split_val_sentences(self, val_perc):
-        self.set_seed()
-        train_length = len(self.train_sentences)
-        val_length = math.ceil(train_length*val_perc)
-        train_sentences_copy = copy.deepcopy(self.train_sentences)
-        random.shuffle(train_sentences_copy)
-        self.train_sentences = train_sentences_copy[val_length:]
-        return train_sentences_copy[:val_length]
+    # def split_val_sentences(self, val_perc):
+    #     self.set_seed()
+    #     train_length = len(self.train_sentences)
+    #     val_length = math.ceil(train_length*val_perc)
+    #     train_sentences_copy = copy.deepcopy(self.train_sentences)
+    #     random.shuffle(train_sentences_copy)
+    #     self.train_sentences = train_sentences_copy[val_length:]
+    #     return train_sentences_copy[:val_length]
     
     def get_classes(self):
         classes = set()
@@ -43,23 +43,23 @@ class Dataset():
     
     def write_dataframe(self):
         train_data = []
-        val_data = []
+        #val_data = []
         test_data = []
         for sentence in self.train_sentences:
             train_data.append(sentence.get_sentence_info())
-        for sentence in self.val_sentences:
-            val_data.append(sentence.get_sentence_info())
+        #for sentence in self.val_sentences:
+        #    val_data.append(sentence.get_sentence_info())
         for sentence in self.test_sentences:
             test_data.append(sentence.get_sentence_info())
         columns = 'original_sentence,e1,e2,relation_type,pos_tags,dependencies_labels,ner,sk_entities'.split(',')
         train_df = pd.DataFrame(train_data,
             columns=columns)
-        val_df = pd.DataFrame(val_data,
-            columns=columns)
+        #val_df = pd.DataFrame(val_data,
+        #    columns=columns)
         test_df = pd.DataFrame(test_data,
             columns=columns)
         train_df.to_csv(f"benchmark/{self.name}/original/{self.name}_train_original.csv", sep='\t', encoding='utf-8', index=False)
-        val_df.to_csv(f"benchmark/{self.name}/original/{self.name}_val_original.csv", sep='\t', encoding='utf-8', index=False)
+        #val_df.to_csv(f"benchmark/{self.name}/original/{self.name}_val_original.csv", sep='\t', encoding='utf-8', index=False)
         test_df.to_csv(f"benchmark/{self.name}/original/{self.name}_test_original.csv", sep='\t', encoding='utf-8', index=False)
         
     def write_text(self, preprocessing_types):
@@ -106,14 +106,14 @@ class Dataset():
     def load_dataset_csv(self, preprocessing_types='original'):
          self.path = f'benchmark/{self.name}/{preprocessing_types}/'
          train_df = pd.read_csv(self.path+f'{self.name}_train_original.csv', sep='\t')
-         val_df = pd.read_csv(self.path+f'{self.name}_val_original.csv', sep='\t')
+         #val_df = pd.read_csv(self.path+f'{self.name}_val_original.csv', sep='\t')
          test_df = pd.read_csv(self.path+f'{self.name}_test_original.csv', sep='\t')
          train_sentences = self.csv_to_sentences(train_df)
-         val_sentences = self.csv_to_sentences(val_df)
+         #val_sentences = self.csv_to_sentences(val_df)
          test_sentences = self.csv_to_sentences(test_df)
          self.train_sentences = train_sentences
          self.test_sentences = test_sentences
-         self.val_sentences = val_sentences
+         #self.val_sentences = val_sentences
          return self
     
     def csv_to_sentences(self, dataframe: pd.DataFrame):

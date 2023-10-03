@@ -1,5 +1,5 @@
-from deepref.utils.nlp_tool import NLPTool
-from deepref.utils.semantic_knowledge import SemanticKNWL
+from deepref.nlp.nlp_tool import NLPTool
+from deepref.nlp.semantic_knowledge import SemanticKNWL
 
 from ast import literal_eval
 
