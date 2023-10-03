@@ -65,7 +65,11 @@ class AblationStudies():
         for model in config.MODELS[-3:]:
             for pretrain in config.PRETRAIN_WEIGHTS:
                 for i, preprocessing in enumerate(config.PREPROCESSING_COMBINATION):
-                    for j, embed in enumerate(self.embeddings_combination):
+                    if model != 'ebem':
+                        combination = [[]]
+                    else:
+                        combination = self.embeddings_combination
+                    for j, embed in enumerate(combination):
                         #has_embed = sum([embed[idx] for idx in embed_indexes]) == len(embed_indexes)
                         if (i+1)*(j+1) < self.exp:
                             continue
