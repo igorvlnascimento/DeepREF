@@ -42,13 +42,15 @@ class AblationStudies():
             df = pd.read_csv(self.csv_path)
             ablation = df.to_dict('split')
             for data in ablation["data"]:
-                self.ablation['preprocessing'].append(data[0])
-                self.ablation['embeddings'].append(data[1])
-                self.ablation['acc'].append(data[2])
-                self.ablation['micro_p'].append(data[3])
-                self.ablation['micro_r'].append(data[4])
-                self.ablation['micro_f1'].append(data[5])
-                self.ablation['macro_f1'].append(data[6])
+                self.ablation['model'].append(data[0])
+                self.ablation['pretrain'].append(data[1])
+                self.ablation['preprocessing'].append(data[2])
+                self.ablation['embeddings'].append(data[3])
+                self.ablation['acc'].append(data[4])
+                self.ablation['micro_p'].append(data[5])
+                self.ablation['micro_r'].append(data[6])
+                self.ablation['micro_f1'].append(data[7])
+                self.ablation['macro_f1'].append(data[8])
             self.exp = len(self.ablation['preprocessing'])
             print(len(self.ablation["preprocessing"]))
             
@@ -100,6 +102,8 @@ class AblationStudies():
                             self.ablation["micro_r"].append(micro_r)
                             self.ablation["micro_f1"].append(micro_f1)
                             self.ablation["macro_f1"].append(macro_f1)
+                            self.ablation["model"].append(model)
+                            self.ablation["pretrain"].append(pretrain)
                             self.ablation["embeddings"].append(embeddings)
                             self.ablation["preprocessing"].append(preprocessing)
                             self.ablation["trial"].append(k+1)
@@ -111,6 +115,8 @@ class AblationStudies():
                         self.ablation["micro_r"].append(0)
                         self.ablation["micro_f1"].append(np.mean(micro_f1_list))
                         self.ablation["macro_f1"].append(np.mean(macro_f1_list))
+                        self.ablation["model"].append(model)
+                        self.ablation["pretrain"].append(pretrain)
                         self.ablation["embeddings"].append('mean')
                         self.ablation["preprocessing"].append('')
                         self.ablation["trial"].append(0)
@@ -120,6 +126,8 @@ class AblationStudies():
                         self.ablation["micro_r"].append(0)
                         self.ablation["micro_f1"].append(np.std(micro_f1_list))
                         self.ablation["macro_f1"].append(np.std(macro_f1_list))
+                        self.ablation["model"].append(model)
+                        self.ablation["pretrain"].append(pretrain)
                         self.ablation["embeddings"].append('std')
                         self.ablation["preprocessing"].append('')
                         self.ablation["trial"].append(0)
@@ -156,7 +164,7 @@ class AblationStudies():
             self.write_seeds(seeds)
         return seeds
 
-    def generate_seeds():
+    def generate_seeds(self):
         seeds = []
         for _ in range(3):
             seeds.append(random.randint(10**6, 10**7-1))

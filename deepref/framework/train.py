@@ -233,11 +233,7 @@ class Training():
                 elif self.model == "bert_cls":
                         sentence_encoder = deepref.encoder.BERTEncoder(
                                 max_length=self.max_length, 
-                                pretrain_path=self.pretrain,
-                                pos_tags_embedding=self.pos_tags_embed,
-                                deps_embedding=self.deps_embed,
-                                upos2id=upos2id,
-                                deps2id=deps2id
+                                pretrain_path=self.pretrain
                         )
                         
                 elif self.model == "bert_entity":
@@ -266,7 +262,7 @@ class Training():
                 random.seed(seed)
                 np.random.seed(seed)
                 torch.manual_seed(seed)
-                torch.cuda.manual_seed_all(seed)
+                torch.cuda.manual_seed(seed)
                         
         def train(self):
 
