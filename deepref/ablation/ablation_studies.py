@@ -33,7 +33,8 @@ class AblationStudies():
             'micro_p':[], 
             'micro_r': [], 
             'micro_f1': [], 
-            'macro_f1': []
+            'macro_f1': [],
+            'trial': []
         }
         self.embeddings_combination = self.embed_combinations(len(config.TYPE_EMBEDDINGS))
         self.exp = 0
