@@ -28,17 +28,17 @@ class BOOptimizer(Optimizer):
 
     def objective(self, trial):
         
-        #batch_size =  trial.suggest_int("batch_size", 2, 16, log=True)
+        batch_size =  trial.suggest_int("batch_size", 2, 64, log=True)
         lr =  trial.suggest_float("lr", 1e-7, 1e-4, log=True)
         #max_length =  trial.suggest_int("max_length", 16, 128, log=True)
-        #max_epoch = trial.suggest_int("max_epoch", 2, 8)
+        max_epoch = trial.suggest_int("max_epoch", 2, 10)
         
         parameters = self.hparams
         parameters["dataset"] = self.dataset
-        #parameters["batch_size"] = batch_size
+        parameters["batch_size"] = batch_size
         parameters["lr"] = lr
         #parameters["max_length"] = max_length
-        #parameters["max_epoch"] = max_epoch
+        parameters["max_epoch"] = max_epoch
         
         print("parameters:",parameters)
         

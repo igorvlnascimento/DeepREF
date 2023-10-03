@@ -1,6 +1,6 @@
 import spacy
 import subprocess
-from deepref.utils.nlp_tool import NLPTool
+from deepref.nlp.nlp_tool import NLPTool
 
 class SpacyNLPTool(NLPTool):
     def __init__(self, model:str = None):

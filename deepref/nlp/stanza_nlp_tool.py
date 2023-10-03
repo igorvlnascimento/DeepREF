@@ -1,5 +1,5 @@
 import stanza
-from deepref.utils.nlp_tool import NLPTool
+from deepref.nlp.nlp_tool import NLPTool
 
 class StanzaNLPTool(NLPTool):
     def __init__(self, model=None):
