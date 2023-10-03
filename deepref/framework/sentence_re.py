@@ -162,7 +162,8 @@ class SentenceRE(nn.Module):
                 global_step += 1
             # Val 
             logging.info("=== Epoch %d val ===" % epoch)
-            result, _, _ = self.eval_model(self.val_loader)
+            result, pred_labels, ground_truth  = self.eval_model(self.val_loader)
+            self.results_per_epoch(ground_truth, pred_labels, result, epoch)
             logging.info('Metric {} current / best: {} / {}'.format(metric, result[metric], best_metric))
             if self.trial is not None:
                 self.trial.report(result[metric],epoch)
@@ -254,6 +255,30 @@ class SentenceRE(nn.Module):
         file.write('Micro recall: {}\n'.format(result['micro_r']))
         file.write('Micro F1: {}\n\n'.format(result['micro_f1']))
         file.write('Macro F1: {}\n\n'.format(result['macro_f1']))
+
+    def results_per_epoch(self, ground_truth, pred, result, epoch):
+        logging.info(f'Epoch: {epoch}')
+        time = datetime.now().isoformat(timespec="seconds")
+        os.makedirs(os.path.join(config.RESULTS_PATH, self.dataset_name, 'exp', time), exist_ok=True)
+        file_path = config.RESULTS_PATH+'/{}/exp/{}/{}_ResultsDeepREF_{}_epoch_{}.txt'.format(self.dataset_name, time, time, self.dataset_name, epoch)
+        report = metrics.classification_report(ground_truth, pred, target_names=self.classes, digits=5, zero_division=1)
+        confusion_matrix = metrics.confusion_matrix(ground_truth, pred)
+        # for input, prediction, label in zip(inputs, pred, ground_truth):
+        #     if prediction != label:
+        #         print(input, 'has been classified as ', prediction, 'and should be ', label)
+        sns_plot = sns.heatmap(confusion_matrix, annot=True, xticklabels=self.classes, yticklabels=self.classes, cmap='binary', annot_kws={"fontsize":8}, linewidths=0.1, square=True)
+        #sns_plot.set_xticklabels(sns_plot.get_xmajorticklabels(), fontsize = 8)
+        #sns_plot.set_yticklabels(sns_plot.get_ymajorticklabels(), fontsize = 8)
+        fig = sns_plot.get_figure()
+        plt.gcf().set_size_inches(17, 15)
+        fig.savefig(f"{config.RESULTS_PATH}/{self.dataset_name}/exp/{time}/{self.dataset_name}_confusion_matrix.png")
+        plt.clf()
+        logging.info('\n'+report)
+        logging.info('Accuracy: {}'.format(result['acc']))
+        logging.info('Micro precision: {}'.format(result['micro_p']))
+        logging.info('Micro recall: {}'.format(result['micro_r']))
+        logging.info('Micro F1: {}'.format(result['micro_f1']))
+        logging.info('Macro F1: {}'.format(result['macro_f1']))
 
 
     def load_state_dict(self, state_dict):

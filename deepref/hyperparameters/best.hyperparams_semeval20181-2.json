@@ -1,0 +1,12 @@
+{
+    "model": "ebem",
+    "pretrain": "allenai/scibert_scivocab_uncased",
+    "batch_size": 2,
+    "preprocessing": ["sw", "d"],
+    "lr": 1.3402454555251181e-05,
+    "position_embed": 0,
+    "pos_tags_embed": 1,
+    "deps_embed": 1,
+    "max_length": 164,
+    "max_epoch": 7
+}
