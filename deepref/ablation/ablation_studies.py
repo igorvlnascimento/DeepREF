@@ -66,7 +66,7 @@ class AblationStudies():
             for pretrain in config.PRETRAIN_WEIGHTS:
                 for i, preprocessing in enumerate(config.PREPROCESSING_COMBINATION):
                     if model != 'ebem':
-                        combination = [[0,0,0]]
+                        combination = [[]]
                     else:
                         combination = self.embeddings_combination
                     for j, embed in enumerate(combination):
@@ -77,7 +77,7 @@ class AblationStudies():
                         acc_list = []
                         micro_f1_list = []
                         macro_f1_list = []
-                        for k in range(5):
+                        for k in range(3):
                             parameters["model"] = model
                             parameters["pretrain"] = pretrain
                             parameters["pos_tags_embed"] = embed[config.TYPE_EMBEDDINGS.index('pos_tags')]
@@ -117,24 +117,24 @@ class AblationStudies():
                         
                         self.ablation["acc"].append(np.mean(acc_list))
                         self.ablation["micro_p"].append(0)
-                        self.ablation["micro_r"].append('mean')
+                        self.ablation["micro_r"].append(0)
                         self.ablation["micro_f1"].append(np.mean(micro_f1_list))
                         self.ablation["macro_f1"].append(np.mean(macro_f1_list))
                         self.ablation["model"].append(model)
                         self.ablation["pretrain"].append(pretrain)
-                        self.ablation["embeddings"].append(self.ablation['embeddings'][-1])
-                        self.ablation["preprocessing"].append(self.ablation['preprocessing'][-1])
+                        self.ablation["embeddings"].append('mean')
+                        self.ablation["preprocessing"].append('')
                         self.ablation["trial"].append(0)
 
                         self.ablation["acc"].append(np.std(acc_list))
                         self.ablation["micro_p"].append(0)
-                        self.ablation["micro_r"].append('std')
+                        self.ablation["micro_r"].append(0)
                         self.ablation["micro_f1"].append(np.std(micro_f1_list))
                         self.ablation["macro_f1"].append(np.std(macro_f1_list))
                         self.ablation["model"].append(model)
                         self.ablation["pretrain"].append(pretrain)
-                        self.ablation["embeddings"].append(self.ablation['embeddings'][-1])
-                        self.ablation["preprocessing"].append(self.ablation['preprocessing'][-1])
+                        self.ablation["embeddings"].append('std')
+                        self.ablation["preprocessing"].append('')
                         self.ablation["trial"].append(0)
                         
                         index += 1

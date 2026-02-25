@@ -64,9 +64,6 @@ class SentenceREDataset(data.Dataset):
         correct_positive = 0
         pred_positive = 0
         gold_positive = 0
-        correct_positive = {k:0 for k in range(len(self.rel2id))}
-        pred_positive = {k:0 for k in range(len(self.rel2id))}
-        gold_positive = {k:0 for k in range(len(self.rel2id))}
         neg = -1
         for name in ['NA', 'na', 'no_relation', 'Other', 'Others', 'none', 'None', 'int']:
             if name in self.rel2id:
@@ -85,36 +82,29 @@ class SentenceREDataset(data.Dataset):
             if golden == pred_result[i]:
                 correct += 1
                 if golden != neg:
-                    correct_positive[golden] += 1
-                    #correct_positive += 1
+                    correct_positive += 1
             if golden != neg:
-                gold_positive[golden] +=1
+                gold_positive +=1
             if pred_result[i] != neg:
-                pred_positive[golden] += 1
+                pred_positive += 1
         acc = float(correct) / float(total)
 
         #Micro
         try:
-            micro_p = float(sum(correct_positive.values())) / float(sum(pred_positive.values()))
-            macro_p = sum([cp/list(pred_positive.values())[i] for i, cp in enumerate(correct_positive.values())]) / len(self.rel2id)
+            micro_p = float(correct_positive) / float(pred_positive)
         except:
             micro_p = 0
-            macro_p = 0
         try:
-            micro_r = float(sum(correct_positive.values())) / float(sum(gold_positive.values()))
-            macro_r = sum([cp/list(gold_positive.values())[i] for i, cp in enumerate(correct_positive.values())]) / len(self.rel2id)
+            micro_r = float(correct_positive) / float(gold_positive)
         except:
             micro_r = 0
-            macro_r = 0
         try:
             micro_f1 = 2 * micro_p * micro_r / (micro_p + micro_r)
-            macro_f1 = 2 * macro_p * macro_r / (macro_p + macro_r)
         except:
             micro_f1 = 0
-            macro_f1 = 0
             
-        #micro_f1 = sklearn.metrics.f1_score(goldens, pred_result, labels=list(range(len(self.rel2id))), average='micro')
-        #macro_f1 = sklearn.metrics.f1_score(goldens, pred_result, labels=list(range(len(self.rel2id))), average='macro')
+        micro_f1 = sklearn.metrics.f1_score(goldens, pred_result, labels=list(range(len(self.rel2id))), average='micro')
+        macro_f1 = sklearn.metrics.f1_score(goldens, pred_result, labels=list(range(len(self.rel2id))), average='macro')
         confusion_matrix = sklearn.metrics.confusion_matrix(goldens, pred_result)
 
         result = {'acc': acc, 'micro_p': micro_p, 'micro_r': micro_r, 'micro_f1': micro_f1, 'macro_f1': macro_f1, 'cm': confusion_matrix}
