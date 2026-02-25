@@ -1,0 +1,4 @@
+{
+  "King Charles": { "father": "king", "grandfather": "person" },
+  "Hawaii": { "father": "island", "grandfather": "land" }
+}
