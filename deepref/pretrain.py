@@ -7,9 +7,10 @@ import sys
 import json
 import numpy as np
 import logging
+from pathlib import Path
 
 root_url = "https://thunlp.oss-cn-qingdao.aliyuncs.com/"
-default_root_path = os.path.join(os.getenv('HOME'), '.opennre')
+default_root_path = os.path.join(Path(__file__).resolve().parent, '.deepref')
 
 def check_root(root_path=default_root_path):
     if not os.path.exists(root_path):
@@ -42,8 +43,8 @@ def download_glove(root_path=default_root_path):
     check_root()
     if not os.path.exists(os.path.join(root_path, 'pretrain/glove')):
         os.mkdir(os.path.join(root_path, 'pretrain/glove'))
-        os.system('wget -P ' + os.path.join(root_path, 'pretrain/glove') +  ' ' + root_url + 'opennre/pretrain/glove/glove.6B.50d_mat.npy')
-        os.system('wget -P ' + os.path.join(root_path, 'pretrain/glove') +  ' ' + root_url + 'opennre/pretrain/glove/glove.6B.50d_word2id.json')
+        os.system('wget -P ' + os.path.join(root_path, 'pretrain/glove') +  ' ' + root_url + 'deepref/pretrain/glove/glove.6B.50d_mat.npy')
+        os.system('wget -P ' + os.path.join(root_path, 'pretrain/glove') +  ' ' + root_url + 'deepref/pretrain/glove/glove.6B.50d_word2id.json')
         
 def download_fasttext_wiki(root_path=default_root_path):
     check_root()
@@ -65,14 +66,14 @@ def download_bert_base_uncased(root_path=default_root_path):
     check_root()
     if not os.path.exists(os.path.join(root_path, 'pretrain/bert-base-uncased')):
         os.mkdir(os.path.join(root_path, 'pretrain/bert-base-uncased'))
-        os.system('wget -P ' + os.path.join(root_path, 'pretrain/bert-base-uncased') + ' ' + root_url + 'opennre/pretrain/bert-base-uncased/config.json')
-        os.system('wget -P ' + os.path.join(root_path, 'pretrain/bert-base-uncased') + ' ' + root_url + 'opennre/pretrain/bert-base-uncased/pytorch_model.bin')
-        os.system('wget -P ' + os.path.join(root_path, 'pretrain/bert-base-uncased') + ' ' + root_url + 'opennre/pretrain/bert-base-uncased/vocab.txt')
+        os.system('wget -P ' + os.path.join(root_path, 'pretrain/bert-base-uncased') + ' ' + root_url + 'deepref/pretrain/bert-base-uncased/config.json')
+        os.system('wget -P ' + os.path.join(root_path, 'pretrain/bert-base-uncased') + ' ' + root_url + 'deepref/pretrain/bert-base-uncased/pytorch_model.bin')
+        os.system('wget -P ' + os.path.join(root_path, 'pretrain/bert-base-uncased') + ' ' + root_url + 'deepref/pretrain/bert-base-uncased/vocab.txt')
         
 def download_pretrain(model_name, root_path=default_root_path):
     ckpt = os.path.join(root_path, 'pretrain/nre/' + model_name + '.pth.tar')
     if not os.path.exists(ckpt):
-        os.system('wget -P ' + os.path.join(root_path, 'pretrain/nre')  + ' ' + root_url + 'opennre/pretrain/nre/' + model_name + '.pth.tar')
+        os.system('wget -P ' + os.path.join(root_path, 'pretrain/nre')  + ' ' + root_url + 'deepref/pretrain/nre/' + model_name + '.pth.tar')
 
 def download(name, root_path=default_root_path):
     if not os.path.exists(os.path.join(root_path, 'benchmark')):

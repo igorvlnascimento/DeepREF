@@ -1,3 +1,4 @@
+import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
@@ -22,6 +23,7 @@ class CNN(nn.Module):
         self.act = activation_function
         self.dropout = nn.Dropout(dropout)
 
+
     def forward(self, x):
         """
         Args:
@@ -29,11 +31,7 @@ class CNN(nn.Module):
         Return:
             output features: (B, H_EMBED)
         """
-        x = x.transpose(1, 2) # (B, I_EMBED, L)
-        x = self.conv(x) # (B, H_EMBED, L)
-        x = self.act(x) # (B, H_EMBED, L)
-        x = self.dropout(x) # (B, H_EMBED, L)
-        x = x.transpose(1, 2) # (B, L, H_EMBED)
-        print(x.shape)
-        x = x.contiguous().view(-1).unsqueeze(0)
+        x = self.conv(x) # (B, H_EMBED)
+        x = self.act(x) # (B, H_EMBED)
+        x = self.dropout(x) # (B, H_EMBED)
         return x
