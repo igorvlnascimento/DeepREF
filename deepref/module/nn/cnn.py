@@ -1,15 +1,10 @@
+import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
 class CNN(nn.Module):
 
-    def __init__(self, 
-                 input_size=50, 
-                 hidden_size=256, 
-                 dropout=0, 
-                 kernel_size=3, 
-                 padding=1, 
-                 activation_function=F.relu):
+    def __init__(self, input_size=50, hidden_size=256, dropout=0, kernel_size=3, padding=1, activation_function=F.relu):
         """
         Args:
             input_size: dimention of input embedding
@@ -25,15 +20,14 @@ class CNN(nn.Module):
     def forward(self, x):
         """
         Args:
-            input features
+            input features: (B, L, I_EMBED)
         Return:
             output features: (B, H_EMBED)
         """
+        # Check size of tensors
         x = x.transpose(1, 2) # (B, I_EMBED, L)
         x = self.conv(x) # (B, H_EMBED, L)
         x = self.act(x) # (B, H_EMBED, L)
         x = self.dropout(x) # (B, H_EMBED, L)
         x = x.transpose(1, 2) # (B, L, H_EMBED)
-        print(x.shape)
-        x = x.contiguous().view(-1).unsqueeze(0)
         return x

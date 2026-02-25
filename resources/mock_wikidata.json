@@ -1,8 +1,0 @@
-{
-  "King Charles": {
-    "name": "Charles III",
-    "instance_of": "human",
-    "father": "person",
-    "grandfather": "physical object"
-  }
-}
