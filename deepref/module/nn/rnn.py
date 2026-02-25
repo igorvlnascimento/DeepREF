@@ -1,14 +1,9 @@
+import torch
 import torch.nn as nn
 
 class RNN(nn.Module):
 
-    def __init__(self, 
-                 input_size=50, 
-                 hidden_size=256, 
-                 dropout=0, 
-                 bidirectional=False, 
-                 num_layers=1, 
-                 activation_function="tanh"):
+    def __init__(self, input_size=50, hidden_size=256, dropout=0, bidirectional=False, num_layers=1, activation_function="tanh"):
         """
         Args:
             input_size: dimention of input embedding

@@ -3,12 +3,7 @@ import torch.nn as nn
 
 class LSTM(nn.Module):
 
-    def __init__(self, 
-                 input_size=50, 
-                 hidden_size=256, 
-                 dropout=0, 
-                 bidirectional=False, 
-                 num_layers=1):
+    def __init__(self, input_size=50, hidden_size=256, dropout=0, bidirectional=False, num_layers=1):
         """
         Args:
             input_size: dimention of input embedding

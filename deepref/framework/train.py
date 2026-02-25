@@ -135,100 +135,100 @@ class Training():
                         word2id, word2vec = WordEmbeddingLoader("glove").load_embedding()
                         word_dim = word2vec.shape[1]
 
-                # # Define the sentence encoder
-                # if self.model == "cnn":
-                #         sentence_encoder = deepref.encoder.CNNEncoder(
-                #                 token2id=word2id,
-                #                 max_length=self.max_length,
-                #                 word_size=word_dim,
-                #                 position_size=5,
-                #                 hidden_size=230,
-                #                 blank_padding=True,
-                #                 kernel_size=3,
-                #                 padding_size=1,
-                #                 word2vec=word2vec,
-                #                 dropout=0.5,
-                #         )
+                # Define the sentence encoder
+                if self.model == "cnn":
+                        sentence_encoder = deepref.encoder.CNNEncoder(
+                                token2id=word2id,
+                                max_length=self.max_length,
+                                word_size=word_dim,
+                                position_size=5,
+                                hidden_size=230,
+                                blank_padding=True,
+                                kernel_size=3,
+                                padding_size=1,
+                                word2vec=word2vec,
+                                dropout=0.5,
+                        )
 
-                # elif self.model == "pcnn":
-                #         sentence_encoder = deepref.encoder.PCNNEncoder(
-                #                 token2id=word2id,
-                #                 max_length=self.max_length,
-                #                 word_size=word_dim,
-                #                 position_size=5,
-                #                 hidden_size=230,
-                #                 blank_padding=True,
-                #                 kernel_size=3,
-                #                 padding_size=1,
-                #                 word2vec=word2vec,
-                #                 dropout=0.5,
-                #         )
+                elif self.model == "pcnn":
+                        sentence_encoder = deepref.encoder.PCNNEncoder(
+                                token2id=word2id,
+                                max_length=self.max_length,
+                                word_size=word_dim,
+                                position_size=5,
+                                hidden_size=230,
+                                blank_padding=True,
+                                kernel_size=3,
+                                padding_size=1,
+                                word2vec=word2vec,
+                                dropout=0.5,
+                        )
 
-                # elif self.model == "crcnn":
-                #         sentence_encoder = deepref.encoder.CRCNNEncoder(
-                #                 token2id=word2id,
-                #                 max_length=self.max_length,
-                #                 word_size=word_dim,
-                #                 position_size=5,
-                #                 hidden_size=230,
-                #                 blank_padding=True,
-                #                 kernel_size=3,
-                #                 padding_size=1,
-                #                 word2vec=word2vec,
-                #                 dropout=0.5,
-                #         )
+                elif self.model == "crcnn":
+                        sentence_encoder = deepref.encoder.CRCNNEncoder(
+                                token2id=word2id,
+                                max_length=self.max_length,
+                                word_size=word_dim,
+                                position_size=5,
+                                hidden_size=230,
+                                blank_padding=True,
+                                kernel_size=3,
+                                padding_size=1,
+                                word2vec=word2vec,
+                                dropout=0.5,
+                        )
 
-                # elif self.model == "gru":
-                #         sentence_encoder = deepref.encoder.GRUEncoder(
-                #                 token2id=word2id,
-                #                 max_length=self.max_length,
-                #                 word_size=word_dim,
-                #                 position_size=5,
-                #                 hidden_size=230,
-                #                 blank_padding=True,
-                #                 word2vec=word2vec,
-                #                 dropout=0.5,
-                #                 bidirectional=False
-                #         )
+                elif self.model == "gru":
+                        sentence_encoder = deepref.encoder.GRUEncoder(
+                                token2id=word2id,
+                                max_length=self.max_length,
+                                word_size=word_dim,
+                                position_size=5,
+                                hidden_size=230,
+                                blank_padding=True,
+                                word2vec=word2vec,
+                                dropout=0.5,
+                                bidirectional=False
+                        )
                         
-                # elif self.model == "bigru":
-                #         sentence_encoder = deepref.encoder.GRUEncoder(
-                #                 token2id=word2id,
-                #                 max_length=self.max_length,
-                #                 word_size=word_dim,
-                #                 position_size=5,
-                #                 hidden_size=230,
-                #                 blank_padding=True,
-                #                 word2vec=word2vec,
-                #                 dropout=0.5,
-                #                 bidirectional=True
-                #         )
+                elif self.model == "bigru":
+                        sentence_encoder = deepref.encoder.GRUEncoder(
+                                token2id=word2id,
+                                max_length=self.max_length,
+                                word_size=word_dim,
+                                position_size=5,
+                                hidden_size=230,
+                                blank_padding=True,
+                                word2vec=word2vec,
+                                dropout=0.5,
+                                bidirectional=True
+                        )
 
-                # elif self.model == "lstm":
-                #         sentence_encoder = deepref.encoder.LSTMEncoder(
-                #                 token2id=word2id,
-                #                 max_length=self.max_length,
-                #                 word_size=word_dim,
-                #                 position_size=5,
-                #                 hidden_size=230,
-                #                 blank_padding=True,
-                #                 word2vec=word2vec,
-                #                 dropout=0.5,
-                #                 bidirectional=False
-                #         )
+                elif self.model == "lstm":
+                        sentence_encoder = deepref.encoder.LSTMEncoder(
+                                token2id=word2id,
+                                max_length=self.max_length,
+                                word_size=word_dim,
+                                position_size=5,
+                                hidden_size=230,
+                                blank_padding=True,
+                                word2vec=word2vec,
+                                dropout=0.5,
+                                bidirectional=False
+                        )
 
-                # elif self.model == "bilstm":
-                #         sentence_encoder = deepref.encoder.LSTMEncoder(
-                #                 token2id=word2id,
-                #                 max_length=self.max_length,
-                #                 word_size=word_dim,
-                #                 position_size=5,
-                #                 hidden_size=230,
-                #                 blank_padding=True,
-                #                 word2vec=word2vec,
-                #                 dropout=0.5,
-                #                 bidirectional=True
-                #         )
+                elif self.model == "bilstm":
+                        sentence_encoder = deepref.encoder.LSTMEncoder(
+                                token2id=word2id,
+                                max_length=self.max_length,
+                                word_size=word_dim,
+                                position_size=5,
+                                hidden_size=230,
+                                blank_padding=True,
+                                word2vec=word2vec,
+                                dropout=0.5,
+                                bidirectional=True
+                        )
                         
                 elif self.model == "bert_cls":
                         sentence_encoder = deepref.encoder.BERTEncoder(
