@@ -1,12 +1,12 @@
 import torch
 
-from deepref.encoder.llm_encoder import LLMEncoder
+from deepref.encoder.sentence_encoder import SentenceEncoder
 
 def get_instruction(task_instruction: str, query: str) -> str:
     return f"Instruct: {task_instruction}\nQuery: {query}"
 
 def test_smollm_llm_encoder():
-    llm_encoder = LLMEncoder("HuggingFaceTB/SmolLM-135M-Instruct")
+    llm_encoder = SentenceEncoder("HuggingFaceTB/SmolLM-135M-Instruct")
     task = "Given a question, retrieve passages that answer the question"
     queries = [
         get_instruction(task, "How do neural networks learn patterns from examples?"),

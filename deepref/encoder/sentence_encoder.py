@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from transformers import AutoModel, AutoTokenizer
 
-class LLMEncoder(nn.Module):
+class SentenceEncoder(nn.Module):
     def __init__(self, model_name, max_length=512, padding_side="left", device="cpu", attn_implementation="eager"):
         super().__init__()
         self.model = AutoModel.from_pretrained(model_name,
