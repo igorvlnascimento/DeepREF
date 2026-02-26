@@ -1,4 +1,5 @@
 import pytest
+import torch
 
 from deepref.dataset.re_dataset import REDataset
 from deepref.encoder.sentence_encoder import SentenceEncoder
@@ -47,8 +48,7 @@ def test_re_dataset_count(dataset_split, expected_length, sentence_encoder):
 @pytest.mark.parametrize("dataset_split, expected_relation", DATASET_SPLITS_FIRST_RELATION)
 def test_re_dataset_get_first_item(dataset_split, expected_relation, sentence_encoder):
     dataset = REDataset("benchmark/semeval2010", sentence_encoder.tokenizer, dataset_split=dataset_split)
-    print("first:", dataset[0])
-    assert dataset[0][0] == REL2ID[expected_relation]
+    assert dataset[0]["labels"] == REL2ID[expected_relation]
 
 @pytest.mark.parametrize("dataset_split", DATASET_SPLITS)
 def test_re_dataset_labels_dict(dataset_split, sentence_encoder):
@@ -57,4 +57,13 @@ def test_re_dataset_labels_dict(dataset_split, sentence_encoder):
 
 def test_re_dataset_eval(sentence_encoder):
     dataset = REDataset("benchmark/semeval2010", sentence_encoder.tokenizer, dataset_split="test")
-    dataset.eval()
+    pred_result = [torch.randint(0, 18, size=(1,)) for _ in range(len(dataset))]
+    results = dataset.eval(pred_result)
+
+    assert len(results) == 6
+    assert "acc" in results
+    assert "micro_p" in results
+    assert "micro_r" in results
+    assert "micro_f1" in results
+    assert "macro_f1" in results
+    assert "cm" in results
