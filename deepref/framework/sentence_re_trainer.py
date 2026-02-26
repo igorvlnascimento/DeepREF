@@ -89,46 +89,13 @@ class SentenceRETrainer(nn.Module):
         self.ckpt = ckpt
 
     def train_model(self, warmup=True, metric='acc'):
-        best_metric = -1
-        global_step = 0
+        best_metric = 0
         for epoch in range(self.max_epoch):
-            self.train()
             logging.info("=== Epoch %d train ===" % epoch)
-            avg_loss = AverageMeter()
-            avg_acc = AverageMeter()
-            t = tqdm(self.train_loader)
-            for _, data in enumerate(t):
-                if torch.cuda.is_available():
-                    for i in range(len(data)):
-                        try:
-                            data[i] = data[i].cuda()
-                        except:
-                            pass
-                logits = None 
-                label = data[0]
-                args = data[1:]
-                logits = self.parallel_model(*args)
-                loss = self.criterion(logits, label)
-                _, pred = logits.max(-1) # (B)
-                acc = float((pred == label).long().sum()) / label.size(0)
-                avg_loss.update(loss.item(), 1)
-                avg_acc.update(acc, 1)
-                t.set_postfix(loss=avg_loss.avg, acc=avg_acc.avg)
-                # Optimize
-                if warmup == True:
-                    warmup_step = 300
-                    if global_step < warmup_step:
-                        warmup_rate = float(global_step) / warmup_step
-                    else:
-                        warmup_rate = 1.0
-                    for param_group in self.optimizer.param_groups:
-                        param_group['lr'] = self.lr * warmup_rate
-                loss.backward()
-                self.optimizer.step()
-                if self.scheduler is not None:
-                    self.scheduler.step()
-                self.optimizer.zero_grad()
-                global_step += 1
+            self.iterate_loader(self.train_loader, 
+                                warmup=warmup, 
+                                training=True)
+        
             # Val 
             logging.info("=== Epoch %d val ===" % epoch)
             result, _, _  = self.eval_model(self.test_loader)
@@ -146,30 +113,59 @@ class SentenceRETrainer(nn.Module):
 
     def eval_model(self, eval_loader):
         self.eval()
-        avg_acc = AverageMeter()
+        with torch.no_grad():
+            results = self.iterate_loader(eval_loader, warmup=False, training=False)
+        result, pred_result, ground_truth = results
+        return result, pred_result, ground_truth
+    
+    def iterate_loader(self, loader, warmup=True, global_step=0, training=True):
+        global_step = 0
+        t = tqdm(loader)
         pred_result = []
         ground_truth = []
-        with torch.no_grad():
-            t = tqdm(eval_loader)
-            for iter, data in enumerate(t):
-                if torch.cuda.is_available():
-                    for i in range(len(data)):
-                        try:
-                            data[i] = data[i].cuda()
-                        except:
-                            pass
-                label = data[0]
-                args = data[1:]
-                logits = self.parallel_model(*args)
-                _, pred = logits.max(-1) # (B)
+        avg_acc = AverageMeter()
+        avg_loss = AverageMeter()
+        for _, data in enumerate(t):
+            if torch.cuda.is_available():
+                for i in range(len(data)):
+                    try:
+                        data[i] = data[i].cuda()
+                    except:
+                        pass
+            label = data["labels"]
+            args = {k: v for k, v in data.items() if k != "labels"}
+            logits = self.parallel_model(**args)
+            _, pred = logits.max(-1) # (B)
+            # Log
+            acc = float((pred == label).long().sum()) / label.size(0)
+            avg_acc.update(acc, 1)
+            t.set_postfix(loss=avg_loss.avg, acc=avg_acc.avg)
+            if training:
+                loss = self.criterion(logits, label)
+                avg_loss.update(loss.item(), 1)
+
+                # Optimize
+                if warmup == True:
+                    warmup_step = 300
+                    if global_step < warmup_step:
+                        warmup_rate = float(global_step) / warmup_step
+                    else:
+                        warmup_rate = 1.0
+                    for param_group in self.optimizer.param_groups:
+                        param_group['lr'] = self.lr * warmup_rate
+                loss.backward()
+                self.optimizer.step()
+                if self.scheduler is not None:
+                    self.scheduler.step()
+                self.optimizer.zero_grad()
+                global_step += 1
+            else:
                 # Save result
                 for i in range(pred.size(0)):
                     pred_result.append(pred[i].item())
                 for i in range(label.size(0)):
                     ground_truth.append(label[i].item())
-                # Log
-                acc = float((pred == label).long().sum()) / label.size(0)
-                avg_acc.update(acc, pred.size(0))
-                t.set_postfix(acc=avg_acc.avg)
-        result = eval_loader.dataset.eval(pred_result)
-        return result, pred_result, ground_truth
+        if not training:
+            result = loader.dataset.eval(pred_result)
+            return result, pred_result, ground_truth
+        

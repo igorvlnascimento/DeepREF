@@ -45,8 +45,9 @@ class SentenceEncoder(nn.Module):
         return batch_dict
 
 
-    def forward(self, input_ids, attention_mask):
-        model_outputs = self.model(input_ids=input_ids, attention_mask=attention_mask)
+    def forward(self, **batch_dicts):
+        model_outputs = self.model(**batch_dicts)
+        attention_mask = batch_dicts["attention_mask"]
 
         return self.average_pool(model_outputs.last_hidden_state, attention_mask)
 

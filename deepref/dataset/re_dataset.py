@@ -27,23 +27,14 @@ class REDataset(Dataset):
         label = self.df.iloc[index]["relation_type"]
         if self.preprocessor is not None:
             sentence = self.preprocessor(sentence)
-        seq = list(self.tokenizer(sentence,
+        seq = self.tokenizer(sentence,
                                   max_length=self.max_length, 
                                   padding="max_length", 
                                   truncation=True, 
-                                  return_tensors="pt").values())
-        return [self.rel2id[label]] + seq
-    
-    def collate_fn(data):
-        data = list(zip(*data))
-        labels = data[0]
-        seqs = data[1:]
-        batch_labels = torch.tensor(labels).long() # (B)
-        batch_seqs = []
-        for seq in seqs:
-            #print(seq)
-            batch_seqs.append(torch.cat(seq, 0)) # (B, L)
-        return [batch_labels] + batch_seqs
+                                  return_tensors="pt")
+        item = {k: torch.tensor(v).squeeze(0) for k, v in seq.items()}
+        item["labels"] = torch.tensor(self.rel2id[label], dtype=torch.long)
+        return item
 
     def get_dataframe(self, csv_dir: str, dataset_split: str) -> pd.DataFrame | None:
         base = Path(csv_dir)
@@ -140,12 +131,11 @@ class REDataset(Dataset):
         return result
     
 def RELoader(dataset: REDataset, batch_size, 
-        shuffle, num_workers=0, collate_fn=REDataset.collate_fn):
+        shuffle, num_workers=0):
     data_loader = DataLoader(
         dataset=dataset,
         batch_size=batch_size,
         shuffle=shuffle,
         pin_memory=False,
-        num_workers=num_workers,
-        collate_fn=collate_fn)
+        num_workers=num_workers)
     return data_loader
