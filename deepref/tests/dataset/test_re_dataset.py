@@ -1,7 +1,7 @@
 import pytest
 import torch
 
-from deepref.dataset.re_dataset import REDataset
+from deepref.dataset.re_dataset import REDataset, RELoader
 from deepref.encoder.sentence_encoder import SentenceEncoder
 
 DATASET_SPLITS = ["train", "test"]
@@ -67,3 +67,106 @@ def test_re_dataset_eval(sentence_encoder):
     assert "micro_f1" in results
     assert "macro_f1" in results
     assert "cm" in results
+
+
+@pytest.mark.parametrize("dataset_split", DATASET_SPLITS)
+def test_re_dataset_getitem_has_required_keys(dataset_split, sentence_encoder):
+    dataset = REDataset("benchmark/semeval2010", sentence_encoder.tokenizer, dataset_split=dataset_split)
+    item = dataset[0]
+    assert "input_ids" in item
+    assert "attention_mask" in item
+    assert "labels" in item
+
+
+@pytest.mark.parametrize("dataset_split", DATASET_SPLITS)
+def test_re_dataset_getitem_returns_tensors(dataset_split, sentence_encoder):
+    dataset = REDataset("benchmark/semeval2010", sentence_encoder.tokenizer, dataset_split=dataset_split)
+    item = dataset[0]
+    for value in item.values():
+        assert isinstance(value, torch.Tensor)
+
+
+@pytest.mark.parametrize("dataset_split", DATASET_SPLITS)
+def test_re_dataset_labels_dtype_is_long(dataset_split, sentence_encoder):
+    dataset = REDataset("benchmark/semeval2010", sentence_encoder.tokenizer, dataset_split=dataset_split)
+    item = dataset[0]
+    assert item["labels"].dtype == torch.long
+
+
+@pytest.mark.parametrize("dataset_split", DATASET_SPLITS)
+def test_re_dataset_max_length_is_positive(dataset_split, sentence_encoder):
+    dataset = REDataset("benchmark/semeval2010", sentence_encoder.tokenizer, dataset_split=dataset_split)
+    assert dataset.max_length > 0
+
+
+def test_re_dataset_format_sentence_inserts_entity_markers(sentence_encoder):
+    dataset = REDataset("benchmark/semeval2010", sentence_encoder.tokenizer, dataset_split="test")
+    sentence = "The system is very fast"
+    e1 = "{'name': 'system', 'position': [1, 2]}"
+    e2 = "{'name': 'fast', 'position': [4, 5]}"
+    result = dataset.format_sentence(sentence, e1, e2)
+    assert result == "The <e1> system </e1> is very <e2> fast </e2>"
+
+
+def test_re_dataset_format_sentence_contains_all_markers(sentence_encoder):
+    dataset = REDataset("benchmark/semeval2010", sentence_encoder.tokenizer, dataset_split="test")
+    sentence = "The system is very fast"
+    e1 = "{'name': 'system', 'position': [1, 2]}"
+    e2 = "{'name': 'fast', 'position': [4, 5]}"
+    result = dataset.format_sentence(sentence, e1, e2)
+    for marker in ["<e1>", "</e1>", "<e2>", "</e2>"]:
+        assert marker in result
+
+
+def test_re_dataset_with_preprocessor(sentence_encoder):
+    preprocessor = str.lower
+    dataset = REDataset("benchmark/semeval2010", sentence_encoder.tokenizer, dataset_split="test", preprocessor=preprocessor)
+    item = dataset[0]
+    assert "labels" in item
+    assert isinstance(item["labels"], torch.Tensor)
+
+
+def test_re_dataset_preprocessor_does_not_change_labels(sentence_encoder):
+    dataset_without = REDataset("benchmark/semeval2010", sentence_encoder.tokenizer, dataset_split="test")
+    dataset_with = REDataset("benchmark/semeval2010", sentence_encoder.tokenizer, dataset_split="test", preprocessor=str.lower)
+    assert dataset_without[0]["labels"] == dataset_with[0]["labels"]
+
+
+def test_re_dataset_eval_perfect_predictions(sentence_encoder):
+    dataset = REDataset("benchmark/semeval2010", sentence_encoder.tokenizer, dataset_split="test")
+    perfect_preds = [dataset.rel2id[dataset.df.iloc[i]["relation_type"]] for i in range(len(dataset))]
+    results = dataset.eval(perfect_preds)
+    assert results["acc"] == 1.0
+
+
+def test_re_dataset_eval_by_name_perfect_predictions(sentence_encoder):
+    dataset = REDataset("benchmark/semeval2010", sentence_encoder.tokenizer, dataset_split="test")
+    perfect_preds = [dataset.df.iloc[i]["relation_type"] for i in range(len(dataset))]
+    results = dataset.eval(perfect_preds, use_name=True)
+    assert results["acc"] == 1.0
+
+
+def test_re_dataset_eval_metric_values_in_range(sentence_encoder):
+    dataset = REDataset("benchmark/semeval2010", sentence_encoder.tokenizer, dataset_split="test")
+    pred_result = [0] * len(dataset)
+    results = dataset.eval(pred_result)
+    assert 0.0 <= results["acc"] <= 1.0
+    assert 0.0 <= results["micro_f1"] <= 1.0
+    assert 0.0 <= results["macro_f1"] <= 1.0
+
+
+def test_re_loader_returns_correct_batch_size(sentence_encoder):
+    dataset = REDataset("benchmark/semeval2010", sentence_encoder.tokenizer, dataset_split="test")
+    batch_size = 32
+    loader = RELoader(dataset, batch_size=batch_size, shuffle=False)
+    batch = next(iter(loader))
+    assert batch["input_ids"].shape[0] == batch_size
+
+
+def test_re_loader_batch_contains_required_keys(sentence_encoder):
+    dataset = REDataset("benchmark/semeval2010", sentence_encoder.tokenizer, dataset_split="test")
+    loader = RELoader(dataset, batch_size=8, shuffle=False)
+    batch = next(iter(loader))
+    assert "input_ids" in batch
+    assert "attention_mask" in batch
+    assert "labels" in batch
