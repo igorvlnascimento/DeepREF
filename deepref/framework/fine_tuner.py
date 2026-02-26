@@ -24,6 +24,8 @@ class FineTuner:
             trust_remote_code=True
         )
 
+        base_model.resize_token_embeddings(len(train_dataset.tokenizer))
+
         lora_config = LoraConfig(
             **lora_config_parameters
         )

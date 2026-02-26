@@ -31,7 +31,7 @@ def test_fine_tuner(datasets):
         "target_modules": ["q_proj", "v_proj"]
     }
     train_parameters = {
-        "output_dir": "./smolm-relation-extration-lora",
+        "output_dir": "./smollm-relation-extration-lora",
         "num_train_epochs": 1,
         "per_device_train_batch_size": 4,
         "learning_rate": 2e-4,

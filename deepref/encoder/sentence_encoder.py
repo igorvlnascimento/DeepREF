@@ -15,12 +15,16 @@ class SentenceEncoder(nn.Module):
         self.model = AutoModel.from_pretrained(model_name,
                                                trust_remote_code=True,
                                                torch_dtype=torch.float16,
-                                               attn_implementation=attn_implementation
-                                               )
+                                               attn_implementation=attn_implementation)
         self.model = self.model.to(device)
         if not trainable:
             self.frozen_model()
         self.tokenizer = AutoTokenizer.from_pretrained(model_name)
+        new_tokens = ["<e1>", "</e1>", "<e2>", "</e2>"]
+        self.tokenizer.add_special_tokens({
+            "additional_special_tokens": new_tokens
+        })
+        self.model.resize_token_embeddings(len(self.tokenizer))
         self.max_length = max_length
         self.padding_side = padding_side
 
