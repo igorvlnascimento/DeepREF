@@ -15,7 +15,7 @@ class SoftmaxMLP(SentenceRE):
                  rel2id, 
                  dropout=0, 
                  num_layers=3, 
-                 activation_function=F.relu):
+                 activation_function=nn.ReLU()):
         """
         Args:
             sentence_encoder: encoder for sentences
@@ -29,7 +29,8 @@ class SoftmaxMLP(SentenceRE):
                          dropout=dropout, 
                          num_layers=num_layers, 
                          activation_function=activation_function)
-        self.fc = nn.Linear(2**num_layers, num_class)
+        input_dim = self.sentence_encoder.model.config.hidden_size // 2**num_layers
+        self.fc = nn.Linear(input_dim, num_class)
         self.softmax = nn.Softmax(-1)
         self.rel2id = rel2id
         self.id2rel = {}

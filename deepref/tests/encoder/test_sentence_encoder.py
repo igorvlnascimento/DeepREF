@@ -1,5 +1,3 @@
-import torch
-
 from deepref.encoder.sentence_encoder import SentenceEncoder
 
 def get_instruction(task_instruction: str, query: str) -> str:

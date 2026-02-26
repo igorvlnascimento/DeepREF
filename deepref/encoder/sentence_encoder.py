@@ -4,14 +4,22 @@ import torch.nn.functional as F
 from transformers import AutoModel, AutoTokenizer
 
 class SentenceEncoder(nn.Module):
-    def __init__(self, model_name, max_length=512, padding_side="left", device="cpu", attn_implementation="eager"):
+    def __init__(self, 
+                 model_name, 
+                 max_length=512, 
+                 padding_side="left", 
+                 device="cpu", 
+                 attn_implementation="eager",
+                 trainable=False):
         super().__init__()
         self.model = AutoModel.from_pretrained(model_name,
                                                trust_remote_code=True,
                                                torch_dtype=torch.float16,
                                                attn_implementation=attn_implementation
-                                               ).eval()
+                                               )
         self.model = self.model.to(device)
+        if not trainable:
+            self.frozen_model()
         self.tokenizer = AutoTokenizer.from_pretrained(model_name)
         self.max_length = max_length
         self.padding_side = padding_side
@@ -26,15 +34,22 @@ class SentenceEncoder(nn.Module):
         embedding = F.normalize(embedding, dim=-1)
         
         return embedding
-
-
-    def forward(self, input_texts):
-        batch_dict = self.tokenizer(input_texts, 
-                                    max_length=self.max_length, 
-                                    padding=True, 
+    
+    def tokenize(self, item):
+        text = item
+        batch_dict = self.tokenizer(text, 
+                                    max_length=self.max_length,
+                                    padding="max_length", 
                                     truncation=True, 
                                     return_tensors="pt")
-        attention_mask = batch_dict["attention_mask"]
-        model_outputs = self.model(**batch_dict)
+        return batch_dict
+
+
+    def forward(self, input_ids, attention_mask):
+        model_outputs = self.model(input_ids=input_ids, attention_mask=attention_mask)
 
         return self.average_pool(model_outputs.last_hidden_state, attention_mask)
+
+    def frozen_model(self):
+        for p in self.model.parameters():
+            p.requires_grad = False
