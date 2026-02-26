@@ -47,14 +47,14 @@ class SoftmaxMLP(SentenceRE):
         pred = pred.item()
         return self.id2rel[pred], score
     
-    def forward(self, *args):
+    def forward(self, **args):
         """
         Args:
             args: depends on the encoder
         Return:
             logits, (B, N)
         """
-        rep = self.sentence_encoder(*args) # (B, H)
+        rep = self.sentence_encoder(**args) # (B, H)
         logits = self.model(rep) # (B, H)
         logits = self.fc(logits) # (B, N)
         return logits
