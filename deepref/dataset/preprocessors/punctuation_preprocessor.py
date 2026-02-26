@@ -1,27 +1,28 @@
-from tqdm import tqdm
+from __future__ import annotations
 
+from typing import Optional
+
+from deepref.dataset.dataset import Dataset
 from deepref.dataset.sentence import Sentence
 from deepref.dataset.preprocessors.preprocessor import Preprocessor
 
+
 class PunctuationPreprocessor(Preprocessor):
-    def __init__(self, dataset, preprocessing_types, entity_replacement=None):
-        super(PunctuationPreprocessor, self).__init__(dataset, preprocessing_types, entity_replacement)
-        
-    def preprocess_dataset(self):
-        for i, sentence in tqdm(enumerate(self.dataset.train_sentences)):
-            self.dataset.train_sentences[i] = self.remove_punctuaction(sentence)
-        for i, sentence in tqdm(enumerate(self.dataset.test_sentences)):
-            self.dataset.test_sentences[i] = self.remove_punctuaction(sentence)
-        # for i, sentence in tqdm(enumerate(self.dataset.val_sentences)):
-        #     self.dataset.val_sentences[i] = self.remove_punctuaction(sentence)
-            
-        return self.dataset
-            
-    def remove_punctuaction(self, sentence: Sentence):
-        indexes = []
-        entity1_indexes = list(range(sentence.entity1['position'][0], sentence.entity1['position'][1]))
-        entity2_indexes = list(range(sentence.entity2['position'][0], sentence.entity2['position'][1]))
-        for j, pos in enumerate(sentence.pos_tags):
-            if pos == 'PUNCT'  and j not in entity1_indexes and j not in entity2_indexes:
-                indexes.append(j)
+    def __init__(
+        self,
+        dataset: Optional[Dataset] = None,
+        preprocessing_types: Optional[list] = None,
+        entity_replacement: Optional[str] = None,
+    ):
+        super().__init__(dataset, preprocessing_types, entity_replacement)
+
+    def preprocess_dataset(self) -> Dataset:
+        return self._apply_to_all(self.remove_punctuation)
+
+    def remove_punctuation(self, sentence: Sentence) -> Sentence:
+        entity_indexes = self._entity_indexes(sentence)
+        indexes = [
+            j for j, pos in enumerate(sentence.pos_tags)
+            if pos == 'PUNCT' and j not in entity_indexes
+        ]
         return self.process_sentence(sentence, indexes)

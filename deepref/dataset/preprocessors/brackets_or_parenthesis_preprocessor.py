@@ -1,36 +1,39 @@
-from tqdm import tqdm
+from __future__ import annotations
 
+from typing import Optional
+
+from deepref.dataset.dataset import Dataset
 from deepref.dataset.sentence import Sentence
 from deepref.dataset.preprocessors.preprocessor import Preprocessor
 
+
 class BracketsPreprocessor(Preprocessor):
-    def __init__(self, dataset, preprocessing_types, entity_replacement=None):
-        super(BracketsPreprocessor, self).__init__(dataset, preprocessing_types, entity_replacement)
-        
-    def preprocess_dataset(self):
-        for i, sentence in tqdm(enumerate(self.dataset.train_sentences)):
-            self.dataset.train_sentences[i] = self.remove_brackets_or_parenthesis(sentence)
-        for i, sentence in tqdm(enumerate(self.dataset.test_sentences)):
-            self.dataset.test_sentences[i] = self.remove_brackets_or_parenthesis(sentence)
-        # for i, sentence in tqdm(enumerate(self.dataset.val_sentences)):
-        #     self.dataset.val_sentences[i] = self.remove_brackets_or_parenthesis(sentence)
-            
-        return self.dataset
-    
-    def remove_brackets_or_parenthesis(self, sentence: Sentence):
+    def __init__(
+        self,
+        dataset: Optional[Dataset] = None,
+        preprocessing_types: Optional[list] = None,
+        entity_replacement: Optional[str] = None,
+    ):
+        super().__init__(dataset, preprocessing_types, entity_replacement)
+
+    def preprocess_dataset(self) -> Dataset:
+        return self._apply_to_all(self.remove_brackets_or_parenthesis)
+
+    def remove_brackets_or_parenthesis(self, sentence: Sentence) -> Sentence:
+        entity_indexes = self._entity_indexes(sentence)
         indexes = []
-        entity1_indexes = list(range(sentence.entity1['position'][0], sentence.entity1['position'][1]))
-        entity2_indexes = list(range(sentence.entity2['position'][0], sentence.entity2['position'][1]))
-        brackets = False
+        inside_brackets = False
+
         for j, token in enumerate(sentence.original_sentence):
-            if j in entity1_indexes or j in entity2_indexes:
+            if j in entity_indexes:
                 continue
-            elif token == '(' or token == "[":
-                brackets = True
+            if token in ('(', '['):
+                inside_brackets = True
                 indexes.append(j)
-            elif token == ")" or token == ']':
-                brackets = False
+            elif token in (')', ']'):
+                inside_brackets = False
                 indexes.append(j)
-            elif brackets:
+            elif inside_brackets:
                 indexes.append(j)
+
         return self.process_sentence(sentence, indexes)
