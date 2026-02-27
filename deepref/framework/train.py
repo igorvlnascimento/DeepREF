@@ -25,7 +25,7 @@ class Training():
                 self.preprocessing = parameters["preprocessing"]
                 self.model = parameters["model"]
                 self.max_length = parameters["max_length"]
-                self.opt = "adamw" if self.model == "bert_entity" or self.model == "bert_cls" or self.model == "ebem" else "sgd"
+                self.opt = "adamw" if self.model in ("bert_entity", "bert_cls", "ebem", "prompt_encoder") else "sgd"
                 self.pretrain = parameters["pretrain"]
                 self.position_embed = parameters["position_embed"]
                 self.pos_tags_embed = parameters["pos_tags_embed"]
@@ -251,6 +251,18 @@ class Training():
                                 deps_embedding=self.deps_embed,
                                 upos2id=upos2id,
                                 deps2id=deps2id
+                        )
+
+                elif self.model == "sentence_encoder":
+                        sentence_encoder = deepref.encoder.SentenceEncoder(
+                                max_length=self.max_length,
+                                pretrain_path=self.pretrain
+                        )
+
+                elif self.model == "prompt_encoder":
+                        sentence_encoder = deepref.encoder.PromptEntityEncoder(
+                                max_length=self.max_length,
+                                pretrain_path=self.pretrain
                         )
 
                 # Define the model
