@@ -37,6 +37,7 @@ class SentenceREDataset(data.Dataset):
     def __getitem__(self, index):
         item = self.data[index]
         seq = list(self.tokenizer(item, **self.kwargs))
+        #print([self.rel2id[item['relation']]] + seq)
         return [self.rel2id[item['relation']]] + seq # label, seq1, seq2, ...
     
     def collate_fn(data):
@@ -123,13 +124,14 @@ class SentenceREDataset(data.Dataset):
     
 def SentenceRELoader(path, rel2id, tokenizer, batch_size, 
         shuffle, num_workers=8, collate_fn=SentenceREDataset.collate_fn, **kwargs):
-    dataset = SentenceREDataset(path = path, rel2id = rel2id, tokenizer = tokenizer, kwargs=kwargs)
-    data_loader = data.DataLoader(dataset=dataset,
-            batch_size=batch_size,
-            shuffle=shuffle,
-            pin_memory=True,
-            num_workers=num_workers,
-            collate_fn=collate_fn)
+    dataset = SentenceREDataset(path = path, rel2id = rel2id, tokenizer = tokenizer, kwargs = kwargs)
+    data_loader = data.DataLoader(
+        dataset=dataset,
+        batch_size=batch_size,
+        shuffle=shuffle,
+        pin_memory=True,
+        num_workers=num_workers,
+        collate_fn=collate_fn)
     return data_loader
 
 class BagREDataset(data.Dataset):

@@ -4,6 +4,11 @@ version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.13"
+
+[tool.pytest.ini_options]
+markers = [
+    "integration: marks tests that require large models or network access (deselect with '-m not integration')",
+]
 dependencies = [
     "deap>=1.4.3",
     "kaleido>=1.2.0",
@@ -25,4 +30,5 @@ dependencies = [
     "torch>=2.10.0",
     "tqdm>=4.67.3",
     "transformers>=5.2.0",
+    "mlflow>=2.0.0",
 ]
