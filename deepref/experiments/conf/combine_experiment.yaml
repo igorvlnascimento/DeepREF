@@ -11,7 +11,7 @@ mlflow:
 training:
   lr: 2.0e-5
   max_epoch: 5
-  batch_size: 16
+  batch_size: 32
   num_mlp_layers: 3
   dropout: 0.1
   opt: adamw
