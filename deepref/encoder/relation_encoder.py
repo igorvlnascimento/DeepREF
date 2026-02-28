@@ -1,10 +1,10 @@
 import logging
 import torch
 
-from deepref.encoder.sentence_encoder import SentenceEncoder
+from deepref.encoder.llm_encoder import LLMEncoder
 
 
-class RelationEncoder(SentenceEncoder):
+class RelationEncoder(LLMEncoder):
     """
     Relation encoder for relation classification.
 

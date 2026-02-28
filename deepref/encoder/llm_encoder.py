@@ -1,0 +1,102 @@
+import torch
+import torch.nn.functional as F
+from transformers import AutoModel, AutoTokenizer
+
+from deepref.encoder.sentence_encoder import SentenceEncoder
+
+
+class LLMEncoder(SentenceEncoder):
+    """Concrete sentence encoder backed by a HuggingFace transformer.
+
+    Loads an ``AutoModel`` and ``AutoTokenizer`` from a pretrained checkpoint,
+    registers entity special tokens (``<e1>``, ``</e1>``, ``<e2>``, ``</e2>``),
+    and encodes text via average pooling with L2 normalisation.
+
+    Args:
+        model_name: HuggingFace model name or local path.
+        max_length: maximum tokenized sequence length.
+        padding_side: tokenizer padding side (``'left'`` or ``'right'``).
+        device: PyTorch device string (e.g. ``'cpu'``, ``'cuda'``).
+        attn_implementation: attention backend passed to ``AutoModel``
+            (e.g. ``'eager'``, ``'flash_attention_2'``).
+        trainable: if ``False`` (default) all model parameters are frozen.
+    """
+
+    def __init__(
+        self,
+        model_name,
+        max_length=512,
+        padding_side="left",
+        device="cpu",
+        attn_implementation="eager",
+        trainable=False,
+    ):
+        super().__init__()
+        self.model = AutoModel.from_pretrained(
+            model_name,
+            trust_remote_code=True,
+            torch_dtype=torch.float16,
+            attn_implementation=attn_implementation,
+        ).to(device)
+
+        if not trainable:
+            self.freeze_model()
+
+        self.tokenizer = AutoTokenizer.from_pretrained(model_name)
+        self.tokenizer.add_special_tokens({
+            "additional_special_tokens": ["<e1>", "</e1>", "<e2>", "</e2>"]
+        })
+        self.model.resize_token_embeddings(len(self.tokenizer))
+
+        self.max_length = max_length
+        self.padding_side = padding_side
+
+    def average_pool(
+        self,
+        last_hidden_states: torch.Tensor,
+        attention_mask: torch.Tensor,
+    ) -> torch.Tensor:
+        """Average pooling over token embeddings, ignoring padding."""
+        last_hidden_states = last_hidden_states.to(torch.float32)
+        last_hidden_states_masked = last_hidden_states.masked_fill(
+            ~attention_mask[..., None].bool(), 0.0
+        )
+        embedding = last_hidden_states_masked.sum(dim=1) / attention_mask.sum(dim=1)[..., None]
+        return F.normalize(embedding, dim=-1)
+
+    def tokenize(self, item):
+        """Tokenize a string or list of strings.
+
+        Args:
+            item: a single string or list of strings.
+
+        Returns:
+            dict with ``'input_ids'`` and ``'attention_mask'`` tensors.
+        """
+        return self.tokenizer(
+            item,
+            max_length=self.max_length,
+            padding="max_length",
+            truncation=True,
+            return_tensors="pt",
+        )
+
+    def forward(self, texts: str | list[str]) -> torch.Tensor:
+        """Encode one or more texts and return L2-normalised average-pool embeddings.
+
+        Args:
+            texts: a single string or a list of strings to encode.
+
+        Returns:
+            Float32 tensor of shape ``(N, hidden_dim)``, L2-normalised.
+        """
+        device = next(self.model.parameters()).device
+        batch = self.tokenize(texts)
+        batch = {k: v.to(device) for k, v in batch.items()}
+        model_outputs = self.model(**batch)
+        return self.average_pool(model_outputs.last_hidden_state, batch["attention_mask"])
+
+    def freeze_model(self):
+        """Freeze all model parameters."""
+        for p in self.model.parameters():
+            p.requires_grad = False

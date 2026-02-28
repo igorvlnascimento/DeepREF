@@ -89,16 +89,27 @@ REAL_MODEL = 'HuggingFaceTB/SmolLM-135M-Instruct'
 @pytest.fixture(scope='module')
 def encoder():
     """
-    SDPEncoder with spaCy loaded and forward() replaced by a mock.
-    Covers all tests that don't require a real LLM forward pass.
+    BoWSDPEncoder with spaCy loaded.
+    Covers dep label mapping, SDP extraction, dep chain, verbalize, and encode_onehot tests.
+    No transformer model is needed.
     """
-    from deepref.encoder.sdp_encoder import SDPEncoder
+    from deepref.encoder.sdp_encoder import BoWSDPEncoder
+    return BoWSDPEncoder()
+
+
+@pytest.fixture(scope='module')
+def encoder_verbalized():
+    """
+    VerbalizedSDPEncoder with spaCy loaded and forward() replaced by a mock.
+    Covers tokenize and encode_dense tests that don't require a real LLM.
+    """
+    from deepref.encoder.sdp_encoder import VerbalizedSDPEncoder
     mock_model = MagicMock()
     mock_model.parameters.return_value = iter([])
     mock_tokenizer = MagicMock()
-    with mock.patch('deepref.encoder.sentence_encoder.AutoModel.from_pretrained', return_value=mock_model), \
-         mock.patch('deepref.encoder.sentence_encoder.AutoTokenizer.from_pretrained', return_value=mock_tokenizer):
-        enc = SDPEncoder()
+    with mock.patch('deepref.encoder.llm_encoder.AutoModel.from_pretrained', return_value=mock_model), \
+         mock.patch('deepref.encoder.llm_encoder.AutoTokenizer.from_pretrained', return_value=mock_tokenizer):
+        enc = VerbalizedSDPEncoder()
     enc.forward = MagicMock(return_value=torch.zeros(1, MOCK_EMBED_DIM))
     return enc
 
@@ -106,11 +117,11 @@ def encoder():
 @pytest.fixture(scope='module')
 def encoder_real():
     """
-    SDPEncoder with the real SmolLM model.
+    VerbalizedSDPEncoder with the real SmolLM model.
     Used only for integration / shape tests on encode_dense.
     """
-    from deepref.encoder.sdp_encoder import SDPEncoder
-    return SDPEncoder(model_name=REAL_MODEL)
+    from deepref.encoder.sdp_encoder import VerbalizedSDPEncoder
+    return VerbalizedSDPEncoder(model_name=REAL_MODEL)
 
 
 # ===========================================================================
@@ -465,7 +476,27 @@ class TestVerbalize:
 
 
 # ===========================================================================
-# 5. encode_onehot
+# 5a. BoWSDPEncoder.tokenize
+# ===========================================================================
+
+class TestBoWTokenize:
+    """BoWSDPEncoder.tokenize returns the raw SDP path (same as extract_sdp)."""
+
+    def test_returns_list(self, encoder):
+        result = encoder.tokenize(ITEM_SIMPLE)
+        assert isinstance(result, list)
+
+    def test_each_element_is_three_tuple(self, encoder):
+        result = encoder.tokenize(ITEM_SIMPLE)
+        for element in result:
+            assert len(element) == 3
+
+    def test_same_result_as_extract_sdp(self, encoder):
+        assert encoder.tokenize(ITEM_SIMPLE) == encoder.extract_sdp(ITEM_SIMPLE)
+
+
+# ===========================================================================
+# 5b. encode_onehot
 # ===========================================================================
 
 class TestEncodeOnehot:
@@ -532,63 +563,98 @@ class TestEncodeOnehot:
         result = encoder.encode_onehot(ITEM_REVERSED)
         assert result.sum().item() >= 1
 
+    def test_encode_onehot_delegates_to_forward(self, encoder):
+        """encode_onehot must return the same tensor as forward."""
+        assert torch.equal(encoder.encode_onehot(ITEM_SIMPLE), encoder.forward(ITEM_SIMPLE))
+
 
 # ===========================================================================
-# 6. encode_dense
+# 6. tokenize
+# ===========================================================================
+
+class TestTokenize:
+    """Tests for VerbalizedSDPEncoder.tokenize — verbalizes the SDP and tokenizes it."""
+
+    _FAKE_TOKENS = {
+        'input_ids': torch.zeros(1, 10, dtype=torch.long),
+        'attention_mask': torch.ones(1, 10, dtype=torch.long),
+    }
+
+    def test_returns_dict(self, encoder_verbalized):
+        from deepref.encoder.llm_encoder import LLMEncoder
+        with mock.patch.object(LLMEncoder, 'tokenize', return_value=self._FAKE_TOKENS):
+            result = encoder_verbalized.tokenize(ITEM_SIMPLE)
+        assert isinstance(result, dict)
+
+    def test_has_input_ids(self, encoder_verbalized):
+        from deepref.encoder.llm_encoder import LLMEncoder
+        with mock.patch.object(LLMEncoder, 'tokenize', return_value=self._FAKE_TOKENS):
+            result = encoder_verbalized.tokenize(ITEM_SIMPLE)
+        assert 'input_ids' in result
+
+    def test_has_attention_mask(self, encoder_verbalized):
+        from deepref.encoder.llm_encoder import LLMEncoder
+        with mock.patch.object(LLMEncoder, 'tokenize', return_value=self._FAKE_TOKENS):
+            result = encoder_verbalized.tokenize(ITEM_SIMPLE)
+        assert 'attention_mask' in result
+
+    def test_verbalized_string_contains_entity_1(self, encoder_verbalized):
+        """tokenize must verbalize using e1's name."""
+        from deepref.encoder.llm_encoder import LLMEncoder
+        with mock.patch.object(LLMEncoder, 'tokenize', return_value=self._FAKE_TOKENS) as mock_tok:
+            encoder_verbalized.tokenize(ITEM_SIMPLE)
+        _, verbalized_text = mock_tok.call_args[0]
+        assert ITEM_SIMPLE['h']['name'] in verbalized_text
+
+    def test_verbalized_string_contains_entity_2(self, encoder_verbalized):
+        """tokenize must verbalize using e2's name."""
+        from deepref.encoder.llm_encoder import LLMEncoder
+        with mock.patch.object(LLMEncoder, 'tokenize', return_value=self._FAKE_TOKENS) as mock_tok:
+            encoder_verbalized.tokenize(ITEM_SIMPLE)
+        _, verbalized_text = mock_tok.call_args[0]
+        assert ITEM_SIMPLE['t']['name'] in verbalized_text
+
+    def test_verbalized_string_contains_dependency_path_keyword(self, encoder_verbalized):
+        from deepref.encoder.llm_encoder import LLMEncoder
+        with mock.patch.object(LLMEncoder, 'tokenize', return_value=self._FAKE_TOKENS) as mock_tok:
+            encoder_verbalized.tokenize(ITEM_SIMPLE)
+        _, verbalized_text = mock_tok.call_args[0]
+        assert 'Dependency path:' in verbalized_text
+
+
+# ===========================================================================
+# 7. encode_dense
 # ===========================================================================
 
 class TestEncodeDenseMocked:
     """Tests that exercise encode_dense logic without loading a real LLM."""
 
-    def test_returns_tensor(self, encoder):
-        result = encoder.encode_dense(ITEM_SIMPLE)
+    def test_returns_tensor(self, encoder_verbalized):
+        result = encoder_verbalized.encode_dense(ITEM_SIMPLE)
         assert isinstance(result, torch.Tensor)
 
-    def test_is_two_dimensional(self, encoder):
-        result = encoder.encode_dense(ITEM_SIMPLE)
+    def test_is_two_dimensional(self, encoder_verbalized):
+        result = encoder_verbalized.encode_dense(ITEM_SIMPLE)
         assert result.ndim == 2
 
-    def test_batch_dimension_is_one(self, encoder):
-        result = encoder.encode_dense(ITEM_SIMPLE)
+    def test_batch_dimension_is_one(self, encoder_verbalized):
+        result = encoder_verbalized.encode_dense(ITEM_SIMPLE)
         assert result.shape[0] == 1
 
-    def test_embed_dim_matches_mock(self, encoder):
-        result = encoder.encode_dense(ITEM_SIMPLE)
+    def test_embed_dim_matches_mock(self, encoder_verbalized):
+        result = encoder_verbalized.encode_dense(ITEM_SIMPLE)
         assert result.shape[1] == MOCK_EMBED_DIM
 
-    def test_forward_called_with_verbalized_string(self, encoder):
-        """encode_dense must call forward with the verbalized sentence."""
-        encoder.forward.reset_mock()
-        encoder.encode_dense(ITEM_SIMPLE)
-        encoder.forward.assert_called_once()
-        call_args = encoder.forward.call_args
-        # The verbalized string must be among the positional / keyword args
-        all_args = list(call_args.args) + list(call_args.kwargs.values())
-        verbalized = any(
-            isinstance(a, str) and 'Dependency path:' in a
-            for a in all_args
-        )
-        assert verbalized, "forward was not called with a verbalized string"
+    def test_forward_called_with_item(self, encoder_verbalized):
+        """encode_dense must delegate to forward with the original item dict."""
+        encoder_verbalized.forward.reset_mock()
+        encoder_verbalized.encode_dense(ITEM_SIMPLE)
+        encoder_verbalized.forward.assert_called_once_with(ITEM_SIMPLE)
 
-    def test_verbalized_string_contains_entity_1(self, encoder):
-        encoder.forward.reset_mock()
-        encoder.encode_dense(ITEM_SIMPLE)
-        call_args = encoder.forward.call_args
-        all_args = list(call_args.args) + list(call_args.kwargs.values())
-        assert any(
-            isinstance(a, str) and ITEM_SIMPLE['h']['name'] in a
-            for a in all_args
-        )
-
-    def test_verbalized_string_contains_entity_2(self, encoder):
-        encoder.forward.reset_mock()
-        encoder.encode_dense(ITEM_SIMPLE)
-        call_args = encoder.forward.call_args
-        all_args = list(call_args.args) + list(call_args.kwargs.values())
-        assert any(
-            isinstance(a, str) and ITEM_SIMPLE['t']['name'] in a
-            for a in all_args
-        )
+    def test_forward_called_once_per_encode_dense_call(self, encoder_verbalized):
+        encoder_verbalized.forward.reset_mock()
+        encoder_verbalized.encode_dense(ITEM_SIMPLE)
+        assert encoder_verbalized.forward.call_count == 1
 
 
 @pytest.mark.integration
