@@ -1,6 +1,6 @@
 import pytest
 import torch
-from deepref.encoder.prompt_encoder import PromptEntityEncoder
+from deepref.encoder.relation_encoder import PromptEntityEncoder
 
 PRETRAINED_BERT = 'bert-base-uncased'
 MAX_LENGTH = 128
