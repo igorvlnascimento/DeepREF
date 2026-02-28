@@ -28,18 +28,16 @@ import torch
 from deepref.encoder.sentence_encoder import SentenceEncoder
 
 
-class SDPEncoder:
+class SDPEncoder(SentenceEncoder):
     """Encode a sentence via the Shortest Dependency Path between two entities.
 
     Args:
+        model_name: HuggingFace model name (or local path) for the underlying
+            :class:`SentenceEncoder`.
         dep_vocab: ordered list of full dependency-relation names used as the
             one-hot vocabulary.  Defaults to an alphabetically sorted list of
             all relation names known to the encoder.
-        sentence_encoder_model: HuggingFace model name (or local path) passed
-            to :class:`SentenceEncoder` when *sentence_encoder* is not given.
-        device: PyTorch device string for the SentenceEncoder.
-        sentence_encoder: pre-built (or mock) SentenceEncoder instance.
-            When provided, *sentence_encoder_model* and *device* are ignored.
+        device: PyTorch device string passed to :class:`SentenceEncoder`.
     """
 
     # ------------------------------------------------------------------
@@ -102,21 +100,14 @@ class SDPEncoder:
 
     def __init__(
         self,
+        model_name: str = 'HuggingFaceTB/SmolLM-135M-Instruct',
         dep_vocab: Optional[list[str]] = None,
-        sentence_encoder_model: str = 'HuggingFaceTB/SmolLM-135M-Instruct',
         device: str = 'cpu',
-        sentence_encoder=None,
     ) -> None:
+        super().__init__(model_name, device=device)
+
         import spacy
         self.nlp = spacy.load('en_core_web_trf')
-
-        if sentence_encoder is not None:
-            self.sentence_encoder = sentence_encoder
-        else:
-            self.sentence_encoder = SentenceEncoder(
-                sentence_encoder_model,
-                device=device,
-            )
 
         if dep_vocab is None:
             dep_vocab = sorted(set(self.DEP_FULL_NAMES.values()))
@@ -279,7 +270,7 @@ class SDPEncoder:
         dep_chain = self.build_dep_chain(path)
         verbalized = self.verbalize(sentence, e1_name, e2_name, dep_chain)
 
-        return self.sentence_encoder(verbalized)
+        return self(verbalized)
 
     # ------------------------------------------------------------------
     # Private helpers

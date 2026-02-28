@@ -29,6 +29,7 @@ from __future__ import annotations
 
 import pytest
 import torch
+from unittest import mock
 from unittest.mock import MagicMock
 
 # ---------------------------------------------------------------------------
@@ -81,13 +82,6 @@ REAL_MODEL = 'HuggingFaceTB/SmolLM-135M-Instruct'
 # Helpers
 # ---------------------------------------------------------------------------
 
-def _make_mock_sentence_encoder(embed_dim: int = MOCK_EMBED_DIM) -> MagicMock:
-    """Return a SentenceEncoder mock that outputs a (1, embed_dim) tensor."""
-    mock = MagicMock()
-    mock.return_value = torch.zeros(1, embed_dim)
-    return mock
-
-
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
@@ -95,13 +89,18 @@ def _make_mock_sentence_encoder(embed_dim: int = MOCK_EMBED_DIM) -> MagicMock:
 @pytest.fixture(scope='module')
 def encoder():
     """
-    SDPEncoder with spaCy loaded and SentenceEncoder replaced by a mock.
+    SDPEncoder with spaCy loaded and forward() replaced by a mock.
     Covers all tests that don't require a real LLM forward pass.
     """
     from deepref.encoder.sdp_encoder import SDPEncoder
-    return SDPEncoder(
-        sentence_encoder=_make_mock_sentence_encoder(),
-    )
+    mock_model = MagicMock()
+    mock_model.parameters.return_value = iter([])
+    mock_tokenizer = MagicMock()
+    with mock.patch('deepref.encoder.sentence_encoder.AutoModel.from_pretrained', return_value=mock_model), \
+         mock.patch('deepref.encoder.sentence_encoder.AutoTokenizer.from_pretrained', return_value=mock_tokenizer):
+        enc = SDPEncoder()
+    enc.forward = MagicMock(return_value=torch.zeros(1, MOCK_EMBED_DIM))
+    return enc
 
 
 @pytest.fixture(scope='module')
@@ -111,7 +110,7 @@ def encoder_real():
     Used only for integration / shape tests on encode_dense.
     """
     from deepref.encoder.sdp_encoder import SDPEncoder
-    return SDPEncoder(sentence_encoder_model=REAL_MODEL)
+    return SDPEncoder(model_name=REAL_MODEL)
 
 
 # ===========================================================================
@@ -557,24 +556,24 @@ class TestEncodeDenseMocked:
         result = encoder.encode_dense(ITEM_SIMPLE)
         assert result.shape[1] == MOCK_EMBED_DIM
 
-    def test_sentence_encoder_called_with_verbalized_string(self, encoder):
-        """encode_dense must call sentence_encoder with the verbalized sentence."""
-        encoder.sentence_encoder.reset_mock()
+    def test_forward_called_with_verbalized_string(self, encoder):
+        """encode_dense must call forward with the verbalized sentence."""
+        encoder.forward.reset_mock()
         encoder.encode_dense(ITEM_SIMPLE)
-        encoder.sentence_encoder.assert_called_once()
-        call_args = encoder.sentence_encoder.call_args
+        encoder.forward.assert_called_once()
+        call_args = encoder.forward.call_args
         # The verbalized string must be among the positional / keyword args
         all_args = list(call_args.args) + list(call_args.kwargs.values())
         verbalized = any(
             isinstance(a, str) and 'Dependency path:' in a
             for a in all_args
         )
-        assert verbalized, "sentence_encoder was not called with a verbalized string"
+        assert verbalized, "forward was not called with a verbalized string"
 
     def test_verbalized_string_contains_entity_1(self, encoder):
-        encoder.sentence_encoder.reset_mock()
+        encoder.forward.reset_mock()
         encoder.encode_dense(ITEM_SIMPLE)
-        call_args = encoder.sentence_encoder.call_args
+        call_args = encoder.forward.call_args
         all_args = list(call_args.args) + list(call_args.kwargs.values())
         assert any(
             isinstance(a, str) and ITEM_SIMPLE['h']['name'] in a
@@ -582,9 +581,9 @@ class TestEncodeDenseMocked:
         )
 
     def test_verbalized_string_contains_entity_2(self, encoder):
-        encoder.sentence_encoder.reset_mock()
+        encoder.forward.reset_mock()
         encoder.encode_dense(ITEM_SIMPLE)
-        call_args = encoder.sentence_encoder.call_args
+        call_args = encoder.forward.call_args
         all_args = list(call_args.args) + list(call_args.kwargs.values())
         assert any(
             isinstance(a, str) and ITEM_SIMPLE['t']['name'] in a

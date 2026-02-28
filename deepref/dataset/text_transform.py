@@ -52,3 +52,12 @@ class BracketsOrParenthesisRemover(TextTransformer):
         tokens = text.split()
         tokens = [t for t in tokens if t not in ["(", ")", "[", "]"]]
         return " ".join(tokens)
+
+class TextTransformerPipeline(TextTransformer):
+    def __init__(self, *steps: TextTransformer):
+        self._steps = steps
+
+    def transform(self, text: str) -> str:
+        for step in self._steps:
+            text = step.transform(text)
+        return text

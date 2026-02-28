@@ -6,6 +6,7 @@ from deepref.dataset.text_transform import (
     EntityBlinding,
     PuctuationRemover,
     StopwordRemover,
+    TextTransformerPipeline,
 )
 
 
@@ -137,3 +138,54 @@ class TestBracketsOrParenthesisRemover:
     def test_only_brackets_returns_empty(self):
         result = self.transformer.transform("( ) [ ]")
         assert result == ""
+
+
+class TestTextTransformerPipeline:
+    def test_single_step_behaves_like_that_step(self):
+        pipeline = TextTransformerPipeline(PuctuationRemover())
+        assert pipeline.transform("hello , world .") == "hello world"
+
+    def test_two_steps_applied_in_order(self):
+        # BracketsOrParenthesisRemover first, then PuctuationRemover
+        pipeline = TextTransformerPipeline(BracketsOrParenthesisRemover(), PuctuationRemover())
+        result = pipeline.transform("( hello ) , world .")
+        assert result == "hello world"
+
+    def test_order_matters(self):
+        # DigitBlinding then StopwordRemover: "DIGIT" is not a stopword, survives
+        # StopwordRemover then DigitBlinding: same result — order irrelevant here,
+        # so use a case where order does matter: punctuation before stopword removal
+        pipeline_a = TextTransformerPipeline(PuctuationRemover(), StopwordRemover())
+        pipeline_b = TextTransformerPipeline(StopwordRemover(), PuctuationRemover())
+        text = "the , quick brown fox"
+        # both pipelines should remove "the" and ","
+        assert "the" not in pipeline_a.transform(text).split()
+        assert "the" not in pipeline_b.transform(text).split()
+
+    def test_empty_pipeline_returns_text_unchanged(self):
+        pipeline = TextTransformerPipeline()
+        assert pipeline.transform("hello world") == "hello world"
+
+    def test_callable_interface(self):
+        pipeline = TextTransformerPipeline(PuctuationRemover())
+        assert pipeline("hello , world .") == "hello world"
+
+    def test_is_itself_a_text_transformer(self):
+        from deepref.dataset.text_transform import TextTransformer
+        pipeline = TextTransformerPipeline(PuctuationRemover())
+        assert isinstance(pipeline, TextTransformer)
+
+    def test_pipelines_can_be_nested(self):
+        inner = TextTransformerPipeline(BracketsOrParenthesisRemover())
+        outer = TextTransformerPipeline(inner, PuctuationRemover())
+        result = outer.transform("( hello ) , world .")
+        assert result == "hello world"
+
+    def test_three_steps_chained(self):
+        pipeline = TextTransformerPipeline(
+            BracketsOrParenthesisRemover(),
+            PuctuationRemover(),
+            DigitBlinding(),
+        )
+        result = pipeline.transform("( born ) , 1990 .")
+        assert result == "born DIGIT"

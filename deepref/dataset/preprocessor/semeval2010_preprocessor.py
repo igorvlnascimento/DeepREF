@@ -5,6 +5,7 @@ import pandas as pd
 from tqdm import tqdm
 
 from deepref.dataset.preprocessor.dataset_preprocessor import DatasetPreprocessor
+from deepref.nlp.spacy_nlp_tool import SpacyNLPTool
 
 class SemEval2010Preprocessor(DatasetPreprocessor):
     def tag_sentence(self, line):
@@ -39,42 +40,8 @@ class SemEval2010Preprocessor(DatasetPreprocessor):
 
             yield tagged_sentence, relation
 
-    def get_csv_rows(self, filepath):
-        with open(filepath, 'r') as f:
-            lines = list(f.readlines())
-        for i in tqdm(range(0, len(lines), 4)):
-            _, sent = lines[i].split('\t')
-            sent = sent.strip()
-            if sent[0] == '"':
-                sent = sent[1:]
-            if sent[-1] == '"':
-                sent = sent[:-1]
-            relation = lines[i + 1].strip()
-
-            e1_match = re.search(r'<e1>(.*?)</e1>', sent)
-            e2_match = re.search(r'<e2>(.*?)</e2>', sent)
-            e1_name = e1_match.group(1).strip() if e1_match else ''
-            e2_name = e2_match.group(1).strip() if e2_match else ''
-
-            # Count words before each tag after removing the other entity's tags
-            plain_no_e2 = re.sub(r'</?e2>', '', sent)
-            e1_start = len(plain_no_e2[:plain_no_e2.find('<e1>')].split())
-            e1_end = e1_start + len(e1_name.split())
-
-            plain_no_e1 = re.sub(r'</?e1>', '', sent)
-            e2_start = len(plain_no_e1[:plain_no_e1.find('<e2>')].split())
-            e2_end = e2_start + len(e2_name.split())
-
-            plain = re.sub(r'</?e[12]>', '', sent)
-            plain = ' '.join(plain.split())
-
-            yield {
-                'original_sentence': plain,
-                'e1': str({'name': e1_name, 'position': [e1_start, e1_end]}),
-                'e2': str({'name': e2_name, 'position': [e2_start, e2_end]}),
-                'relation_type': relation,
-                'pos_tags': '', 'dependencies_labels': '', 'ner': '', 'sk_entities': ''
-            }
+    def get_entity_dict(self, *args):
+        pass
 
 
 if __name__ == "__main__":
@@ -85,10 +52,9 @@ if __name__ == "__main__":
 
     preprocessor = SemEval2010Preprocessor()
     data = (
-        list(preprocessor.get_csv_rows(os.path.join(args.path, "TRAIN_FILE.TXT"))) +
-        list(preprocessor.get_csv_rows(os.path.join(args.path, "TEST_FILE_FULL.TXT")))
+        list(preprocessor.get_sentences(os.path.join(args.path, "TRAIN_FILE.TXT"))) +
+        list(preprocessor.get_sentences(os.path.join(args.path, "TEST_FILE_FULL.TXT")))
     )
-    df = pd.DataFrame(data)
-    output = "benchmark/semeval2010.csv"
-    df.to_csv(output, sep='\t', index=False)
-    print(f"Written {len(df)} rows to {output}")
+    tool = SpacyNLPTool("en_core_web_trf")
+
+    preprocessor.write_csv("semeval2010", data, tool)

@@ -2,7 +2,21 @@ import pytest
 import torch
 
 from deepref.dataset.re_dataset import REDataset, RELoader
+from deepref.dataset.text_transform import DigitBlinding, PuctuationRemover, TextTransformerPipeline
 from deepref.encoder.sentence_encoder import SentenceEncoder
+
+
+class _MockTokenizer:
+    def __call__(self, text, **kwargs):
+        if kwargs.get('return_tensors') == 'pt':
+            return {'input_ids': torch.ones(1, 10, dtype=torch.long),
+                    'attention_mask': torch.ones(1, 10, dtype=torch.long)}
+        return {'input_ids': [0] * 10}
+
+
+@pytest.fixture(scope="module")
+def mock_tokenizer():
+    return _MockTokenizer()
 
 DATASETS = [
     "semeval2010"
@@ -172,3 +186,38 @@ def test_re_loader_batch_contains_required_keys(sentence_encoder):
     assert "input_ids" in batch
     assert "attention_mask" in batch
     assert "labels" in batch
+
+
+def test_re_dataset_pipeline_is_none_by_default(mock_tokenizer):
+    dataset = REDataset("benchmark/semeval2010", mock_tokenizer)
+    assert dataset.pipeline is None
+
+
+def test_re_dataset_pipeline_is_stored(mock_tokenizer):
+    pipeline = TextTransformerPipeline(PuctuationRemover())
+    dataset = REDataset("benchmark/semeval2010", mock_tokenizer, pipeline=pipeline)
+    assert dataset.pipeline is pipeline
+
+
+def test_re_dataset_pipeline_does_not_change_labels(mock_tokenizer):
+    dataset_without = REDataset("benchmark/semeval2010", mock_tokenizer)
+    pipeline = TextTransformerPipeline(PuctuationRemover())
+    dataset_with = REDataset("benchmark/semeval2010", mock_tokenizer, pipeline=pipeline)
+    assert dataset_without[0]["labels"] == dataset_with[0]["labels"]
+
+
+def test_re_dataset_pipeline_returns_valid_item(mock_tokenizer):
+    pipeline = TextTransformerPipeline(PuctuationRemover(), DigitBlinding())
+    dataset = REDataset("benchmark/semeval2010", mock_tokenizer, pipeline=pipeline)
+    item = dataset[0]
+    assert "input_ids" in item
+    assert "attention_mask" in item
+    assert "labels" in item
+
+
+def test_re_dataset_pipeline_and_preprocessors_list_both_applied(mock_tokenizer):
+    pipeline = TextTransformerPipeline(DigitBlinding())
+    dataset = REDataset("benchmark/semeval2010", mock_tokenizer,
+                        preprocessors_list=[str.lower], pipeline=pipeline)
+    item = dataset[0]
+    assert isinstance(item["labels"], torch.Tensor)
