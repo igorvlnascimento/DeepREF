@@ -1,8 +1,12 @@
+from abc import ABC, abstractmethod
+from collections import defaultdict
+
 import pandas as pd
+from tqdm import tqdm
 
 from deepref.dataset.example_generator import ExampleGenerator
 
-class DatasetPreprocessor():
+class DatasetPreprocessor(ABC):
     def remove_whitespace(self, line: str) -> str:
         return " ".join(line.split()).strip()
 
@@ -43,23 +47,23 @@ class DatasetPreprocessor():
             tagged_sentence += ' ' + sentence[prev_end + 1:]
         return self.remove_whitespace(tagged_sentence)
 
+    @abstractmethod
     def get_entity_dict(self, *args):
-        raise NotImplementedError
+        ...
 
+    @abstractmethod
     def get_sentences(self, path):
-        raise NotImplementedError
+        ...
     
-    def write_dataframe(self, dataset_name, sentences, nlp_tool):
-
-        generator = ExampleGenerator(nlp_tool=nlp_tool)
-        processed_sentences = [generator.generate(tagged_sentence, relation) for tagged_sentence, relation in sentences]
-        columns = 'original_sentence,e1,e2,relation_type,pos_tags,dependencies_labels,ner,sk_entities'.split(',')
-        data = [
-            {'original_sentence': tokens, 'e1': entity1, 'e2': entity2, 'relation_type': relation_type,
-             'pos_tags': pos_tags, 'dependencies_labels': dependencies_labels, 'ner': ner, 'sk_entities': sk_entities}
-            for tokens, pos_tags, dependencies_labels, ner, _, entity1, entity2, relation_type, sk_entities in processed_sentences
-        ]
-        df = pd.DataFrame(data, columns=columns)
+    def write_csv(self, dataset_name, sentences, nlp_tool):
+        out = defaultdict(list)
+        example_generator = ExampleGenerator(nlp_tool=nlp_tool)
+        for tagged_sentence, relation in tqdm(sentences):
+            example_dict = example_generator.generate(tagged_sentence, relation)
+            for k, v in example_dict.items():
+                out[k].append(" ".join(v))
+                break
+        df = pd.DataFrame(out)
         output_path = f"benchmark/{dataset_name}.csv"
         df.to_csv(output_path, sep='\t', encoding='utf-8', index=False)
         print(f"Written {len(df)} rows to {output_path}")

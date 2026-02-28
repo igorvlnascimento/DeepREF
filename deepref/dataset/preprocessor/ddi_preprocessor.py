@@ -55,7 +55,7 @@ if __name__ == "__main__":
     parser.add_argument("--path", required=True, help="Path to directory containing DDI XML files")
     args = parser.parse_args()
 
-    tool = SpacyNLPTool()
+    tool = SpacyNLPTool("en_core_web_trf")
 
     preprocessor = DDIPreprocessor()
-    preprocessor.write_dataframe("ddi", preprocessor.get_sentences(args.path), tool)
+    preprocessor.write_csv("ddi", preprocessor.get_sentences(args.path), tool)

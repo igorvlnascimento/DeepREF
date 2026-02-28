@@ -4,9 +4,17 @@ from deepref.dataset.preprocessor.dataset_preprocessor import DatasetPreprocesso
 from deepref.dataset.re_dataset import REDataset
 
 
+class _ConcretePreprocessor(DatasetPreprocessor):
+    def get_entity_dict(self, *args):
+        return {}
+
+    def get_sentences(self, path):
+        return []
+
+
 @pytest.fixture
 def preprocessor():
-    return DatasetPreprocessor()
+    return _ConcretePreprocessor()
 
 
 @pytest.fixture
@@ -183,11 +191,36 @@ class TestTagSentence:
         assert '  ' not in result
 
 
-class TestAbstractMethods:
-    def test_get_entity_dict_raises_not_implemented(self, preprocessor):
-        with pytest.raises(NotImplementedError):
-            preprocessor.get_entity_dict()
+class TestRemoveEntityMarks:
+    def test_removes_entitystart(self, preprocessor):
+        assert preprocessor.remove_entity_marks("ENTITYSTART Hello ENTITYEND") == "Hello"
 
-    def test_get_sentences_raises_not_implemented(self, preprocessor):
-        with pytest.raises(NotImplementedError):
-            preprocessor.get_sentences('some/path')
+    def test_removes_entityother_marks(self, preprocessor):
+        assert preprocessor.remove_entity_marks("ENTITYOTHERSTART world ENTITYOTHEREND") == "world"
+
+    def test_removes_entityunrelated_marks(self, preprocessor):
+        assert preprocessor.remove_entity_marks("ENTITYUNRELATEDSTART foo ENTITYUNRELATEDEND") == "foo"
+
+    def test_removes_all_marks_from_full_tagged_sentence(self, preprocessor):
+        sentence = "ENTITYSTART Hello ENTITYEND ENTITYOTHERSTART world ENTITYOTHEREND"
+        assert preprocessor.remove_entity_marks(sentence) == "Hello world"
+
+    def test_preserves_surrounding_text(self, preprocessor):
+        sentence = "The ENTITYSTART cat ENTITYEND sat on the ENTITYOTHERSTART mat ENTITYOTHEREND today"
+        assert preprocessor.remove_entity_marks(sentence) == "The cat sat on the mat today"
+
+    def test_no_marks_returns_text_unchanged(self, preprocessor):
+        assert preprocessor.remove_entity_marks("hello world") == "hello world"
+
+    def test_empty_string_returns_empty(self, preprocessor):
+        assert preprocessor.remove_entity_marks("") == ""
+
+    def test_only_marks_returns_empty(self, preprocessor):
+        sentence = "ENTITYSTART ENTITYEND ENTITYOTHERSTART ENTITYOTHEREND"
+        assert preprocessor.remove_entity_marks(sentence) == ""
+
+
+class TestAbstractMethods:
+    def test_cannot_instantiate_without_abstract_methods(self):
+        with pytest.raises(TypeError):
+            DatasetPreprocessor()

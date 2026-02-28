@@ -4,10 +4,11 @@ from pyexpat import ExpatError
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
-from deepref import config
 from deepref.dataset.preprocessor.dataset_preprocessor import DatasetPreprocessor
 
 from nltk.tokenize.punkt import PunktSentenceTokenizer, PunktParameters
+
+from deepref.nlp.spacy_nlp_tool import SpacyNLPTool
 
 class SemEval2018Preprocessor(DatasetPreprocessor):    
     def get_entity_dict(self, text_elements):
@@ -94,11 +95,15 @@ class SemEval2018Preprocessor(DatasetPreprocessor):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Generate CSV from raw SemEval2018 XML files")
-    parser.add_argument("--dataset", required=True, help="Dataset name (e.g. semeval20181-1, semeval20181-2)")
     parser.add_argument("--path", required=True, help="Path to directory containing SemEval2018 XML and txt files")
     args = parser.parse_args()
 
     preprocessor = SemEval2018Preprocessor()
     sentences = preprocessor.get_sentences(args.path)
-    print(sentences)
-    preprocessor.write_dataframe(args.dataset, preprocessor.get_sentences(args.path))
+    tool = SpacyNLPTool("en_core_web_trf")
+    if "semeval20181-1" in args.path:
+        preprocessor.write_csv("semeval20181-1", sentences, tool)
+    elif "semeval20181-2" in args.path:
+        preprocessor.write_csv("semeval20181-2", sentences, tool)
+    else:
+        raise ValueError("Invalid path")
