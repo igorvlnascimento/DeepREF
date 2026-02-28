@@ -13,8 +13,6 @@ import matplotlib.pyplot as plt
 
 import optuna
 
-from deepref import config
-
 class SentenceRE(nn.Module):
 
     def __init__(self, 
@@ -215,72 +213,72 @@ class SentenceRE(nn.Module):
         logging.info('Trained with dataset {}, model {}, embedding {} and preprocessing {}:\n'.format(self.dataset_name, model, embedding, self.preprocessing))
         logging.info('Hyperparams: {}'.format(hyper_params))
         time = datetime.now().isoformat(timespec="seconds")
-        os.makedirs(os.path.join(config.RESULTS_PATH, self.dataset_name, 'exp', time), exist_ok=True)
-        file_path = config.RESULTS_PATH+'/{}/exp/{}/{}_ResultsDeepREF_{}.txt'.format(self.dataset_name, time, time, self.dataset_name)
-        report = metrics.classification_report(ground_truth, pred, target_names=self.classes, digits=5, zero_division=1)
-        confusion_matrix = metrics.confusion_matrix(ground_truth, pred)
-        # for input, prediction, label in zip(inputs, pred, ground_truth):
-        #     if prediction != label:
-        #         print(input, 'has been classified as ', prediction, 'and should be ', label)
-        sns_plot = sns.heatmap(confusion_matrix, annot=True, xticklabels=self.classes, yticklabels=self.classes, cmap='binary', annot_kws={"fontsize":8}, linewidths=0.1, square=True)
-        #sns_plot.set_xticklabels(sns_plot.get_xmajorticklabels(), fontsize = 8)
-        #sns_plot.set_yticklabels(sns_plot.get_ymajorticklabels(), fontsize = 8)
-        fig = sns_plot.get_figure()
-        plt.gcf().set_size_inches(17, 15)
-        fig.savefig(f"{config.RESULTS_PATH}/{self.dataset_name}/exp/{time}/{self.dataset_name}_confusion_matrix.png")
-        plt.clf()
-        logging.info('\n'+report)
-        logging.info('Accuracy: {}'.format(result['acc']))
-        logging.info('Micro precision: {}'.format(result['micro_p']))
-        logging.info('Micro recall: {}'.format(result['micro_r']))
-        logging.info('Micro F1: {}'.format(result['micro_f1']))
-        logging.info('Macro F1: {}'.format(result['macro_f1']))
-        if os.path.isfile(file_path):
-            with open(file_path, 'a') as ablation_file:
-                self.write_test_results(ablation_file, model, embedding, hyper_params, result, report, confusion_matrix)
-        else:
-            with open(file_path, 'w') as ablation_file:
-                self.write_test_results(ablation_file, model, embedding, hyper_params, result, report, confusion_matrix)
+    #     os.makedirs(os.path.join(config.RESULTS_PATH, self.dataset_name, 'exp', time), exist_ok=True)
+    #     file_path = config.RESULTS_PATH+'/{}/exp/{}/{}_ResultsDeepREF_{}.txt'.format(self.dataset_name, time, time, self.dataset_name)
+    #     report = metrics.classification_report(ground_truth, pred, target_names=self.classes, digits=5, zero_division=1)
+    #     confusion_matrix = metrics.confusion_matrix(ground_truth, pred)
+    #     # for input, prediction, label in zip(inputs, pred, ground_truth):
+    #     #     if prediction != label:
+    #     #         print(input, 'has been classified as ', prediction, 'and should be ', label)
+    #     sns_plot = sns.heatmap(confusion_matrix, annot=True, xticklabels=self.classes, yticklabels=self.classes, cmap='binary', annot_kws={"fontsize":8}, linewidths=0.1, square=True)
+    #     #sns_plot.set_xticklabels(sns_plot.get_xmajorticklabels(), fontsize = 8)
+    #     #sns_plot.set_yticklabels(sns_plot.get_ymajorticklabels(), fontsize = 8)
+    #     fig = sns_plot.get_figure()
+    #     plt.gcf().set_size_inches(17, 15)
+    #     fig.savefig(f"{config.RESULTS_PATH}/{self.dataset_name}/exp/{time}/{self.dataset_name}_confusion_matrix.png")
+    #     plt.clf()
+    #     logging.info('\n'+report)
+    #     logging.info('Accuracy: {}'.format(result['acc']))
+    #     logging.info('Micro precision: {}'.format(result['micro_p']))
+    #     logging.info('Micro recall: {}'.format(result['micro_r']))
+    #     logging.info('Micro F1: {}'.format(result['micro_f1']))
+    #     logging.info('Macro F1: {}'.format(result['macro_f1']))
+    #     if os.path.isfile(file_path):
+    #         with open(file_path, 'a') as ablation_file:
+    #             self.write_test_results(ablation_file, model, embedding, hyper_params, result, report, confusion_matrix)
+    #     else:
+    #         with open(file_path, 'w') as ablation_file:
+    #             self.write_test_results(ablation_file, model, embedding, hyper_params, result, report, confusion_matrix)
 
-    def write_test_results(self, file, model, embedding, hyper_params, result, report, confusion_matrix):
-        embedding = embedding.replace('/', '-').replace('.', '')
-        file.write('Trained with dataset {}, model {}, embedding {} and preprocessing {}:\n'.format(self.dataset_name, model, embedding, self.preprocessing))
-        file.write('Hyperparams: {}'.format(hyper_params))
-        file.write('Confusion matrix:\n')
-        file.write(np.array2string(confusion_matrix)+'\n')
-        file.write('Test set results:\n')
-        file.write(report+"\n")
-        file.write('Accuracy: {}\n'.format(result['acc']))
-        file.write('Micro precision: {}\n'.format(result['micro_p']))
-        file.write('Micro recall: {}\n'.format(result['micro_r']))
-        file.write('Micro F1: {}\n\n'.format(result['micro_f1']))
-        file.write('Macro F1: {}\n\n'.format(result['macro_f1']))
+    # def write_test_results(self, file, model, embedding, hyper_params, result, report, confusion_matrix):
+    #     embedding = embedding.replace('/', '-').replace('.', '')
+    #     file.write('Trained with dataset {}, model {}, embedding {} and preprocessing {}:\n'.format(self.dataset_name, model, embedding, self.preprocessing))
+    #     file.write('Hyperparams: {}'.format(hyper_params))
+    #     file.write('Confusion matrix:\n')
+    #     file.write(np.array2string(confusion_matrix)+'\n')
+    #     file.write('Test set results:\n')
+    #     file.write(report+"\n")
+    #     file.write('Accuracy: {}\n'.format(result['acc']))
+    #     file.write('Micro precision: {}\n'.format(result['micro_p']))
+    #     file.write('Micro recall: {}\n'.format(result['micro_r']))
+    #     file.write('Micro F1: {}\n\n'.format(result['micro_f1']))
+    #     file.write('Macro F1: {}\n\n'.format(result['macro_f1']))
 
-    def results_per_epoch(self, ground_truth, pred, result, epoch):
-        logging.info(f'Epoch: {epoch}')
-        time = datetime.now().isoformat(timespec="seconds")
-        os.makedirs(os.path.join(config.RESULTS_PATH, self.dataset_name, 'exp', time), exist_ok=True)
-        file_path = config.RESULTS_PATH+'/{}/exp/{}/{}_ResultsDeepREF_{}_epoch_{}.txt'.format(self.dataset_name, time, time, self.dataset_name, epoch)
-        report = metrics.classification_report(ground_truth, pred, target_names=self.classes, digits=5, zero_division=1)
-        confusion_matrix = metrics.confusion_matrix(ground_truth, pred)
-        # for input, prediction, label in zip(inputs, pred, ground_truth):
-        #     if prediction != label:
-        #         print(input, 'has been classified as ', prediction, 'and should be ', label)
-        sns_plot = sns.heatmap(confusion_matrix, annot=True, xticklabels=self.classes, yticklabels=self.classes, cmap='binary', annot_kws={"fontsize":8}, linewidths=0.1, square=True)
-        #sns_plot.set_xticklabels(sns_plot.get_xmajorticklabels(), fontsize = 8)
-        #sns_plot.set_yticklabels(sns_plot.get_ymajorticklabels(), fontsize = 8)
-        fig = sns_plot.get_figure()
-        plt.gcf().set_size_inches(17, 15)
-        fig.savefig(f"{config.RESULTS_PATH}/{self.dataset_name}/exp/{time}/{self.dataset_name}_confusion_matrix.png")
-        plt.clf()
-        logging.info('\n'+report)
-        logging.info('Accuracy: {}'.format(result['acc']))
-        logging.info('Micro precision: {}'.format(result['micro_p']))
-        logging.info('Micro recall: {}'.format(result['micro_r']))
-        logging.info('Micro F1: {}'.format(result['micro_f1']))
-        logging.info('Macro F1: {}'.format(result['macro_f1']))
+    # def results_per_epoch(self, ground_truth, pred, result, epoch):
+    #     logging.info(f'Epoch: {epoch}')
+    #     time = datetime.now().isoformat(timespec="seconds")
+    #     os.makedirs(os.path.join(config.RESULTS_PATH, self.dataset_name, 'exp', time), exist_ok=True)
+    #     file_path = config.RESULTS_PATH+'/{}/exp/{}/{}_ResultsDeepREF_{}_epoch_{}.txt'.format(self.dataset_name, time, time, self.dataset_name, epoch)
+    #     report = metrics.classification_report(ground_truth, pred, target_names=self.classes, digits=5, zero_division=1)
+    #     confusion_matrix = metrics.confusion_matrix(ground_truth, pred)
+    #     # for input, prediction, label in zip(inputs, pred, ground_truth):
+    #     #     if prediction != label:
+    #     #         print(input, 'has been classified as ', prediction, 'and should be ', label)
+    #     sns_plot = sns.heatmap(confusion_matrix, annot=True, xticklabels=self.classes, yticklabels=self.classes, cmap='binary', annot_kws={"fontsize":8}, linewidths=0.1, square=True)
+    #     #sns_plot.set_xticklabels(sns_plot.get_xmajorticklabels(), fontsize = 8)
+    #     #sns_plot.set_yticklabels(sns_plot.get_ymajorticklabels(), fontsize = 8)
+    #     fig = sns_plot.get_figure()
+    #     plt.gcf().set_size_inches(17, 15)
+    #     fig.savefig(f"{config.RESULTS_PATH}/{self.dataset_name}/exp/{time}/{self.dataset_name}_confusion_matrix.png")
+    #     plt.clf()
+    #     logging.info('\n'+report)
+    #     logging.info('Accuracy: {}'.format(result['acc']))
+    #     logging.info('Micro precision: {}'.format(result['micro_p']))
+    #     logging.info('Micro recall: {}'.format(result['micro_r']))
+    #     logging.info('Micro F1: {}'.format(result['micro_f1']))
+    #     logging.info('Macro F1: {}'.format(result['macro_f1']))
 
 
-    def load_state_dict(self, state_dict):
-        self.model.load_state_dict(state_dict)
+    # def load_state_dict(self, state_dict):
+    #     self.model.load_state_dict(state_dict)
 

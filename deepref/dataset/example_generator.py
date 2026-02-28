@@ -1,7 +1,6 @@
 from deepref.nlp.nlp_tool import NLPTool
 from deepref.nlp.semantic_knowledge import SemanticKNWL
 
-
 class ExampleGenerator:
     def __init__(self, nlp_tool: NLPTool):
         self.nlp_tool = nlp_tool
@@ -11,7 +10,14 @@ class ExampleGenerator:
         original_sentence = self.nlp_tool.untag_sentence(" ".join(tokens)).split()
         entity1, entity2 = self._get_entities(tokens, original_sentence)
         sk_entities = SemanticKNWL().extract([entity1['name'], entity2['name']])
-        return tokens, pos_tags, dependencies_labels, ner, original_sentence, entity1, entity2, relation_type, sk_entities
+        return {'original_sentence': original_sentence,
+                'e1': entity1,
+                'e2': entity2,
+                'relation_type': relation_type,
+                'pos_tags': pos_tags,
+                'dependencies_labels': dependencies_labels,
+                'ner': ner,
+                'sk_entities': sk_entities}
 
     def _get_entities(self, tokens, original_sentence):
         tokens = [t for t in tokens if t not in ("ENTITYUNRELATEDSTART", "ENTITYUNRELATEDEND")]

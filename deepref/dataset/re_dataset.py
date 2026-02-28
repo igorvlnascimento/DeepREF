@@ -4,16 +4,18 @@ from pathlib import Path
 
 import pandas as pd
 
-import sklearn
+from sklearn.metrics import confusion_matrix
 import torch
 from torch.utils.data import DataLoader, Dataset
 
+from deepref.dataset.text_transform import TextTransformerPipeline
+
 class REDataset(Dataset):
-    def __init__(self, csv_path, tokenizer, preprocessors_list=[]) -> None:
+    def __init__(self, csv_path, tokenizer, pipeline: TextTransformerPipeline | None = None) -> None:
         self.df = self.get_dataframe(csv_path)
         self.tokenizer = tokenizer
         self.rel2id = self.get_labels_dict()
-        self.preprocessors_list = preprocessors_list
+        self.pipeline = pipeline
         self.max_length = self.get_max_length()
 
     def __len__(self):
@@ -30,8 +32,8 @@ class REDataset(Dataset):
         sentence = self.format_sentence(sentence, e1, e2)
 
         label = self.df.iloc[index]["relation_type"]
-        for preprocessor in self.preprocessors_list:
-            sentence = preprocessor(sentence)
+        if self.pipeline is not None:
+            sentence = self.pipeline(sentence)
         seq = self.tokenizer(sentence,
                                   max_length=self.max_length, 
                                   padding="max_length", 
@@ -139,14 +141,14 @@ class REDataset(Dataset):
             micro_f1 = 0
             macro_f1 = 0
             
-        confusion_matrix = sklearn.metrics.confusion_matrix(goldens, pred_result)
+        cm = confusion_matrix(goldens, pred_result)
 
         result = {'acc': acc, 
                   'micro_p': micro_p, 
                   'micro_r': micro_r, 
                   'micro_f1': micro_f1, 
                   'macro_f1': macro_f1, 
-                  'cm': confusion_matrix}
+                  'cm': cm}
         logging.info('Evaluation result: \n {}.'.format(result))
         return result
     

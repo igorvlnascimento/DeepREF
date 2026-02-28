@@ -62,7 +62,6 @@ class DatasetPreprocessor(ABC):
             example_dict = example_generator.generate(tagged_sentence, relation)
             for k, v in example_dict.items():
                 out[k].append(" ".join(v))
-                break
         df = pd.DataFrame(out)
         output_path = f"benchmark/{dataset_name}.csv"
         df.to_csv(output_path, sep='\t', encoding='utf-8', index=False)
