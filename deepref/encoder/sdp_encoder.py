@@ -7,13 +7,13 @@ Three classes:
       Shared spaCy parsing, dep-label mapping, SDP extraction, chain
       building, and verbalization.  Not directly instantiable.
 
-  BoWSDPEncoder(SDPEncoder)
+  BoWSDPEncoder(SDPEncoder, SentenceEncoder)
       Encodes a sentence as a multi-hot bag-of-words over the dependency
       relation labels found on the SDP.  No transformer required.
 
-  VerbalizedSDPEncoder(SDPEncoder, SentenceEncoder)
+  VerbalizedSDPEncoder(SDPEncoder, LLMEncoder)
       Verbalizes the SDP and encodes the resulting string with a
-      HuggingFace transformer via SentenceEncoder.
+      HuggingFace transformer via LLMEncoder.
 
 Dependency parsing is performed with spaCy's ``en_core_web_trf`` model.
 
@@ -34,6 +34,7 @@ from typing import Optional
 import torch
 
 from deepref.encoder.sentence_encoder import SentenceEncoder
+from deepref.encoder.llm_encoder import LLMEncoder
 
 
 # ===========================================================================
@@ -398,11 +399,11 @@ class BoWSDPEncoder(SDPEncoder, SentenceEncoder):
         return self(item)
 
 
-class VerbalizedSDPEncoder(SDPEncoder, SentenceEncoder):
+class VerbalizedSDPEncoder(SDPEncoder, LLMEncoder):
     """Encode a sentence by verbalizing its SDP and passing it through a transformer.
 
     The SDP is verbalized into a natural-language sentence and encoded by the
-    inherited :class:`SentenceEncoder`, yielding an L2-normalised dense
+    inherited :class:`LLMEncoder`, yielding an L2-normalised dense
     embedding.
 
     Args:
@@ -419,7 +420,7 @@ class VerbalizedSDPEncoder(SDPEncoder, SentenceEncoder):
         device: str = 'cpu',
     ) -> None:
         SDPEncoder.__init__(self, dep_vocab=dep_vocab)
-        SentenceEncoder.__init__(self, model_name, device=device)
+        LLMEncoder.__init__(self, model_name, device=device)
 
     def tokenize(self, item: dict) -> dict:
         """Verbalize the SDP for one sample and tokenize the result.
@@ -442,7 +443,7 @@ class VerbalizedSDPEncoder(SDPEncoder, SentenceEncoder):
         dep_chain  = self.build_dep_chain(path)
         verbalized = self.verbalize(sentence, e1_name, e2_name, dep_chain)
 
-        return SentenceEncoder.tokenize(self, verbalized)
+        return LLMEncoder.tokenize(self, verbalized)
 
     def forward(self, item: dict) -> torch.Tensor:
         """Encode the SDP verbalization for one sample.

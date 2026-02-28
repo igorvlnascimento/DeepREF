@@ -107,8 +107,8 @@ def encoder_verbalized():
     mock_model = MagicMock()
     mock_model.parameters.return_value = iter([])
     mock_tokenizer = MagicMock()
-    with mock.patch('deepref.encoder.sentence_encoder.AutoModel.from_pretrained', return_value=mock_model), \
-         mock.patch('deepref.encoder.sentence_encoder.AutoTokenizer.from_pretrained', return_value=mock_tokenizer):
+    with mock.patch('deepref.encoder.llm_encoder.AutoModel.from_pretrained', return_value=mock_model), \
+         mock.patch('deepref.encoder.llm_encoder.AutoTokenizer.from_pretrained', return_value=mock_tokenizer):
         enc = VerbalizedSDPEncoder()
     enc.forward = MagicMock(return_value=torch.zeros(1, MOCK_EMBED_DIM))
     return enc
@@ -581,42 +581,42 @@ class TestTokenize:
     }
 
     def test_returns_dict(self, encoder_verbalized):
-        from deepref.encoder.sentence_encoder import SentenceEncoder
-        with mock.patch.object(SentenceEncoder, 'tokenize', return_value=self._FAKE_TOKENS):
+        from deepref.encoder.llm_encoder import LLMEncoder
+        with mock.patch.object(LLMEncoder, 'tokenize', return_value=self._FAKE_TOKENS):
             result = encoder_verbalized.tokenize(ITEM_SIMPLE)
         assert isinstance(result, dict)
 
     def test_has_input_ids(self, encoder_verbalized):
-        from deepref.encoder.sentence_encoder import SentenceEncoder
-        with mock.patch.object(SentenceEncoder, 'tokenize', return_value=self._FAKE_TOKENS):
+        from deepref.encoder.llm_encoder import LLMEncoder
+        with mock.patch.object(LLMEncoder, 'tokenize', return_value=self._FAKE_TOKENS):
             result = encoder_verbalized.tokenize(ITEM_SIMPLE)
         assert 'input_ids' in result
 
     def test_has_attention_mask(self, encoder_verbalized):
-        from deepref.encoder.sentence_encoder import SentenceEncoder
-        with mock.patch.object(SentenceEncoder, 'tokenize', return_value=self._FAKE_TOKENS):
+        from deepref.encoder.llm_encoder import LLMEncoder
+        with mock.patch.object(LLMEncoder, 'tokenize', return_value=self._FAKE_TOKENS):
             result = encoder_verbalized.tokenize(ITEM_SIMPLE)
         assert 'attention_mask' in result
 
     def test_verbalized_string_contains_entity_1(self, encoder_verbalized):
         """tokenize must verbalize using e1's name."""
-        from deepref.encoder.sentence_encoder import SentenceEncoder
-        with mock.patch.object(SentenceEncoder, 'tokenize', return_value=self._FAKE_TOKENS) as mock_tok:
+        from deepref.encoder.llm_encoder import LLMEncoder
+        with mock.patch.object(LLMEncoder, 'tokenize', return_value=self._FAKE_TOKENS) as mock_tok:
             encoder_verbalized.tokenize(ITEM_SIMPLE)
         _, verbalized_text = mock_tok.call_args[0]
         assert ITEM_SIMPLE['h']['name'] in verbalized_text
 
     def test_verbalized_string_contains_entity_2(self, encoder_verbalized):
         """tokenize must verbalize using e2's name."""
-        from deepref.encoder.sentence_encoder import SentenceEncoder
-        with mock.patch.object(SentenceEncoder, 'tokenize', return_value=self._FAKE_TOKENS) as mock_tok:
+        from deepref.encoder.llm_encoder import LLMEncoder
+        with mock.patch.object(LLMEncoder, 'tokenize', return_value=self._FAKE_TOKENS) as mock_tok:
             encoder_verbalized.tokenize(ITEM_SIMPLE)
         _, verbalized_text = mock_tok.call_args[0]
         assert ITEM_SIMPLE['t']['name'] in verbalized_text
 
     def test_verbalized_string_contains_dependency_path_keyword(self, encoder_verbalized):
-        from deepref.encoder.sentence_encoder import SentenceEncoder
-        with mock.patch.object(SentenceEncoder, 'tokenize', return_value=self._FAKE_TOKENS) as mock_tok:
+        from deepref.encoder.llm_encoder import LLMEncoder
+        with mock.patch.object(LLMEncoder, 'tokenize', return_value=self._FAKE_TOKENS) as mock_tok:
             encoder_verbalized.tokenize(ITEM_SIMPLE)
         _, verbalized_text = mock_tok.call_args[0]
         assert 'Dependency path:' in verbalized_text
