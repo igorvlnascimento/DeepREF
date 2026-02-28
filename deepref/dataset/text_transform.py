@@ -9,6 +9,9 @@ class TextTransformer(ABC):
     def transform(self, text: str) -> str:
         ...
 
+    def __call__(self, text: str) -> str:
+        return self.transform(text)
+
 class PuctuationRemover(TextTransformer):
     def transform(self, text: str) -> str:
         tokens = text.split()

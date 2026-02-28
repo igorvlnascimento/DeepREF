@@ -5,7 +5,7 @@ from deepref.dataset.preprocessor.semeval2010_preprocessor import SemEval2010Pre
 
 @pytest.fixture
 def preprocessor():
-    return SemEval2010Preprocessor(nlp_tool=None)
+    return SemEval2010Preprocessor()
 
 
 class TestTagSentence:

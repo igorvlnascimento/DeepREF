@@ -1,12 +1,12 @@
 import pytest
 
-from deepref.dataset.dataset import Dataset
 from deepref.dataset.preprocessor.dataset_preprocessor import DatasetPreprocessor
+from deepref.dataset.re_dataset import REDataset
 
 
 @pytest.fixture
 def preprocessor():
-    return DatasetPreprocessor(Dataset('test'))
+    return DatasetPreprocessor()
 
 
 @pytest.fixture

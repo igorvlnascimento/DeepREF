@@ -5,7 +5,7 @@ from deepref.dataset.preprocessor.semeval2018_preprocessor import SemEval2018Pre
 
 @pytest.fixture
 def preprocessor():
-    return SemEval2018Preprocessor(dataset_name='semeval20181-1', nlp_tool=None)
+    return SemEval2018Preprocessor()
 
 
 class TestGetEntityPairs:

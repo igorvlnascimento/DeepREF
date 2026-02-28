@@ -4,14 +4,10 @@ from xml.dom import minidom
 from pathlib import Path
 from tqdm import tqdm
 
-from deepref import config
 from deepref.dataset.preprocessor.dataset_preprocessor import DatasetPreprocessor
-from deepref.dataset.dataset import Dataset
+from deepref.nlp.spacy_nlp_tool import SpacyNLPTool
 
 class DDIPreprocessor(DatasetPreprocessor):
-    def __init__(self, nlp_tool):
-        super().__init__(Dataset('ddi'), nlp_tool)
-        
     def get_entity_dict(self, sentence_dom):
         entities = sentence_dom.getElementsByTagName('entity')
         entity_dict = {}
@@ -52,21 +48,14 @@ class DDIPreprocessor(DatasetPreprocessor):
                     tagged_sentence = self.tag_sentence(sentence_text, e1_data, e2_data, other_entities)
                     
                     yield tagged_sentence, relation
-                        
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--train_filepath', default='benchmark/raw_ddi/DDICorpus/Train/', 
-        help='Input path of training examples')
-    parser.add_argument('--test_filepath', default='benchmark/raw_ddi/DDICorpus/Test/', 
-        help='Input path of test examples')
-    parser.add_argument('--nlp_tool', default='spacy', choices=config.NLP_TOOLS,
-        help='NLP tool name')
-    parser.add_argument('--nlp_model', default='en_core_web_trf',
-        help='NLP tool model name')
 
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Generate CSV from raw DDI XML files")
+    parser.add_argument("--path", required=True, help="Path to directory containing DDI XML files")
     args = parser.parse_args()
-    
-    preprocessor = DDIPreprocessor(args.nlp_tool)
-    preprocessor.dataset.train_sentences = list(preprocessor.get_sentences(args.train_filepath))
-    preprocessor.dataset.test_sentences = list(preprocessor.get_sentences(args.test_filepath))
-    preprocessor.write_dataframe(args.dataset, preprocessor.dataset.train_sentences + preprocessor.dataset.test_sentences)
+
+    tool = SpacyNLPTool()
+
+    preprocessor = DDIPreprocessor()
+    preprocessor.write_dataframe("ddi", preprocessor.get_sentences(args.path), tool)

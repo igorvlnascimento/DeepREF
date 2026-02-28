@@ -6,7 +6,7 @@ import sys
 class SpacyNLPTool(NLPTool):
     def __init__(self, model:str = None):
         super().__init__(model)
-        self.model = model if model is not None else 'en_core_web_sm'
+        self.model = model if model is not None else 'en_core_web_trf'
         if self.model not in spacy.util.get_installed_models():
             subprocess.check_call([sys.executable, "-m", "spacy", "download", self.model])
         self.nlp = spacy.load(self.model)

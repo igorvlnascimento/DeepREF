@@ -1,17 +1,8 @@
-import os
-
 import pandas as pd
 
-from deepref.nlp.nlp_tool import NLPTool
-
-from deepref.dataset.dataset import Dataset
+from deepref.dataset.example_generator import ExampleGenerator
 
 class DatasetPreprocessor():
-
-    def __init__(self, dataset: Dataset, nlp_tool: NLPTool = None):
-        self.dataset = dataset
-        self.nlp_tool = nlp_tool
-
     def remove_whitespace(self, line: str) -> str:
         return " ".join(line.split()).strip()
 
@@ -58,21 +49,17 @@ class DatasetPreprocessor():
     def get_sentences(self, path):
         raise NotImplementedError
     
-    def write_dataframe(self, dataset_name, sentences):
-        data = []
-        #val_data = []
-        test_data = []
-        for sentence in sentences:
-            data.append(sentence.get_sentence_info())
-        #for sentence in self.val_sentences:
-        #    val_data.append(sentence.get_sentence_info())
+    def write_dataframe(self, dataset_name, sentences, nlp_tool):
+
+        generator = ExampleGenerator(nlp_tool=nlp_tool)
+        processed_sentences = [generator.generate(tagged_sentence, relation) for tagged_sentence, relation in sentences]
         columns = 'original_sentence,e1,e2,relation_type,pos_tags,dependencies_labels,ner,sk_entities'.split(',')
-        df = pd.DataFrame(data,
-            columns=columns)
-        #val_df = pd.DataFrame(val_data,
-        #    columns=columns)
-        test_df = pd.DataFrame(test_data,
-            columns=columns)
-        df.to_csv(f"benchmark/{dataset_name}/{dataset_name}.csv", sep='\t', encoding='utf-8', index=False)
-        #val_df.to_csv(f"benchmark/{dataset_name}/original/{dataset_name}_val_original.csv", sep='\t', encoding='utf-8', index=False)
-        #test_df.to_csv(f"benchmark/{dataset_name}/original/{dataset_name}_test_original.csv", sep='\t', encoding='utf-8', index=False)
+        data = [
+            {'original_sentence': tokens, 'e1': entity1, 'e2': entity2, 'relation_type': relation_type,
+             'pos_tags': pos_tags, 'dependencies_labels': dependencies_labels, 'ner': ner, 'sk_entities': sk_entities}
+            for tokens, pos_tags, dependencies_labels, ner, _, entity1, entity2, relation_type, sk_entities in processed_sentences
+        ]
+        df = pd.DataFrame(data, columns=columns)
+        output_path = f"benchmark/{dataset_name}.csv"
+        df.to_csv(output_path, sep='\t', encoding='utf-8', index=False)
+        print(f"Written {len(df)} rows to {output_path}")

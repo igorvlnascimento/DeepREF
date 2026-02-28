@@ -6,14 +6,10 @@ from pathlib import Path
 
 from deepref import config
 from deepref.dataset.preprocessor.dataset_preprocessor import DatasetPreprocessor
-from deepref.dataset.dataset import Dataset
 
 from nltk.tokenize.punkt import PunktSentenceTokenizer, PunktParameters
 
-class SemEval2018Preprocessor(DatasetPreprocessor):
-    def __init__(self, dataset_name, nlp_tool):
-        super().__init__(Dataset(dataset_name), nlp_tool)
-        
+class SemEval2018Preprocessor(DatasetPreprocessor):    
     def get_entity_dict(self, text_elements):
         punk_param = PunktParameters()
         abbreviations = ['e.g', 'viz', 'al']
@@ -94,23 +90,15 @@ class SemEval2018Preprocessor(DatasetPreprocessor):
                         tagged_sentence = self.tag_sentence(sentence, e1_data, e2_data, other_entities)
                             
                         yield tagged_sentence, relation
-                            
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--dataset', default='semeval20181-1',
-        help='Dataset name')
-    parser.add_argument('--train_path', default='benchmark/raw_semeval20181-1/Train/', 
-        help='Input path of training examples')
-    parser.add_argument('--test_path', default='benchmark/raw_semeval20181-1/Test/', 
-        help='Input path of test examples')
-    parser.add_argument('--nlp_tool', default='spacy', choices=config.NLP_TOOLS,
-        help='NLP tool name')
-    parser.add_argument('--nlp_model', default='en_core_web_trf',
-        help='NLP tool model name')
 
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Generate CSV from raw SemEval2018 XML files")
+    parser.add_argument("--dataset", required=True, help="Dataset name (e.g. semeval20181-1, semeval20181-2)")
+    parser.add_argument("--path", required=True, help="Path to directory containing SemEval2018 XML and txt files")
     args = parser.parse_args()
-    
-    preprocessor = SemEval2018Preprocessor(args.dataset, args.nlp_tool)
-    preprocessor.dataset.train_sentences = list(preprocessor.get_sentences(args.train_path))
-    preprocessor.dataset.test_sentences = list(preprocessor.get_sentences(args.test_path))
-    preprocessor.write_dataframe(args.dataset, preprocessor.dataset.train_sentences + preprocessor.dataset.test_sentences)
+
+    preprocessor = SemEval2018Preprocessor()
+    sentences = preprocessor.get_sentences(args.path)
+    print(sentences)
+    preprocessor.write_dataframe(args.dataset, preprocessor.get_sentences(args.path))

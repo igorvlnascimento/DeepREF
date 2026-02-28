@@ -6,7 +6,7 @@ from deepref.dataset.preprocessor.ddi_preprocessor import DDIPreprocessor
 
 @pytest.fixture
 def preprocessor():
-    return DDIPreprocessor(nlp_tool=None)
+    return DDIPreprocessor()
 
 
 def make_sentence_dom(xml_str: str):

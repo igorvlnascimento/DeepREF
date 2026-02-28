@@ -1,14 +1,12 @@
 import argparse
+import re
+
+import pandas as pd
 from tqdm import tqdm
-from deepref import config
 
 from deepref.dataset.preprocessor.dataset_preprocessor import DatasetPreprocessor
-from deepref.dataset.dataset import Dataset
 
 class SemEval2010Preprocessor(DatasetPreprocessor):
-    def __init__(self, nlp_tool):
-        super().__init__(Dataset('semeval2010'), nlp_tool)
-        
     def tag_sentence(self, line):
         _, sent = line.split('\t')
 
@@ -28,33 +26,69 @@ class SemEval2010Preprocessor(DatasetPreprocessor):
         tagged_sentence = tagged_sentence.replace('</e2>', ' ENTITYOTHEREND ')
         tagged_sentence = self.remove_whitespace(tagged_sentence) # to get rid of additional white space
         return tagged_sentence
-    
+
     def get_sentences(self, filepath):
         lines = []
         with open(filepath, 'r') as file:
             lines = list(file.readlines())
-            
+
         for i in tqdm(range(0, len(lines), 4)):
             line = lines[i]
             relation = lines[i+1].strip()
             tagged_sentence = self.tag_sentence(line)
-            
+
             yield tagged_sentence, relation
 
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--nlp_tool', default='spacy', choices=config.NLP_TOOLS,
-        help='NLP tool name')
-    parser.add_argument('--nlp_model', default='en_core_web_sm', 
-        help='NLP tool model name')
-    parser.add_argument('--train_path', default='benchmark/raw_semeval2010/TRAIN_FILE.TXT', 
-        help='Train filepath')
-    parser.add_argument('--test_path', default='benchmark/raw_semeval2010/TEST_FILE_FULL.TXT', 
-        help='Test filepath')
+    def get_csv_rows(self, filepath):
+        with open(filepath, 'r') as f:
+            lines = list(f.readlines())
+        for i in tqdm(range(0, len(lines), 4)):
+            _, sent = lines[i].split('\t')
+            sent = sent.strip()
+            if sent[0] == '"':
+                sent = sent[1:]
+            if sent[-1] == '"':
+                sent = sent[:-1]
+            relation = lines[i + 1].strip()
 
+            e1_match = re.search(r'<e1>(.*?)</e1>', sent)
+            e2_match = re.search(r'<e2>(.*?)</e2>', sent)
+            e1_name = e1_match.group(1).strip() if e1_match else ''
+            e2_name = e2_match.group(1).strip() if e2_match else ''
+
+            # Count words before each tag after removing the other entity's tags
+            plain_no_e2 = re.sub(r'</?e2>', '', sent)
+            e1_start = len(plain_no_e2[:plain_no_e2.find('<e1>')].split())
+            e1_end = e1_start + len(e1_name.split())
+
+            plain_no_e1 = re.sub(r'</?e1>', '', sent)
+            e2_start = len(plain_no_e1[:plain_no_e1.find('<e2>')].split())
+            e2_end = e2_start + len(e2_name.split())
+
+            plain = re.sub(r'</?e[12]>', '', sent)
+            plain = ' '.join(plain.split())
+
+            yield {
+                'original_sentence': plain,
+                'e1': str({'name': e1_name, 'position': [e1_start, e1_end]}),
+                'e2': str({'name': e2_name, 'position': [e2_start, e2_end]}),
+                'relation_type': relation,
+                'pos_tags': '', 'dependencies_labels': '', 'ner': '', 'sk_entities': ''
+            }
+
+
+if __name__ == "__main__":
+    import os
+    parser = argparse.ArgumentParser(description="Generate CSV from raw SemEval2010 files")
+    parser.add_argument("--path", required=True, help="Path to directory containing raw SemEval2010 txt files")
     args = parser.parse_args()
-    
-    preprocessor = SemEval2010Preprocessor(args.nlp_tool)
-    preprocessor.dataset.train_sentences = list(preprocessor.get_sentences(args.train_path))
-    preprocessor.dataset.test_sentences = list(preprocessor.get_sentences(args.test_path))
-    preprocessor.write_dataframe(args.dataset, preprocessor.dataset.train_sentences + preprocessor.dataset.test_sentences)
+
+    preprocessor = SemEval2010Preprocessor()
+    data = (
+        list(preprocessor.get_csv_rows(os.path.join(args.path, "TRAIN_FILE.TXT"))) +
+        list(preprocessor.get_csv_rows(os.path.join(args.path, "TEST_FILE_FULL.TXT")))
+    )
+    df = pd.DataFrame(data)
+    output = "benchmark/semeval2010.csv"
+    df.to_csv(output, sep='\t', index=False)
+    print(f"Written {len(df)} rows to {output}")
