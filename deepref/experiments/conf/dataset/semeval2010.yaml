@@ -1,0 +1,4 @@
+# @package _global_
+dataset:
+  name: semeval2010
+  csv_path: benchmark/semeval2010.csv

@@ -1,0 +1,3 @@
+# @package _global_
+encoder2:
+  type: bow_sdp
