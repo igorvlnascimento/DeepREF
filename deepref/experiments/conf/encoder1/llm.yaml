@@ -1,6 +1,6 @@
 # @package _global_
 encoder1:
   type: llm
-  model_name: HuggingFaceTB/SmolLM-135M-Instruct
-  max_length: 128
+  model_name: Qwen/Qwen3-Embedding-8B
+  max_length: 8192
   trainable: false
