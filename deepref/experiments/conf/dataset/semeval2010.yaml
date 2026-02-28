@@ -1,4 +1,5 @@
 # @package _global_
 dataset:
   name: semeval2010
-  csv_path: benchmark/semeval2010.csv
+  train_csv_path: benchmark/semeval2010_train.csv
+  test_csv_path: benchmark/semeval2010_test.csv

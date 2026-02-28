@@ -51,10 +51,8 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     preprocessor = SemEval2010Preprocessor()
-    data = (
-        list(preprocessor.get_sentences(os.path.join(args.path, "TRAIN_FILE.TXT"))) +
-        list(preprocessor.get_sentences(os.path.join(args.path, "TEST_FILE_FULL.TXT")))
-    )
+    train_sentences = list(preprocessor.get_sentences(os.path.join(args.path, "TRAIN_FILE.TXT")))
+    test_sentences = list(preprocessor.get_sentences(os.path.join(args.path, "TEST_FILE_FULL.TXT")))
     tool = SpacyNLPTool("en_core_web_trf")
 
-    preprocessor.write_csv("semeval2010", data, tool)
+    preprocessor.write_split_csvs("semeval2010", train_sentences, test_sentences, tool)

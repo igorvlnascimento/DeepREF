@@ -14,10 +14,9 @@ training:
   batch_size: 16
   num_mlp_layers: 3
   dropout: 0.1
-  opt: adam
+  opt: adamw
   weight_decay: 0.0
   warmup_step: 0
-  train_ratio: 0.8
   seed: 42
 
-device: cpu
+device: cuda

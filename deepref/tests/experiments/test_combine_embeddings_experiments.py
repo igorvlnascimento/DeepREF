@@ -39,7 +39,7 @@ from deepref.experiments.run_combine_embeddings_experiments import (
     CombineREDataset,
     CombineRETrainer,
     combine_collate_fn,
-    make_split_subsets,
+    load_split_datasets,
 )
 from deepref.framework.sentence_re_trainer import SentenceRETrainer
 

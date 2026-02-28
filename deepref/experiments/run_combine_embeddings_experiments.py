@@ -47,9 +47,8 @@ from sklearn.metrics import (
     precision_score,
     recall_score,
 )
-from sklearn.model_selection import train_test_split
 from torch import optim
-from torch.utils.data import DataLoader, Subset
+from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 from deepref.dataset.re_dataset import REDataset
@@ -85,11 +84,11 @@ class CombineREDataset(REDataset):
     combined encoders perform their own tokenization internally.
     """
 
-    def __init__(self, csv_path: str) -> None:
+    def __init__(self, csv_path: str, rel2id: dict | None = None) -> None:
         # Replicate only the DataFrame + rel2id parts of REDataset.__init__
         # to avoid requiring a HuggingFace tokenizer at the dataset level.
         self.df = self.get_dataframe(csv_path)
-        self.rel2id = self.get_labels_dict()
+        self.rel2id = rel2id if rel2id is not None else self.get_labels_dict()
         self.pipeline = None
         self.max_length = 0
 
@@ -124,21 +123,33 @@ def combine_collate_fn(
     return {"labels": torch.stack(labels), "items": list(items)}
 
 
-def make_split_subsets(
-    dataset: CombineREDataset,
-    train_ratio: float,
-    seed: int,
-) -> tuple[Subset, Subset]:
-    """Return train and test :class:`~torch.utils.data.Subset` instances."""
-    indices = list(range(len(dataset)))
-    train_idx, test_idx = train_test_split(
-        indices,
-        train_size=train_ratio,
-        random_state=seed,
-        shuffle=True,
+def load_split_datasets(
+    cfg_dataset: DictConfig,
+    cwd: str,
+) -> tuple[CombineREDataset, CombineREDataset]:
+    """Load pre-split train and test datasets from the benchmark CSV files.
+
+    Builds a unified ``rel2id`` from the union of both splits so that class
+    indices are consistent across train and test.
+    """
+    def resolve(p: str) -> str:
+        path = Path(p)
+        return str(path if path.is_absolute() else Path(cwd) / path)
+
+    train_ds = CombineREDataset(resolve(cfg_dataset.train_csv_path))
+    test_ds = CombineREDataset(resolve(cfg_dataset.test_csv_path))
+
+    # Unify relation labels across both splits
+    all_relations = sorted(set(train_ds.rel2id) | set(test_ds.rel2id))
+    unified_rel2id = {r: i for i, r in enumerate(all_relations)}
+    train_ds.rel2id = unified_rel2id
+    test_ds.rel2id = unified_rel2id
+
+    logger.info(
+        "Loaded '%s': train=%d  test=%d  classes=%d",
+        cfg_dataset.name, len(train_ds), len(test_ds), len(unified_rel2id),
     )
-    logger.info("Dataset split — train: %d  test: %d", len(train_idx), len(test_idx))
-    return Subset(dataset, train_idx), Subset(dataset, test_idx)
+    return train_ds, test_ds
 
 
 # ---------------------------------------------------------------------------
@@ -571,28 +582,14 @@ def main(cfg: DictConfig) -> None:
             "num_mlp_layers": cfg.training.num_mlp_layers,
             "dropout": cfg.training.dropout,
             "opt": cfg.training.opt,
-            "train_ratio": cfg.training.train_ratio,
             "seed": cfg.training.seed,
         })
 
         try:
             # ── Dataset ─────────────────────────────────────────────────────
-            csv_path = Path(cfg.dataset.csv_path)
-            if not csv_path.is_absolute():
-                csv_path = Path(hydra.utils.get_original_cwd()) / csv_path
-
-            dataset = CombineREDataset(str(csv_path))
-            num_class = len(dataset.rel2id)
-            logger.info(
-                "Loaded '%s': %d samples, %d classes",
-                cfg.dataset.name, len(dataset), num_class,
-            )
-
-            train_subset, test_subset = make_split_subsets(
-                dataset,
-                train_ratio=cfg.training.train_ratio,
-                seed=cfg.training.seed,
-            )
+            cwd = hydra.utils.get_original_cwd()
+            train_dataset, test_dataset = load_split_datasets(cfg.dataset, cwd)
+            num_class = len(train_dataset.rel2id)
 
             # ── Encoders ────────────────────────────────────────────────────
             logger.info("Building encoder1 (%s) …", cfg.encoder1.type)
@@ -607,14 +604,14 @@ def main(cfg: DictConfig) -> None:
             model = SoftmaxMLP(
                 sentence_encoder=combine,
                 num_class=num_class,
-                rel2id=dataset.rel2id,
+                rel2id=train_dataset.rel2id,
                 dropout=cfg.training.dropout,
                 num_layers=cfg.training.num_mlp_layers,
             )
 
             # ── Trainer ─────────────────────────────────────────────────────
             ckpt_path = os.path.join(
-                hydra.utils.get_original_cwd(),
+                cwd,
                 "ckpt",
                 f"{cfg.dataset.name}_{cfg.encoder1.type}_{cfg.encoder2.type}.pth.tar",
             )
@@ -631,8 +628,8 @@ def main(cfg: DictConfig) -> None:
 
             trainer = CombineRETrainer(
                 model=model,
-                train_dataset=train_subset,
-                test_dataset=test_subset,
+                train_dataset=train_dataset,
+                test_dataset=test_dataset,
                 ckpt=ckpt_path,
                 training_parameters=training_parameters,
             )
