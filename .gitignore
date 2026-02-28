@@ -117,7 +117,7 @@ benchmark/tacred
 *.swp
 
 # data and pretrain
-benchmark/*/
+benchmark/*.csv
 pretrain/*/
 
 # test env
@@ -129,3 +129,5 @@ opennre-egg.info
 # debug
 
 results/
+
+*lora/

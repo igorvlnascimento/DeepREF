@@ -9,11 +9,11 @@ import torch
 from torch.utils.data import DataLoader, Dataset
 
 class REDataset(Dataset):
-    def __init__(self, csv_path, tokenizer, dataset_split="train", preprocessor=None) -> None:
-        self.df = self.get_dataframe(csv_path, dataset_split=dataset_split)
+    def __init__(self, csv_path, tokenizer, preprocessors_list=[]) -> None:
+        self.df = self.get_dataframe(csv_path)
         self.tokenizer = tokenizer
         self.rel2id = self.get_labels_dict()
-        self.preprocessor = preprocessor
+        self.preprocessors_list = preprocessors_list
         self.max_length = self.get_max_length()
 
     def __len__(self):
@@ -30,8 +30,8 @@ class REDataset(Dataset):
         sentence = self.format_sentence(sentence, e1, e2)
 
         label = self.df.iloc[index]["relation_type"]
-        if self.preprocessor is not None:
-            sentence = self.preprocessor(sentence)
+        for preprocessor in self.preprocessors_list:
+            sentence = preprocessor(sentence)
         seq = self.tokenizer(sentence,
                                   max_length=self.max_length, 
                                   padding="max_length", 
@@ -55,13 +55,13 @@ class REDataset(Dataset):
         
         return " ".join(sentennce_splitted)
 
-    def get_dataframe(self, csv_dir: str, dataset_split: str) -> pd.DataFrame | None:
-        base = Path(csv_dir)
-        csv_files = list(base.rglob("*.csv"))
-
-        for csv_file in csv_files:
-            if dataset_split in csv_file.name:
-                return pd.read_csv(csv_file, sep="\t")
+    def get_dataframe(self, csv_path: str) -> pd.DataFrame | None:
+        path = Path(csv_path)
+        if not path.suffix:
+            path = path.with_suffix('.csv')
+        if not path.is_file():
+            return None
+        return pd.read_csv(path, sep="\t")
             
     def get_labels_dict(self):
         if self.df is None:
