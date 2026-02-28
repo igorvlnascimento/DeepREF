@@ -1,3 +1,6 @@
+from unittest.mock import MagicMock, patch
+
+import pandas as pd
 import pytest
 
 from deepref.dataset.preprocessor.dataset_preprocessor import DatasetPreprocessor
@@ -224,3 +227,160 @@ class TestAbstractMethods:
     def test_cannot_instantiate_without_abstract_methods(self):
         with pytest.raises(TypeError):
             DatasetPreprocessor()
+
+
+# ---------------------------------------------------------------------------
+# Helpers for write_split_csvs tests
+# ---------------------------------------------------------------------------
+
+# Minimal example dict returned by the mocked ExampleGenerator.generate()
+_MOCK_EXAMPLE_BASE = {
+    'original_sentence': ['The', 'cat', 'sat'],
+    'e1': {'name': 'cat', 'position': [1, 2]},
+    'e2': {'name': 'sat', 'position': [2, 3]},
+    'pos_tags': ['DET', 'NOUN', 'VERB'],
+    'dependencies_labels': ['det', 'nsubj', 'ROOT'],
+    'ner': ['O', 'O', 'O'],
+    'sk_entities': {},
+}
+
+_TRAIN_SENTENCES = [
+    ("ENTITYSTART cat ENTITYEND sat ENTITYOTHERSTART on mat ENTITYOTHEREND", "cause-effect"),
+    ("ENTITYSTART dog ENTITYEND ran ENTITYOTHERSTART fast ENTITYOTHEREND", "cause-effect"),
+    ("ENTITYSTART sun ENTITYEND rose ENTITYOTHERSTART early ENTITYOTHEREND", "entity-origin"),
+]
+_TEST_SENTENCES = [
+    ("ENTITYSTART bus ENTITYEND stopped ENTITYOTHERSTART here ENTITYOTHEREND", "message-topic"),
+    ("ENTITYSTART rain ENTITYEND fell ENTITYOTHERSTART down ENTITYOTHEREND", "message-topic"),
+]
+
+_CSV_COLUMNS = [
+    'original_sentence', 'e1', 'e2', 'relation_type',
+    'pos_tags', 'dependencies_labels', 'ner', 'sk_entities',
+]
+
+
+@pytest.fixture
+def write_split(preprocessor, tmp_path, monkeypatch):
+    """Return a callable that invokes write_split_csvs with:
+    - cwd redirected to tmp_path so benchmark/ writes land in tmp_path/benchmark/
+    - ExampleGenerator mocked to return one row per input sentence.
+    The callable returns (train_path, test_path) as Path objects.
+    """
+    (tmp_path / "benchmark").mkdir()
+    monkeypatch.chdir(tmp_path)
+
+    def _run(name, train_sents, test_sents):
+        nlp = MagicMock()
+        with patch(
+            'deepref.dataset.preprocessor.dataset_preprocessor.ExampleGenerator'
+        ) as MockEG:
+            MockEG.return_value.generate.side_effect = (
+                lambda tagged, relation: {**_MOCK_EXAMPLE_BASE, 'relation_type': relation}
+            )
+            preprocessor.write_split_csvs(name, train_sents, test_sents, nlp)
+        return (
+            tmp_path / "benchmark" / f"{name}_train.csv",
+            tmp_path / "benchmark" / f"{name}_test.csv",
+        )
+
+    return _run
+
+
+# ---------------------------------------------------------------------------
+# Tests
+# ---------------------------------------------------------------------------
+
+class TestWriteSplitCsvs:
+    def test_creates_train_csv(self, write_split):
+        train_path, _ = write_split("ds", _TRAIN_SENTENCES, _TEST_SENTENCES)
+        assert train_path.exists()
+
+    def test_creates_test_csv(self, write_split):
+        _, test_path = write_split("ds", _TRAIN_SENTENCES, _TEST_SENTENCES)
+        assert test_path.exists()
+
+    def test_train_row_count_matches_input(self, write_split):
+        train_path, _ = write_split("ds", _TRAIN_SENTENCES, _TEST_SENTENCES)
+        df = pd.read_csv(train_path, sep='\t')
+        assert len(df) == len(_TRAIN_SENTENCES)
+
+    def test_test_row_count_matches_input(self, write_split):
+        _, test_path = write_split("ds", _TRAIN_SENTENCES, _TEST_SENTENCES)
+        df = pd.read_csv(test_path, sep='\t')
+        assert len(df) == len(_TEST_SENTENCES)
+
+    def test_train_and_test_row_counts_are_independent(self, write_split):
+        train_path, test_path = write_split("ds", _TRAIN_SENTENCES, _TEST_SENTENCES)
+        assert len(pd.read_csv(train_path, sep='\t')) != len(pd.read_csv(test_path, sep='\t'))
+
+    def test_train_csv_has_expected_columns(self, write_split):
+        train_path, _ = write_split("ds", _TRAIN_SENTENCES, _TEST_SENTENCES)
+        df = pd.read_csv(train_path, sep='\t')
+        assert set(df.columns) == set(_CSV_COLUMNS)
+
+    def test_test_csv_has_expected_columns(self, write_split):
+        _, test_path = write_split("ds", _TRAIN_SENTENCES, _TEST_SENTENCES)
+        df = pd.read_csv(test_path, sep='\t')
+        assert set(df.columns) == set(_CSV_COLUMNS)
+
+    def test_train_csv_is_tab_separated(self, write_split):
+        train_path, _ = write_split("ds", _TRAIN_SENTENCES, _TEST_SENTENCES)
+        df = pd.read_csv(train_path, sep='\t')
+        assert not df.empty
+
+    def test_test_csv_is_tab_separated(self, write_split):
+        _, test_path = write_split("ds", _TRAIN_SENTENCES, _TEST_SENTENCES)
+        df = pd.read_csv(test_path, sep='\t')
+        assert not df.empty
+
+    def test_train_relations_match_input(self, write_split):
+        train_path, _ = write_split("ds", _TRAIN_SENTENCES, _TEST_SENTENCES)
+        df = pd.read_csv(train_path, sep='\t')
+        expected = [rel for _, rel in _TRAIN_SENTENCES]
+        assert df['relation_type'].tolist() == expected
+
+    def test_test_relations_match_input(self, write_split):
+        _, test_path = write_split("ds", _TRAIN_SENTENCES, _TEST_SENTENCES)
+        df = pd.read_csv(test_path, sep='\t')
+        expected = [rel for _, rel in _TEST_SENTENCES]
+        assert df['relation_type'].tolist() == expected
+
+    def test_train_file_does_not_contain_test_relations(self, write_split):
+        train_path, _ = write_split("ds", _TRAIN_SENTENCES, _TEST_SENTENCES)
+        train_df = pd.read_csv(train_path, sep='\t')
+        test_relations = {rel for _, rel in _TEST_SENTENCES}
+        train_relations = {rel for _, rel in _TRAIN_SENTENCES}
+        exclusive_test = test_relations - train_relations
+        if exclusive_test:
+            assert not train_df['relation_type'].isin(exclusive_test).any()
+
+    def test_test_file_does_not_contain_train_only_relations(self, write_split):
+        _, test_path = write_split("ds", _TRAIN_SENTENCES, _TEST_SENTENCES)
+        test_df = pd.read_csv(test_path, sep='\t')
+        train_relations = {rel for _, rel in _TRAIN_SENTENCES}
+        test_relations = {rel for _, rel in _TEST_SENTENCES}
+        exclusive_train = train_relations - test_relations
+        if exclusive_train:
+            assert not test_df['relation_type'].isin(exclusive_train).any()
+
+    def test_dataset_name_appears_in_file_paths(self, write_split, tmp_path):
+        train_path, test_path = write_split("mydata", _TRAIN_SENTENCES, _TEST_SENTENCES)
+        assert "mydata" in train_path.name
+        assert "mydata" in test_path.name
+
+    def test_train_path_contains_train_suffix(self, write_split):
+        train_path, _ = write_split("ds", _TRAIN_SENTENCES, _TEST_SENTENCES)
+        assert "_train" in train_path.stem
+
+    def test_test_path_contains_test_suffix(self, write_split):
+        _, test_path = write_split("ds", _TRAIN_SENTENCES, _TEST_SENTENCES)
+        assert "_test" in test_path.stem
+
+    def test_empty_train_creates_file(self, write_split):
+        train_path, _ = write_split("ds", [], _TEST_SENTENCES)
+        assert train_path.exists()
+
+    def test_empty_test_creates_file(self, write_split):
+        _, test_path = write_split("ds", _TRAIN_SENTENCES, [])
+        assert test_path.exists()
