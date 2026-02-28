@@ -1,12 +1,19 @@
 """
-SDPEncoder — dual-mode sentence encoder based on the Shortest Dependency Path (SDP).
+SDP-based encoders built on the Shortest Dependency Path (SDP).
 
-Two encoding modes for a sentence with two marked entities:
+Three classes:
 
-  (1) One-hot / multi-hot bag-of-words over dependency relation labels found on
-      the SDP between the entities.
-  (2) Dense embedding produced by verbalising the SDP and encoding the resulting
-      sentence with SentenceEncoder.
+  SDPEncoder (abstract)
+      Shared spaCy parsing, dep-label mapping, SDP extraction, chain
+      building, and verbalization.  Not directly instantiable.
+
+  BoWSDPEncoder(SDPEncoder, SentenceEncoder)
+      Encodes a sentence as a multi-hot bag-of-words over the dependency
+      relation labels found on the SDP.  No transformer required.
+
+  VerbalizedSDPEncoder(SDPEncoder, LLMEncoder)
+      Verbalizes the SDP and encodes the resulting string with a
+      HuggingFace transformer via LLMEncoder.
 
 Dependency parsing is performed with spaCy's ``en_core_web_trf`` model.
 
@@ -20,24 +27,31 @@ where ``dep_chain`` uses full dependency-relation names
 
 from __future__ import annotations
 
+from abc import ABC
 from collections import defaultdict, deque
 from typing import Optional
 
 import torch
 
 from deepref.encoder.sentence_encoder import SentenceEncoder
+from deepref.encoder.llm_encoder import LLMEncoder
 
 
-class SDPEncoder(SentenceEncoder):
-    """Encode a sentence via the Shortest Dependency Path between two entities.
+# ===========================================================================
+# Abstract base
+# ===========================================================================
+
+class SDPEncoder(ABC):
+    """Abstract base for SDP-based encoders.
+
+    Provides spaCy dependency parsing, dep-label mapping, SDP extraction,
+    chain building, and verbalization.  Subclasses decide how to produce
+    the final representation from the SDP.
 
     Args:
-        model_name: HuggingFace model name (or local path) for the underlying
-            :class:`SentenceEncoder`.
         dep_vocab: ordered list of full dependency-relation names used as the
             one-hot vocabulary.  Defaults to an alphabetically sorted list of
             all relation names known to the encoder.
-        device: PyTorch device string passed to :class:`SentenceEncoder`.
     """
 
     # ------------------------------------------------------------------
@@ -98,14 +112,7 @@ class SDPEncoder(SentenceEncoder):
         'preconj':   'preconjunct',
     }
 
-    def __init__(
-        self,
-        model_name: str = 'HuggingFaceTB/SmolLM-135M-Instruct',
-        dep_vocab: Optional[list[str]] = None,
-        device: str = 'cpu',
-    ) -> None:
-        super().__init__(model_name, device=device)
-
+    def __init__(self, dep_vocab: Optional[list[str]] = None) -> None:
         import spacy
         self.nlp = spacy.load('en_core_web_trf')
 
@@ -117,7 +124,7 @@ class SDPEncoder(SentenceEncoder):
         }
 
     # ------------------------------------------------------------------
-    # Public API
+    # Public API — shared by all subclasses
     # ------------------------------------------------------------------
 
     def dep_to_full_name(self, dep: str) -> str:
@@ -142,14 +149,16 @@ class SDPEncoder(SentenceEncoder):
         Returns:
             List of ``(token_text, dep_full_name, direction)`` tuples.
 
-            * The dep_full_name and direction of element ``i`` describe the edge
-              **from node i to node i+1**.
-            * The **last** element always has ``dep_full_name=None, direction=None``.
-            * *direction* is ``'UP'`` (child → head) or ``'DOWN'`` (head → child).
+            * The dep_full_name and direction of element ``i`` describe the
+              edge **from node i to node i+1**.
+            * The **last** element always has ``dep_full_name=None,
+              direction=None``.
+            * *direction* is ``'UP'`` (child → head) or ``'DOWN'``
+              (head → child).
 
         Raises:
-            ValueError: if the entity tokens cannot be found in the parsed doc,
-                or if no dependency path exists between the entities.
+            ValueError: if the entity tokens cannot be found in the parsed
+                doc, or if no dependency path exists between the entities.
         """
         tokens  = item['token']
         e1_pos  = item['h']['pos']
@@ -235,43 +244,6 @@ class SDPEncoder(SentenceEncoder):
             f"Dependency path: {dep_chain}"
         )
 
-    def encode_onehot(self, item: dict) -> torch.Tensor:
-        """Encode the sentence as a multi-hot vector over dependency labels.
-
-        Each dimension of the vector corresponds to one dependency-relation type
-        in :attr:`dep_vocab`.  A dimension is set to 1 if that relation appears
-        on the SDP, 0 otherwise.
-
-        Returns:
-            1-D ``torch.float32`` tensor of shape ``(len(dep_vocab),)``.
-        """
-        path = self.extract_sdp(item)
-        vec = torch.zeros(len(self.dep_vocab), dtype=torch.float32)
-        for _, dep, _ in path[:-1]:
-            if dep is not None and dep in self.dep_to_idx:
-                vec[self.dep_to_idx[dep]] = 1.0
-        return vec
-
-    def encode_dense(self, item: dict) -> torch.Tensor:
-        """Encode the sentence as a dense vector via SDP verbalization.
-
-        The SDP is verbalized and then passed to the :class:`SentenceEncoder`
-        to obtain a normalised dense embedding.
-
-        Returns:
-            Tensor of shape ``(1, hidden_dim)``.
-        """
-        tokens  = item['token']
-        e1_name = item['h']['name']
-        e2_name = item['t']['name']
-
-        sentence  = ' '.join(tokens)
-        path      = self.extract_sdp(item)
-        dep_chain = self.build_dep_chain(path)
-        verbalized = self.verbalize(sentence, e1_name, e2_name, dep_chain)
-
-        return self(verbalized)
-
     # ------------------------------------------------------------------
     # Private helpers
     # ------------------------------------------------------------------
@@ -318,10 +290,9 @@ class SDPEncoder(SentenceEncoder):
             ``dep_label=None, direction=None``.
             Returns ``None`` when no path exists.
         """
-        # Build an undirected adjacency list from the dependency arcs.
         graph: dict[int, list[tuple[int, str, str]]] = defaultdict(list)
         for token in doc:
-            if token.i != token.head.i:          # skip the root self-loop
+            if token.i != token.head.i:
                 graph[token.i].append((token.head.i, token.dep_, 'UP'))
                 graph[token.head.i].append((token.i, token.dep_, 'DOWN'))
 
@@ -329,7 +300,6 @@ class SDPEncoder(SentenceEncoder):
         best_path: list[tuple[int, str | None, str | None]] | None = None
 
         for start_idx in e1_indices:
-            # visited[node] = (prev_node, dep_arriving_here, direction_arriving_here)
             visited: dict[int, tuple[int, str, str] | None] = {start_idx: None}
             queue: deque[int] = deque([start_idx])
             found: int | None = None
@@ -347,8 +317,6 @@ class SDPEncoder(SentenceEncoder):
             if found is None:
                 continue
 
-            # Backtrack from e2 to e1, building a list of
-            # (reached_node, dep_used, direction_used) in reverse order.
             reverse_steps: list[tuple[int, str, str]] = []
             curr = found
             while visited[curr] is not None:
@@ -356,9 +324,7 @@ class SDPEncoder(SentenceEncoder):
                 reverse_steps.append((curr, dep, direction))
                 curr = prev
             reverse_steps.reverse()
-            # reverse_steps[i] = (node_{i+1}, dep_from_i_to_{i+1}, dir_from_i_to_{i+1})
 
-            # Full ordered node sequence: [start, node_1, ..., found]
             node_path = [start_idx] + [step[0] for step in reverse_steps]
 
             path: list[tuple[int, str | None, str | None]] = []
@@ -371,3 +337,137 @@ class SDPEncoder(SentenceEncoder):
                 best_path = path
 
         return best_path
+
+
+# ===========================================================================
+# Concrete subclasses
+# ===========================================================================
+
+class BoWSDPEncoder(SDPEncoder, SentenceEncoder):
+    """Encode a sentence as a multi-hot bag-of-words over SDP dependency labels.
+
+    Each dimension of the output vector corresponds to one dependency-relation
+    type in :attr:`dep_vocab`.  A dimension is set to 1 if that relation
+    appears on the SDP between the two entities, 0 otherwise.
+
+    No transformer model is required.  ``tokenize`` returns the raw SDP path
+    and ``forward`` converts it to a one-hot tensor.
+
+    Args:
+        dep_vocab: ordered list of full dependency-relation names.  Defaults
+            to an alphabetically sorted list of all known relation names.
+    """
+
+    def __init__(self, dep_vocab: Optional[list[str]] = None) -> None:
+        torch.nn.Module.__init__(self)
+        SDPEncoder.__init__(self, dep_vocab=dep_vocab)
+
+    def tokenize(
+        self,
+        item: dict,
+    ) -> list[tuple[str, str | None, str | None]]:
+        """Extract the SDP path for one sample.
+
+        Args:
+            item: dict with ``'token'``, ``'h'``, and ``'t'`` keys.
+
+        Returns:
+            List of ``(token_text, dep_full_name, direction)`` tuples
+            as returned by :meth:`extract_sdp`.
+        """
+        return self.extract_sdp(item)
+
+    def forward(self, item: dict) -> torch.Tensor:
+        """Return a multi-hot vector over dependency labels on the SDP.
+
+        Returns:
+            1-D ``torch.float32`` tensor of shape ``(len(dep_vocab),)``.
+        """
+        path = self.tokenize(item)
+        vec = torch.zeros(len(self.dep_vocab), dtype=torch.float32)
+        for _, dep, _ in path[:-1]:
+            if dep is not None and dep in self.dep_to_idx:
+                vec[self.dep_to_idx[dep]] = 1.0
+        return vec
+
+    def encode_onehot(self, item: dict) -> torch.Tensor:
+        """Convenience alias for :meth:`forward`.
+
+        Returns:
+            1-D ``torch.float32`` tensor of shape ``(len(dep_vocab),)``.
+        """
+        return self(item)
+
+
+class VerbalizedSDPEncoder(SDPEncoder, LLMEncoder):
+    """Encode a sentence by verbalizing its SDP and passing it through a transformer.
+
+    The SDP is verbalized into a natural-language sentence and encoded by the
+    inherited :class:`LLMEncoder`, yielding an L2-normalised dense
+    embedding.
+
+    Args:
+        model_name: HuggingFace model name or local path.
+        dep_vocab: ordered list of full dependency-relation names.  Defaults
+            to an alphabetically sorted list of all known relation names.
+        device: PyTorch device string (e.g. ``'cpu'``, ``'cuda'``).
+    """
+
+    def __init__(
+        self,
+        model_name: str = 'HuggingFaceTB/SmolLM-135M-Instruct',
+        dep_vocab: Optional[list[str]] = None,
+        device: str = 'cpu',
+    ) -> None:
+        SDPEncoder.__init__(self, dep_vocab=dep_vocab)
+        LLMEncoder.__init__(self, model_name, device=device)
+
+    def tokenize(self, item: dict) -> dict:
+        """Verbalize the SDP for one sample and tokenize the result.
+
+        Args:
+            item: dict with keys:
+                  - ``'token'`` (list[str])
+                  - ``'h'``: ``{'name': str, 'pos': [start, end)}``
+                  - ``'t'``: ``{'name': str, 'pos': [start, end)}``
+        Returns:
+            dict with ``'input_ids'`` and ``'attention_mask'`` tensors of
+            shape ``(1, max_length)``.
+        """
+        tokens  = item['token']
+        e1_name = item['h']['name']
+        e2_name = item['t']['name']
+
+        sentence   = ' '.join(tokens)
+        path       = self.extract_sdp(item)
+        dep_chain  = self.build_dep_chain(path)
+        verbalized = self.verbalize(sentence, e1_name, e2_name, dep_chain)
+
+        return LLMEncoder.tokenize(self, verbalized)
+
+    def forward(self, item: dict) -> torch.Tensor:
+        """Encode the SDP verbalization for one sample.
+
+        Args:
+            item: dict with keys:
+                  - ``'token'`` (list[str])
+                  - ``'h'``: ``{'name': str, 'pos': [start, end)}``
+                  - ``'t'``: ``{'name': str, 'pos': [start, end)}``
+        Returns:
+            Float32 tensor of shape ``(1, hidden_dim)``, L2-normalised.
+        """
+        device = next(self.model.parameters()).device
+        batch = self.tokenize(item)
+        batch = {k: v.to(device) for k, v in batch.items()}
+        model_outputs = self.model(**batch)
+        return self.average_pool(model_outputs.last_hidden_state, batch['attention_mask'])
+
+    def encode_dense(self, item: dict) -> torch.Tensor:
+        """Encode the sentence as a dense vector via SDP verbalization.
+
+        Delegates to :meth:`forward`.
+
+        Returns:
+            Tensor of shape ``(1, hidden_dim)``, L2-normalised.
+        """
+        return self(item)
