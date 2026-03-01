@@ -55,6 +55,7 @@ from deepref.dataset.re_dataset import REDataset
 from deepref.encoder.llm_encoder import LLMEncoder
 from deepref.encoder.relation_encoder import RelationEncoder
 from deepref.encoder.sdp_encoder import BoWSDPEncoder, VerbalizedSDPEncoder
+from deepref.framework.early_stopping import EarlyStopping
 from deepref.framework.sentence_re_trainer import SentenceRETrainer
 from deepref.framework.utils import AverageMeter
 from deepref.model.softmax_mlp import SoftmaxMLP
@@ -466,6 +467,8 @@ class CombineRETrainer(SentenceRETrainer):
             "micro_p": precision_score(all_labels, pred_result, average="micro", zero_division=0),
             "micro_r": recall_score(all_labels, pred_result, average="micro", zero_division=0),
             "micro_f1": f1_score(all_labels, pred_result, average="micro", zero_division=0),
+            "macro_p": precision_score(all_labels, pred_result, average="macro", zero_division=0),
+            "macro_r": recall_score(all_labels, pred_result, average="macro", zero_division=0),
             "macro_f1": f1_score(all_labels, pred_result, average="macro", zero_division=0),
         }
         logger.info("Eval result: %s", result)
@@ -475,15 +478,19 @@ class CombineRETrainer(SentenceRETrainer):
     # Training loop with MLflow logging
     # ------------------------------------------------------------------
 
-    def train_model(self, warmup: bool = True, metric: str = "micro_f1") -> float:
+    def train_model(self, warmup: bool = True, metric: str = "macro_f1") -> float:
         """Train for ``max_epoch`` epochs, log metrics to MLflow per epoch.
 
         Saves the best checkpoint (by *metric* on the test set) to ``self.ckpt``.
+        Stops early when the monitored metric has not improved for ``patience``
+        consecutive epochs (``patience=0`` disables early stopping).
 
         Returns:
             Best value of *metric* achieved during training.
         """
         best_metric = 0.0
+        patience = self.training_parameters.get("patience", 0)
+        early_stopper = EarlyStopping(patience=patience)
 
         for epoch in range(self.max_epoch):
             logger.info("=== Epoch %d / %d — train ===", epoch + 1, self.max_epoch)
@@ -502,13 +509,21 @@ class CombineRETrainer(SentenceRETrainer):
                 step=epoch,
             )
 
-            if result[metric] > best_metric:
+            improved = result[metric] > best_metric
+            if improved:
                 logger.info("Best checkpoint — saving to %s", self.ckpt)
                 folder = os.path.dirname(self.ckpt)
                 if folder:
                     os.makedirs(folder, exist_ok=True)
                 torch.save({"state_dict": self.model.state_dict()}, self.ckpt)
                 best_metric = result[metric]
+
+            if early_stopper.step(improved):
+                logger.info(
+                    "Early stopping triggered after epoch %d (no improvement for %d epochs)",
+                    epoch + 1, patience,
+                )
+                break
 
         logger.info("Best %s on test set: %.4f", metric, best_metric)
         return best_metric
@@ -584,6 +599,7 @@ def main(cfg: DictConfig) -> None:
             "dropout": cfg.training.dropout,
             "opt": cfg.training.opt,
             "seed": cfg.training.seed,
+            "patience": cfg.training.get("patience", 0),
         })
 
         try:
@@ -625,6 +641,7 @@ def main(cfg: DictConfig) -> None:
                 "opt": cfg.training.opt,
                 "weight_decay": cfg.training.get("weight_decay", 0.0),
                 "warmup_step": cfg.training.get("warmup_step", 0),
+                "patience": cfg.training.get("patience", 0),
             }
 
             trainer = CombineRETrainer(

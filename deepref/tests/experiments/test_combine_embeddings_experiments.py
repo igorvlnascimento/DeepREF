@@ -678,6 +678,38 @@ class TestCombineRETrainerIterateLoader:
 # 9. CombineRETrainer — train_model
 # ===========================================================================
 
+def _make_combine_trainer(dataset, bow_encoder, max_epoch: int, patience: int, ckpt: str):
+    """Factory for CombineRETrainer with configurable max_epoch and patience."""
+    from deepref.model.softmax_mlp import SoftmaxMLP
+
+    combine = CombineEmbeddings(bow_encoder, bow_encoder)
+    num_class = len(dataset.rel2id)
+    model = SoftmaxMLP(
+        sentence_encoder=combine,
+        num_class=num_class,
+        rel2id=dataset.rel2id,
+        num_layers=2,
+    )
+    training_params = {
+        "max_epoch": max_epoch,
+        "criterion": nn.CrossEntropyLoss(),
+        "lr": 1e-3,
+        "batch_size": 2,
+        "opt": "adam",
+        "weight_decay": 0.0,
+        "warmup_step": 0,
+        "patience": patience,
+    }
+    from torch.utils.data import Subset
+    return CombineRETrainer(
+        model=model,
+        train_dataset=Subset(dataset, _TRAIN_IDX),
+        test_dataset=Subset(dataset, _TEST_IDX),
+        ckpt=ckpt,
+        training_parameters=training_params,
+    )
+
+
 class TestCombineRETrainerTrainModel:
 
     def test_returns_float(self, trainer):
@@ -723,3 +755,87 @@ class TestCombineRETrainerTrainModel:
             t.train_model(metric="micro_f1")
         # Called once per epoch (max_epoch=1 in the trainer fixture)
         assert mock_log.call_count == t.max_epoch
+
+    # ── Early stopping ───────────────────────────────────────────────────────
+
+    def test_early_stopping_fires_at_correct_epoch(self, dataset, bow_encoder, tmp_path):
+        """Trainer stops once stagnation counter reaches patience."""
+        ckpt = str(tmp_path / "combine_es.pth.tar")
+        patience = 2
+        max_epoch = 10
+        t = _make_combine_trainer(dataset, bow_encoder, max_epoch, patience, ckpt)
+
+        call_count = 0
+        def _fake_eval(loader):
+            nonlocal call_count
+            # Improve on first call only
+            metric = 0.8 if call_count == 0 else 0.2
+            call_count += 1
+            return ({"acc": metric, "micro_f1": metric, "macro_f1": metric,
+                     "micro_p": metric, "micro_r": metric}, [], [])
+
+        with (
+            patch("mlflow.log_metrics"),
+            mock.patch.object(t, "eval_model", side_effect=_fake_eval),
+            mock.patch.object(t, "iterate_loader"),
+        ):
+            t.train_model(metric="micro_f1")
+
+        # epoch 0: improve  (counter=0)
+        # epoch 1: stagnate (counter=1)
+        # epoch 2: stagnate (counter=2 >= patience=2) → stop
+        assert call_count == patience + 1
+
+    def test_no_early_stop_when_patience_not_reached(self, dataset, bow_encoder, tmp_path):
+        """One stagnant epoch should not trigger stopping when patience > 1."""
+        ckpt = str(tmp_path / "combine_no_es.pth.tar")
+        patience = 3
+        max_epoch = 4
+        t = _make_combine_trainer(dataset, bow_encoder, max_epoch, patience, ckpt)
+
+        # Metrics: improve / stagnate / improve / stagnate — counter never hits 3
+        metrics_seq = [0.5, 0.3, 0.8, 0.2]
+        call_count = 0
+        def _seq_eval(loader):
+            nonlocal call_count
+            val = metrics_seq[call_count]
+            call_count += 1
+            return ({"acc": val, "micro_f1": val, "macro_f1": val,
+                     "micro_p": val, "micro_r": val}, [], [])
+
+        with (
+            patch("mlflow.log_metrics"),
+            mock.patch.object(t, "eval_model", side_effect=_seq_eval),
+            mock.patch.object(t, "iterate_loader"),
+        ):
+            t.train_model(metric="micro_f1")
+
+        # Should run all 4 epochs (stagnation resets after each improvement)
+        assert call_count == max_epoch
+
+    def test_mlflow_log_metrics_only_called_for_completed_epochs(
+        self, dataset, bow_encoder, tmp_path
+    ):
+        """MLflow should be called exactly once per completed epoch."""
+        ckpt = str(tmp_path / "combine_mlflow_es.pth.tar")
+        patience = 2
+        max_epoch = 10
+        t = _make_combine_trainer(dataset, bow_encoder, max_epoch, patience, ckpt)
+
+        call_count = 0
+        def _fake_eval(loader):
+            nonlocal call_count
+            metric = 0.8 if call_count == 0 else 0.2
+            call_count += 1
+            return ({"acc": metric, "micro_f1": metric, "macro_f1": metric,
+                     "micro_p": metric, "micro_r": metric}, [], [])
+
+        with (
+            patch("mlflow.log_metrics") as mock_log,
+            mock.patch.object(t, "eval_model", side_effect=_fake_eval),
+            mock.patch.object(t, "iterate_loader"),
+        ):
+            t.train_model(metric="micro_f1")
+
+        # Early stopping fires after patience+1 epochs
+        assert mock_log.call_count == patience + 1
