@@ -1,0 +1,5 @@
+# @package _global_
+dataset:
+  name: ddi
+  train_csv_path: benchmark/ddi_train.csv
+  test_csv_path: benchmark/ddi_test.csv

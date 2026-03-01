@@ -56,6 +56,15 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     tool = SpacyNLPTool("en_core_web_trf")
-
     preprocessor = DDIPreprocessor()
-    preprocessor.write_csv("ddi", preprocessor.get_sentences(args.path), tool)
+
+    base = Path(args.path)
+    train_path = next((p for p in base.rglob("Train") if p.is_dir()), None)
+    test_path = next((p for p in base.rglob("Test") if p.is_dir()), None)
+
+    if train_path and test_path:
+        train_sentences = list(preprocessor.get_sentences(str(train_path)))
+        test_sentences = list(preprocessor.get_sentences(str(test_path)))
+        preprocessor.write_split_csvs("ddi", train_sentences, test_sentences, tool)
+    else:
+        preprocessor.write_csv("ddi", preprocessor.get_sentences(args.path), tool)

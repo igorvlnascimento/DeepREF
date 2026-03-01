@@ -1,0 +1,22 @@
+defaults:
+  - encoder1: relation
+  - encoder2: bow_sdp
+  - dataset: semeval2010
+  - _self_
+
+mlflow:
+  experiment_name: combine_embeddings_experiment
+  tracking_uri: null
+
+training:
+  lr: 2.0e-5
+  max_epoch: 5
+  batch_size: 32
+  num_mlp_layers: 3
+  dropout: 0.1
+  opt: adamw
+  weight_decay: 0.0
+  warmup_step: 0
+  seed: 42
+
+device: cuda

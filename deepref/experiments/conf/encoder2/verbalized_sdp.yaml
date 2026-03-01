@@ -1,0 +1,4 @@
+# @package _global_
+encoder2:
+  type: verbalized_sdp
+  model_name: HuggingFaceTB/SmolLM-135M-Instruct
