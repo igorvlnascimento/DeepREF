@@ -297,8 +297,8 @@ class CombineRETrainer(SentenceRETrainer):
     def __init__(
         self,
         model: SoftmaxMLP,
-        train_dataset: Subset,
-        test_dataset: Subset,
+        train_dataset: REDataset,
+        test_dataset: REDataset,
         ckpt: str,
         training_parameters: dict[str, Any],
     ) -> None:
@@ -529,6 +529,7 @@ def build_encoder1(cfg: DictConfig, device: str) -> nn.Module:
             max_length=enc.max_length,
             device=device,
             trainable=enc.trainable,
+            attn_implementation=enc.attn_implementation,
         )
     raise ValueError(f"Unknown encoder1 type: {enc.type!r}")
 
