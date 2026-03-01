@@ -1,6 +1,6 @@
 # @package _global_
 encoder1:
   type: relation
-  model_name: bert-base-uncased
+  model_name: rel-emb-bert-b-uncased
   max_length: 128
   trainable: false
