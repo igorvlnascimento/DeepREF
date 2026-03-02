@@ -48,7 +48,7 @@ from sklearn.metrics import (
     recall_score,
 )
 from torch import optim
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, random_split
 from tqdm import tqdm
 
 from deepref.dataset.re_dataset import REDataset
@@ -269,7 +269,7 @@ class CombineEmbeddings(nn.Module):
         batch_embs: list[torch.Tensor] = []
         for item in items:
             emb1 = self._encode_single(self.encoder1, item)
-            emb2 = self._encode_single(self.encoder2, item).to(emb1.device)
+            emb2 = self._encode_single(self.encoder2, item)
             batch_embs.append(torch.cat([emb1, emb2], dim=0))
         return torch.stack(batch_embs, dim=0)  # (B, H1+H2)
 
@@ -281,19 +281,21 @@ class CombineEmbeddings(nn.Module):
 class CombineRETrainer(SentenceRETrainer):
     """SentenceRETrainer adapted for combined-encoder experiments.
 
-    Overrides three methods from the parent:
+    Overrides four methods from the parent:
 
-    * ``__init__`` — creates :class:`DataLoader` instances with
-      :func:`combine_collate_fn` instead of RELoader, skipping the tokenizer
-      requirement embedded in :class:`~deepref.dataset.re_dataset.RELoader`.
+    * ``__init__`` — splits *train_dataset* into a 90 % training split and a
+      10 % validation split (minimum 1 sample), then creates
+      :class:`DataLoader` instances with :func:`combine_collate_fn` for each
+      split and for *test_dataset*, skipping the tokenizer requirement
+      embedded in :class:`~deepref.dataset.re_dataset.RELoader`.
     * ``iterate_loader`` — handles ``dict`` batches ``{"labels": …, "items": …}``
       and moves only tensor data to the target device (the ``items`` list stays
       on CPU since encoder internals handle device placement).
     * ``eval_model`` — computes precision / recall / F1 directly with sklearn
       instead of delegating to ``REDataset.eval``, which cannot operate on a
       :class:`~torch.utils.data.Subset`.
-    * ``train_model`` — adds per-epoch MLflow metric logging on top of the
-      standard checkpointing logic.
+    * ``train_model`` — evaluates on the validation split each epoch, logs
+      metrics to MLflow, and saves the best checkpoint.
     """
 
     def __init__(
@@ -315,10 +317,25 @@ class CombineRETrainer(SentenceRETrainer):
         self.lr = training_parameters["lr"]
         batch_size = training_parameters["batch_size"]
 
+        # Split train_dataset: 90 % train / 10 % validation (minimum 1 val sample).
+        val_size = max(1, round(len(train_dataset) * 0.1))
+        train_size = len(train_dataset) - val_size
+        train_split, val_split = random_split(train_dataset, [train_size, val_size])
+        logger.info(
+            "Dataset split — train: %d  val: %d  test: %d",
+            train_size, val_size, len(test_dataset),
+        )
+
         self.train_loader = DataLoader(
-            train_dataset,
+            train_split,
             batch_size=batch_size,
             shuffle=True,
+            collate_fn=combine_collate_fn,
+        )
+        self.val_loader = DataLoader(
+            val_split,
+            batch_size=batch_size,
+            shuffle=False,
             collate_fn=combine_collate_fn,
         )
         self.test_loader = DataLoader(
@@ -362,7 +379,7 @@ class CombineRETrainer(SentenceRETrainer):
         warmup_step = training_parameters.get("warmup_step", 0)
         if warmup_step > 0:
             from transformers import get_linear_schedule_with_warmup
-            training_steps = len(train_dataset) // batch_size * self.max_epoch
+            training_steps = train_size // batch_size * self.max_epoch
             self.scheduler = get_linear_schedule_with_warmup(
                 self.optimizer,
                 num_warmup_steps=warmup_step,
@@ -482,9 +499,12 @@ class CombineRETrainer(SentenceRETrainer):
     def train_model(self, warmup: bool = True, metric: str = "macro_f1") -> float:
         """Train for ``max_epoch`` epochs, log metrics to MLflow per epoch.
 
-        Saves the best checkpoint (by *metric* on the test set) to ``self.ckpt``.
-        Stops early when the monitored metric has not improved for ``patience``
-        consecutive epochs (``patience=0`` disables early stopping).
+        Evaluates on the validation split (10 % of the original training data)
+        after each epoch to track the best checkpoint and drive early stopping.
+        Saves the best checkpoint (by *metric* on the validation set) to
+        ``self.ckpt``.  Stops early when the monitored metric has not improved
+        for ``patience`` consecutive epochs (``patience=0`` disables early
+        stopping).
 
         Returns:
             Best value of *metric* achieved during training.
@@ -498,8 +518,8 @@ class CombineRETrainer(SentenceRETrainer):
             self.train()
             self.iterate_loader(self.train_loader, warmup=warmup, training=True)
 
-            logger.info("=== Epoch %d / %d — eval ===", epoch + 1, self.max_epoch)
-            result, _, _ = self.eval_model(self.test_loader)
+            logger.info("=== Epoch %d / %d — val ===", epoch + 1, self.max_epoch)
+            result, _, _ = self.eval_model(self.val_loader)
 
             logger.info(
                 "Metric %s: current=%.4f  best=%.4f",
@@ -526,7 +546,7 @@ class CombineRETrainer(SentenceRETrainer):
                 )
                 break
 
-        logger.info("Best %s on test set: %.4f", metric, best_metric)
+        logger.info("Best %s on validation set: %.4f", metric, best_metric)
         return best_metric
 
 
@@ -671,6 +691,23 @@ def main(cfg: DictConfig) -> None:
             best_micro_f1 = trainer.train_model(metric="micro_f1")
 
             mlflow.log_metric("best_micro_f1", best_micro_f1)
+
+            # ── Test evaluation ─────────────────────────────────────────────
+            logger.info("=== Test evaluation ===")
+            test_result, _, _ = trainer.eval_model(trainer.test_loader)
+            mlflow.log_metrics({
+                "test_micro_p":  test_result["micro_p"],
+                "test_micro_r":  test_result["micro_r"],
+                "test_micro_f1": test_result["micro_f1"],
+                "test_macro_p":  test_result["macro_p"],
+                "test_macro_r":  test_result["macro_r"],
+                "test_macro_f1": test_result["macro_f1"],
+            })
+            logger.info(
+                "Test metrics — micro_f1: %.4f  macro_f1: %.4f",
+                test_result["micro_f1"], test_result["macro_f1"],
+            )
+
             mlflow.set_tag("status", "success")
 
             logger.info("Run '%s' finished — best micro_f1: %.4f", run_name, best_micro_f1)

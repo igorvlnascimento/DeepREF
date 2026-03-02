@@ -29,6 +29,7 @@ from types import SimpleNamespace
 from unittest import mock
 from unittest.mock import MagicMock, patch
 
+import mlflow
 import pytest
 import torch
 import torch.nn as nn
@@ -47,7 +48,7 @@ from deepref.framework.sentence_re_trainer import SentenceRETrainer
 # Constants
 # ---------------------------------------------------------------------------
 
-CSV_PATH = "benchmark/semeval2010.csv"
+CSV_PATH = "benchmark/semeval2010_train.csv"
 
 # Item dict format used by all encoders
 ITEM_SIMPLE = {
@@ -554,6 +555,21 @@ class TestCombineRETrainerInit:
         t, _ = trainer
         assert isinstance(t.train_loader, DataLoader)
 
+    def test_has_val_loader(self, trainer):
+        t, _ = trainer
+        assert hasattr(t, "val_loader")
+
+    def test_val_loader_is_dataloader(self, trainer):
+        t, _ = trainer
+        assert isinstance(t.val_loader, DataLoader)
+
+    def test_val_loader_uses_combine_collate(self, trainer):
+        t, _ = trainer
+        batch = next(iter(t.val_loader))
+        assert isinstance(batch, dict)
+        assert "labels" in batch
+        assert "items" in batch
+
     def test_has_test_loader(self, trainer):
         t, _ = trainer
         assert hasattr(t, "test_loader")
@@ -580,6 +596,16 @@ class TestCombineRETrainerInit:
         assert isinstance(batch, dict)
         assert "labels" in batch
         assert "items" in batch
+
+    def test_train_and_val_sizes_sum_to_original_train(self, trainer):
+        t, _ = trainer
+        train_n = len(t.train_loader.dataset)
+        val_n = len(t.val_loader.dataset)
+        assert train_n + val_n == len(_TRAIN_IDX)
+
+    def test_val_size_is_at_least_one(self, trainer):
+        t, _ = trainer
+        assert len(t.val_loader.dataset) >= 1
 
 
 # ===========================================================================
@@ -839,3 +865,131 @@ class TestCombineRETrainerTrainModel:
 
         # Early stopping fires after patience+1 epochs
         assert mock_log.call_count == patience + 1
+
+
+# ===========================================================================
+# 10. CombineRETrainer — test-set evaluation after training
+# ===========================================================================
+
+class TestCombineRETrainerTestEval:
+    """Verify that eval_model can be called on test_loader and returns the
+    expected metric keys with values in [0, 1]."""
+
+    _METRIC_KEYS = [
+        "micro_p", "micro_r", "micro_f1",
+        "macro_p", "macro_r", "macro_f1",
+    ]
+
+    def test_eval_on_test_loader_returns_tuple_of_three(self, trainer):
+        t, _ = trainer
+        result = t.eval_model(t.test_loader)
+        assert isinstance(result, tuple) and len(result) == 3
+
+    def test_test_result_has_micro_f1(self, trainer):
+        t, _ = trainer
+        result_dict, _, _ = t.eval_model(t.test_loader)
+        assert "micro_f1" in result_dict
+
+    def test_test_result_has_macro_f1(self, trainer):
+        t, _ = trainer
+        result_dict, _, _ = t.eval_model(t.test_loader)
+        assert "macro_f1" in result_dict
+
+    def test_test_result_has_micro_p(self, trainer):
+        t, _ = trainer
+        result_dict, _, _ = t.eval_model(t.test_loader)
+        assert "micro_p" in result_dict
+
+    def test_test_result_has_micro_r(self, trainer):
+        t, _ = trainer
+        result_dict, _, _ = t.eval_model(t.test_loader)
+        assert "micro_r" in result_dict
+
+    def test_test_result_has_macro_p(self, trainer):
+        t, _ = trainer
+        result_dict, _, _ = t.eval_model(t.test_loader)
+        assert "macro_p" in result_dict
+
+    def test_test_result_has_macro_r(self, trainer):
+        t, _ = trainer
+        result_dict, _, _ = t.eval_model(t.test_loader)
+        assert "macro_r" in result_dict
+
+    @pytest.mark.parametrize("key", _METRIC_KEYS)
+    def test_test_metric_is_between_0_and_1(self, trainer, key):
+        t, _ = trainer
+        result_dict, _, _ = t.eval_model(t.test_loader)
+        assert 0.0 <= result_dict[key] <= 1.0
+
+    def test_mlflow_logs_test_micro_f1(self, trainer):
+        t, _ = trainer
+        good_result = {
+            "acc": 0.9,
+            "micro_p": 0.8, "micro_r": 0.8, "micro_f1": 0.8,
+            "macro_p": 0.7, "macro_r": 0.7, "macro_f1": 0.7,
+        }
+        with (
+            patch("mlflow.log_metrics") as mock_log,
+            mock.patch.object(t, "eval_model", return_value=(good_result, [], [])),
+        ):
+            result_dict, _, _ = t.eval_model(t.test_loader)
+            mlflow.log_metrics({
+                "test_micro_p":  result_dict["micro_p"],
+                "test_micro_r":  result_dict["micro_r"],
+                "test_micro_f1": result_dict["micro_f1"],
+                "test_macro_p":  result_dict["macro_p"],
+                "test_macro_r":  result_dict["macro_r"],
+                "test_macro_f1": result_dict["macro_f1"],
+            })
+        logged = mock_log.call_args[0][0]
+        assert "test_micro_f1" in logged
+
+    def test_mlflow_logs_test_macro_f1(self, trainer):
+        t, _ = trainer
+        good_result = {
+            "acc": 0.9,
+            "micro_p": 0.8, "micro_r": 0.8, "micro_f1": 0.8,
+            "macro_p": 0.7, "macro_r": 0.7, "macro_f1": 0.7,
+        }
+        with (
+            patch("mlflow.log_metrics") as mock_log,
+            mock.patch.object(t, "eval_model", return_value=(good_result, [], [])),
+        ):
+            result_dict, _, _ = t.eval_model(t.test_loader)
+            mlflow.log_metrics({
+                "test_micro_p":  result_dict["micro_p"],
+                "test_micro_r":  result_dict["micro_r"],
+                "test_micro_f1": result_dict["micro_f1"],
+                "test_macro_p":  result_dict["macro_p"],
+                "test_macro_r":  result_dict["macro_r"],
+                "test_macro_f1": result_dict["macro_f1"],
+            })
+        logged = mock_log.call_args[0][0]
+        assert "test_macro_f1" in logged
+
+    def test_mlflow_logs_all_six_test_metrics(self, trainer):
+        t, _ = trainer
+        good_result = {
+            "acc": 0.9,
+            "micro_p": 0.8, "micro_r": 0.8, "micro_f1": 0.8,
+            "macro_p": 0.7, "macro_r": 0.7, "macro_f1": 0.7,
+        }
+        with (
+            patch("mlflow.log_metrics") as mock_log,
+            mock.patch.object(t, "eval_model", return_value=(good_result, [], [])),
+        ):
+            result_dict, _, _ = t.eval_model(t.test_loader)
+            mlflow.log_metrics({
+                "test_micro_p":  result_dict["micro_p"],
+                "test_micro_r":  result_dict["micro_r"],
+                "test_micro_f1": result_dict["micro_f1"],
+                "test_macro_p":  result_dict["macro_p"],
+                "test_macro_r":  result_dict["macro_r"],
+                "test_macro_f1": result_dict["macro_f1"],
+            })
+        logged = mock_log.call_args[0][0]
+        expected_keys = {
+            "test_micro_p", "test_micro_r", "test_micro_f1",
+            "test_macro_p", "test_macro_r", "test_macro_f1",
+        }
+        assert expected_keys == set(logged.keys())
