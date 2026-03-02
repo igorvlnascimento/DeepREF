@@ -456,10 +456,12 @@ class VerbalizedSDPEncoder(SDPEncoder, LLMEncoder):
         Returns:
             Float32 tensor of shape ``(1, hidden_dim)``, L2-normalised.
         """
-        device = next(self.model.parameters()).device
         batch = self.tokenize(item)
-        batch = {k: v.to(device) for k, v in batch.items()}
-        model_outputs = self.model(**batch)
+        model_outputs = self.registry.run_from_input_ids(
+            self.model_name,
+            batch['input_ids'],
+            batch['attention_mask'],
+        )
         return self.average_pool(model_outputs.last_hidden_state, batch['attention_mask'])
 
     def encode_dense(self, item: dict) -> torch.Tensor:
