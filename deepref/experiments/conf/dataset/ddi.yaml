@@ -1,0 +1,3 @@
+name: ddi
+train_csv_path: benchmark/ddi/original/train.csv
+test_csv_path: benchmark/ddi/original/test.csv

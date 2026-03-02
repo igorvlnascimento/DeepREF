@@ -4,8 +4,10 @@ SDP-based encoders built on the Shortest Dependency Path (SDP).
 Three classes:
 
   SDPEncoder (abstract)
-      Shared spaCy parsing, dep-label mapping, SDP extraction, chain
+      Shared NLP-tool-agnostic dep-label mapping, SDP extraction, chain
       building, and verbalization.  Not directly instantiable.
+      Accepts any :class:`~deepref.nlp.nlp_tool.NLPTool` for dependency
+      parsing; defaults to :class:`~deepref.nlp.spacy_nlp_tool.SpacyNLPTool`.
 
   BoWSDPEncoder(SDPEncoder, SentenceEncoder)
       Encodes a sentence as a multi-hot bag-of-words over the dependency
@@ -14,8 +16,6 @@ Three classes:
   VerbalizedSDPEncoder(SDPEncoder, LLMEncoder)
       Verbalizes the SDP and encodes the resulting string with a
       HuggingFace transformer via LLMEncoder.
-
-Dependency parsing is performed with spaCy's ``en_core_web_trf`` model.
 
 Verbalized sentence format::
 
@@ -35,6 +35,7 @@ import torch
 
 from deepref.encoder.sentence_encoder import SentenceEncoder
 from deepref.encoder.llm_encoder import LLMEncoder
+from deepref.nlp.nlp_tool import NLPTool, ParsedToken
 
 
 # ===========================================================================
@@ -44,18 +45,21 @@ from deepref.encoder.llm_encoder import LLMEncoder
 class SDPEncoder(ABC):
     """Abstract base for SDP-based encoders.
 
-    Provides spaCy dependency parsing, dep-label mapping, SDP extraction,
-    chain building, and verbalization.  Subclasses decide how to produce
-    the final representation from the SDP.
+    Provides pluggable NLP-tool dependency parsing, dep-label mapping, SDP
+    extraction, chain building, and verbalization.  Subclasses decide how to
+    produce the final representation from the SDP.
 
     Args:
+        nlp_tool: :class:`~deepref.nlp.nlp_tool.NLPTool` instance used for
+            dependency parsing.  Defaults to
+            :class:`~deepref.nlp.spacy_nlp_tool.SpacyNLPTool` (``en_core_web_trf``).
         dep_vocab: ordered list of full dependency-relation names used as the
             one-hot vocabulary.  Defaults to an alphabetically sorted list of
             all relation names known to the encoder.
     """
 
     # ------------------------------------------------------------------
-    # Mapping from spaCy's abbreviated dependency labels to full names
+    # Mapping from dependency label abbreviations to full names
     # ------------------------------------------------------------------
     DEP_FULL_NAMES: dict[str, str] = {
         'ROOT':      'root',
@@ -112,9 +116,15 @@ class SDPEncoder(ABC):
         'preconj':   'preconjunct',
     }
 
-    def __init__(self, dep_vocab: Optional[list[str]] = None) -> None:
-        import spacy
-        self.nlp = spacy.load('en_core_web_trf')
+    def __init__(
+        self,
+        nlp_tool: Optional[NLPTool] = None,
+        dep_vocab: Optional[list[str]] = None,
+    ) -> None:
+        if nlp_tool is None:
+            from deepref.nlp.spacy_nlp_tool import SpacyNLPTool
+            nlp_tool = SpacyNLPTool()
+        self.nlp_tool: NLPTool = nlp_tool
 
         if dep_vocab is None:
             dep_vocab = sorted(set(self.DEP_FULL_NAMES.values()))
@@ -128,7 +138,7 @@ class SDPEncoder(ABC):
     # ------------------------------------------------------------------
 
     def dep_to_full_name(self, dep: str) -> str:
-        """Map a spaCy dependency abbreviation to its full English name.
+        """Map a dependency label abbreviation to its full English name.
 
         Returns the label unchanged when it is not in the known mapping.
         """
@@ -158,14 +168,14 @@ class SDPEncoder(ABC):
 
         Raises:
             ValueError: if the entity tokens cannot be found in the parsed
-                doc, or if no dependency path exists between the entities.
+                sentence, or if no dependency path exists between the entities.
         """
-        tokens  = item['token']
-        e1_pos  = item['h']['pos']
-        e2_pos  = item['t']['pos']
+        tokens = item['token']
+        e1_pos = item['h']['pos']
+        e2_pos = item['t']['pos']
 
         sentence = ' '.join(tokens)
-        doc = self.nlp(sentence)
+        parsed_tokens = self.nlp_tool.parse_for_sdp(sentence)
 
         char_offsets = self._compute_char_offsets(tokens)
 
@@ -174,16 +184,19 @@ class SDPEncoder(ABC):
         e2_char_start = char_offsets[e2_pos[0]][0]
         e2_char_end   = char_offsets[e2_pos[1] - 1][1]
 
-        e1_spacy = self._find_spacy_token_indices(doc, e1_char_start, e1_char_end)
-        e2_spacy = self._find_spacy_token_indices(doc, e2_char_start, e2_char_end)
+        e1_indices = self._find_token_indices(parsed_tokens, e1_char_start, e1_char_end)
+        e2_indices = self._find_token_indices(parsed_tokens, e2_char_start, e2_char_end)
 
-        if not e1_spacy or not e2_spacy:
+        if not e1_indices or not e2_indices:
             raise ValueError(
-                f"Could not locate entity tokens in the parsed doc. "
+                f"Could not locate entity tokens in the parsed sentence. "
                 f"e1={item['h']['name']!r}, e2={item['t']['name']!r}"
             )
 
-        path_indices = self._bfs_sdp(doc, e1_spacy, e2_spacy)
+        e1_head = self._get_entity_head(parsed_tokens, e1_indices)
+        e2_head = self._get_entity_head(parsed_tokens, e2_indices)
+
+        path_indices = self._bfs_sdp(parsed_tokens, [e1_head], [e2_head])
 
         if path_indices is None:
             raise ValueError(
@@ -193,7 +206,7 @@ class SDPEncoder(ABC):
 
         return [
             (
-                doc[idx].text,
+                parsed_tokens[idx].text,
                 self.dep_to_full_name(dep) if dep is not None else None,
                 direction,
             )
@@ -259,17 +272,33 @@ class SDPEncoder(ABC):
         return offsets
 
     @staticmethod
-    def _find_spacy_token_indices(doc, char_start: int, char_end: int) -> list[int]:
-        """Return spaCy token indices whose span falls inside ``[char_start, char_end)``."""
+    def _find_token_indices(
+        parsed_tokens: list[ParsedToken],
+        char_start: int,
+        char_end: int,
+    ) -> list[int]:
+        """Return indices of parsed tokens whose span falls inside ``[char_start, char_end]``."""
         return [
-            token.i
-            for token in doc
-            if token.idx >= char_start and token.idx + len(token.text) <= char_end
+            pt.idx
+            for pt in parsed_tokens
+            if pt.char_start >= char_start and pt.char_end <= char_end
         ]
+
+    @staticmethod
+    def _get_entity_head(
+        parsed_tokens: list[ParsedToken],
+        indices: list[int],
+    ) -> int:
+        """Return the index of the syntactic head token of a multi-token entity."""
+        idx_set = set(indices)
+        for i in indices:
+            if parsed_tokens[i].head_idx not in idx_set:
+                return i
+        return indices[0]  # fallback
 
     def _bfs_sdp(
         self,
-        doc,
+        parsed_tokens: list[ParsedToken],
         e1_indices: list[int],
         e2_indices: list[int],
     ) -> list[tuple[int, str | None, str | None]] | None:
@@ -280,21 +309,20 @@ class SDPEncoder(ABC):
         * ``(head_idx, dep_label, 'UP')``   — child → head
         * ``(child_idx, dep_label, 'DOWN')`` — head → child
 
-        The dep_label is always the label that the **child** token carries
-        (``token.dep_`` in spaCy).
+        The dep_label is always the label that the **child** token carries.
 
         Returns:
-            List of ``(spacy_token_idx, dep_label, direction)`` where the
+            List of ``(token_idx, dep_label, direction)`` where the
             dep and direction at position *i* describe the edge leading from
             node *i* to node *i+1*.  The last element has
             ``dep_label=None, direction=None``.
             Returns ``None`` when no path exists.
         """
         graph: dict[int, list[tuple[int, str, str]]] = defaultdict(list)
-        for token in doc:
-            if token.i != token.head.i:
-                graph[token.i].append((token.head.i, token.dep_, 'UP'))
-                graph[token.head.i].append((token.i, token.dep_, 'DOWN'))
+        for pt in parsed_tokens:
+            if pt.idx != pt.head_idx:  # ROOT tokens have head_idx == idx
+                graph[pt.idx].append((pt.head_idx, pt.dep_, 'UP'))
+                graph[pt.head_idx].append((pt.idx, pt.dep_, 'DOWN'))
 
         e2_set = set(e2_indices)
         best_path: list[tuple[int, str | None, str | None]] | None = None
@@ -354,13 +382,19 @@ class BoWSDPEncoder(SDPEncoder, SentenceEncoder):
     and ``forward`` converts it to a one-hot tensor.
 
     Args:
+        nlp_tool: :class:`~deepref.nlp.nlp_tool.NLPTool` for dependency
+            parsing.  Defaults to :class:`~deepref.nlp.spacy_nlp_tool.SpacyNLPTool`.
         dep_vocab: ordered list of full dependency-relation names.  Defaults
             to an alphabetically sorted list of all known relation names.
     """
 
-    def __init__(self, dep_vocab: Optional[list[str]] = None) -> None:
+    def __init__(
+        self,
+        nlp_tool: Optional[NLPTool] = None,
+        dep_vocab: Optional[list[str]] = None,
+    ) -> None:
         torch.nn.Module.__init__(self)
-        SDPEncoder.__init__(self, dep_vocab=dep_vocab)
+        SDPEncoder.__init__(self, nlp_tool=nlp_tool, dep_vocab=dep_vocab)
 
     def tokenize(
         self,
@@ -407,6 +441,8 @@ class VerbalizedSDPEncoder(SDPEncoder, LLMEncoder):
     embedding.
 
     Args:
+        nlp_tool: :class:`~deepref.nlp.nlp_tool.NLPTool` for dependency
+            parsing.  Defaults to :class:`~deepref.nlp.spacy_nlp_tool.SpacyNLPTool`.
         model_name: HuggingFace model name or local path.
         dep_vocab: ordered list of full dependency-relation names.  Defaults
             to an alphabetically sorted list of all known relation names.
@@ -415,11 +451,12 @@ class VerbalizedSDPEncoder(SDPEncoder, LLMEncoder):
 
     def __init__(
         self,
+        nlp_tool: Optional[NLPTool] = None,
         model_name: str = 'HuggingFaceTB/SmolLM-135M-Instruct',
         dep_vocab: Optional[list[str]] = None,
         device: str = 'cpu',
     ) -> None:
-        SDPEncoder.__init__(self, dep_vocab=dep_vocab)
+        SDPEncoder.__init__(self, nlp_tool=nlp_tool, dep_vocab=dep_vocab)
         LLMEncoder.__init__(self, model_name, device=device)
 
     def tokenize(self, item: dict) -> dict:
@@ -456,10 +493,12 @@ class VerbalizedSDPEncoder(SDPEncoder, LLMEncoder):
         Returns:
             Float32 tensor of shape ``(1, hidden_dim)``, L2-normalised.
         """
-        device = next(self.model.parameters()).device
+        device = self.registry.get_model_device(self.model_name)
         batch = self.tokenize(item)
         batch = {k: v.to(device) for k, v in batch.items()}
-        model_outputs = self.model(**batch)
+        model_outputs = self.registry.run_from_input_ids(self.model_name,
+                                                         batch['input_ids'],
+                                                         attention_mask=batch['attention_mask'])
         return self.average_pool(model_outputs.last_hidden_state, batch['attention_mask'])
 
     def encode_dense(self, item: dict) -> torch.Tensor:

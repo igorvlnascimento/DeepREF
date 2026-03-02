@@ -1,0 +1,5 @@
+type: relation
+model_name: google-bert/bert-base-uncased
+max_length: 128
+trainable: false
+attn_implementation: eager

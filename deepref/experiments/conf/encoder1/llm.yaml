@@ -1,0 +1,5 @@
+type: llm
+model_name: HuggingFaceTB/SmolLM-135M-Instruct
+max_length: 128
+trainable: false
+attn_implementation: eager

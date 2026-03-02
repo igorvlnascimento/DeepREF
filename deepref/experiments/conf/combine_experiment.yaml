@@ -1,0 +1,22 @@
+defaults:
+  - encoder1: relation
+  - encoder2: bow_sdp
+  - dataset: semeval2010
+
+device: cpu
+
+mlflow:
+  tracking_uri: sqlite:///mlflow.db
+  experiment_name: combine_embeddings
+
+training:
+  seed: 42
+  max_epoch: 5
+  batch_size: 32
+  lr: 2.0e-5
+  opt: adamw
+  weight_decay: 0.01
+  warmup_step: 100
+  patience: 3
+  num_mlp_layers: 2
+  dropout: 0.1
