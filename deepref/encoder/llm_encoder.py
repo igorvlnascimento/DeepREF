@@ -5,6 +5,11 @@ from transformers import AutoModel, AutoTokenizer
 from deepref.encoder.sentence_encoder import SentenceEncoder
 from deepref.utils.model_registry import ModelRegistry
 
+from pathlib import Path
+
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
+CACHE_DIR = str(BASE_DIR / "tmp")
+
 
 class LLMEncoder(SentenceEncoder):
     """Concrete sentence encoder backed by a HuggingFace transformer.

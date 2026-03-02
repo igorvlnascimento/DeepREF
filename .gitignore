@@ -129,5 +129,10 @@ opennre-egg.info
 # debug
 
 results/
+*.db
 
 *lora/
+
+# Others
+tmp/
+outputs/
