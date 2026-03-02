@@ -105,10 +105,9 @@ def encoder_verbalized():
     """
     from deepref.encoder.sdp_encoder import VerbalizedSDPEncoder
     mock_model = MagicMock()
-    mock_model.parameters.return_value = iter([])
     mock_tokenizer = MagicMock()
-    with mock.patch('deepref.encoder.llm_encoder.AutoModel.from_pretrained', return_value=mock_model), \
-         mock.patch('deepref.encoder.llm_encoder.AutoTokenizer.from_pretrained', return_value=mock_tokenizer):
+    with mock.patch('deepref.utils.model_registry.AutoModel.from_pretrained', return_value=mock_model), \
+         mock.patch('deepref.utils.model_registry.AutoTokenizer.from_pretrained', return_value=mock_tokenizer):
         enc = VerbalizedSDPEncoder()
     enc.forward = MagicMock(return_value=torch.zeros(1, MOCK_EMBED_DIM))
     return enc
