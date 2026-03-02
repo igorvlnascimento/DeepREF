@@ -50,11 +50,11 @@ class ModelRegistry:
         tokenizer = entry["tokenizer"]
         device = entry["device"]
 
+        kwargs.setdefault("padding", True)
+        kwargs.setdefault("truncation", True)
         inputs = tokenizer(
             text,
             return_tensors="pt",
-            padding=True,
-            truncation=True,
             **kwargs
         )
         # Move all tensors to the same device as the model
