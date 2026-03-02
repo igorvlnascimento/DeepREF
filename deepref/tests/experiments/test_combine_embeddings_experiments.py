@@ -39,6 +39,8 @@ from deepref.experiments.run_combine_embeddings_experiments import (
     CombineEmbeddings,
     CombineREDataset,
     CombineRETrainer,
+    SingleEncoderWrapper,
+    build_combined_encoder,
     combine_collate_fn,
     load_split_datasets,
 )
@@ -993,3 +995,135 @@ class TestCombineRETrainerTestEval:
             "test_macro_p", "test_macro_r", "test_macro_f1",
         }
         assert expected_keys == set(logged.keys())
+
+
+# ===========================================================================
+# 11. SingleEncoderWrapper
+# ===========================================================================
+
+class TestSingleEncoderWrapper:
+    """Verify SingleEncoderWrapper satisfies the SoftmaxMLP interface."""
+
+    def test_hidden_size_matches_encoder(self, bow_encoder):
+        wrapper = SingleEncoderWrapper(bow_encoder)
+        assert wrapper.model.config.hidden_size == len(bow_encoder.dep_vocab)
+
+    def test_forward_returns_tensor(self, bow_encoder):
+        wrapper = SingleEncoderWrapper(bow_encoder)
+        assert isinstance(wrapper([ITEM_SIMPLE]), torch.Tensor)
+
+    def test_forward_dtype_is_float32(self, bow_encoder):
+        wrapper = SingleEncoderWrapper(bow_encoder)
+        assert wrapper([ITEM_SIMPLE]).dtype == torch.float32
+
+    def test_forward_ndim_is_2(self, bow_encoder):
+        wrapper = SingleEncoderWrapper(bow_encoder)
+        assert wrapper([ITEM_SIMPLE]).ndim == 2
+
+    def test_forward_batch_dim_matches_input(self, bow_encoder):
+        wrapper = SingleEncoderWrapper(bow_encoder)
+        assert wrapper([ITEM_SIMPLE, ITEM_SIMPLE]).shape[0] == 2
+
+    def test_forward_feature_dim_matches_hidden_size(self, bow_encoder):
+        wrapper = SingleEncoderWrapper(bow_encoder)
+        assert wrapper([ITEM_SIMPLE]).shape[1] == wrapper.model.config.hidden_size
+
+    def test_forward_callable_with_items_kwarg(self, bow_encoder):
+        """SoftmaxMLP calls encoder(**args) where args={'items': ...}."""
+        wrapper = SingleEncoderWrapper(bow_encoder)
+        assert wrapper(items=[ITEM_SIMPLE]).shape[0] == 1
+
+    def test_unknown_encoder_raises_value_error(self):
+        class _Unknown(nn.Module):
+            pass
+        with pytest.raises(ValueError, match="Cannot determine hidden size"):
+            SingleEncoderWrapper(_Unknown())
+
+
+# ===========================================================================
+# 12. build_combined_encoder
+# ===========================================================================
+
+class TestBuildCombinedEncoder:
+    """Verify the factory returns the correct wrapper type."""
+
+    def test_returns_combine_embeddings_when_both_present(self, bow_encoder):
+        result = build_combined_encoder(bow_encoder, bow_encoder)
+        assert isinstance(result, CombineEmbeddings)
+
+    def test_returns_single_wrapper_when_encoder2_none(self, bow_encoder):
+        result = build_combined_encoder(bow_encoder, None)
+        assert isinstance(result, SingleEncoderWrapper)
+
+    def test_combined_hidden_size_is_sum(self, bow_encoder):
+        result = build_combined_encoder(bow_encoder, bow_encoder)
+        h = len(bow_encoder.dep_vocab)
+        assert result.model.config.hidden_size == h + h
+
+    def test_single_hidden_size_matches_encoder(self, bow_encoder):
+        result = build_combined_encoder(bow_encoder, None)
+        assert result.model.config.hidden_size == len(bow_encoder.dep_vocab)
+
+
+# ===========================================================================
+# 13. CombineRETrainer — single-encoder mode smoke tests
+# ===========================================================================
+
+@pytest.fixture
+def trainer_single(dataset, bow_encoder):
+    """CombineRETrainer backed by a SingleEncoderWrapper (no encoder2)."""
+    from deepref.model.softmax_mlp import SoftmaxMLP
+
+    wrapper = SingleEncoderWrapper(bow_encoder)
+    num_class = len(dataset.rel2id)
+    model = SoftmaxMLP(
+        sentence_encoder=wrapper,
+        num_class=num_class,
+        rel2id=dataset.rel2id,
+        num_layers=2,
+    )
+    training_params = {
+        "max_epoch": 1,
+        "criterion": nn.CrossEntropyLoss(),
+        "lr": 1e-3,
+        "batch_size": 2,
+        "opt": "adam",
+        "weight_decay": 0.0,
+        "warmup_step": 0,
+    }
+    ckpt = "/tmp/test_combine_re_trainer_single.pth.tar"
+    return CombineRETrainer(
+        model=model,
+        train_dataset=Subset(dataset, _TRAIN_IDX),
+        test_dataset=Subset(dataset, _TEST_IDX),
+        ckpt=ckpt,
+        training_parameters=training_params,
+    ), ckpt
+
+
+class TestSingleEncoderTrainer:
+    """Smoke tests for the full training pipeline in single-encoder mode."""
+
+    def test_is_instance_of_sentence_re_trainer(self, trainer_single):
+        t, _ = trainer_single
+        assert isinstance(t, SentenceRETrainer)
+
+    def test_has_val_loader(self, trainer_single):
+        t, _ = trainer_single
+        assert isinstance(t.val_loader, DataLoader)
+
+    def test_eval_returns_tuple_of_three(self, trainer_single):
+        t, _ = trainer_single
+        result = t.eval_model(t.test_loader)
+        assert isinstance(result, tuple) and len(result) == 3
+
+    def test_training_loss_is_non_negative(self, trainer_single):
+        t, _ = trainer_single
+        loss = t.iterate_loader(t.train_loader, training=True)
+        assert loss >= 0.0
+
+    def test_train_model_returns_float(self, trainer_single):
+        t, _ = trainer_single
+        with patch("mlflow.log_metrics"):
+            best = t.train_model(metric="micro_f1")
+        assert isinstance(best, float)

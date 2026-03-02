@@ -1,30 +1,45 @@
 """
 Combine-Embeddings experiment runner.
 
-Trains a SoftmaxMLP classifier on top of two concatenated encoders using
-SentenceRETrainer as the training engine.
+Trains a SoftmaxMLP classifier on top of one or two encoders using
+SentenceRETrainer as the training engine.  When two encoders are used their
+embeddings are concatenated via :class:`CombineEmbeddings`; when only one
+encoder is used a :class:`SingleEncoderWrapper` feeds it directly into the
+classifier.
 
-Four encoder combinations (driven by Hydra multirun):
+Dual-encoder combinations (driven by Hydra multirun):
   encoder1=relation  encoder2=bow_sdp
   encoder1=relation  encoder2=verbalized_sdp
   encoder1=llm       encoder2=bow_sdp
   encoder1=llm       encoder2=verbalized_sdp
+
+Single-encoder mode (set encoder2=none):
+  encoder1=relation  encoder2=none
+  encoder1=llm       encoder2=none
 
 Usage
 -----
 Single run (defaults: relation + bow_sdp, semeval2010):
     python deepref/experiments/run_combine_embeddings_experiments.py
 
-All 4 encoder combinations via multirun:
+All 4 dual-encoder combinations via multirun:
     python deepref/experiments/run_combine_embeddings_experiments.py \\
         --multirun encoder1=relation,llm encoder2=bow_sdp,verbalized_sdp
+
+Single-encoder run (encoder1 only):
+    python deepref/experiments/run_combine_embeddings_experiments.py \\
+        encoder2=none
+
+All single + dual combinations via multirun:
+    python deepref/experiments/run_combine_embeddings_experiments.py \\
+        --multirun encoder1=relation,llm encoder2=bow_sdp,verbalized_sdp,none
 
 Cross dataset × encoder multirun:
     python deepref/experiments/run_combine_embeddings_experiments.py \\
         --multirun \\
         dataset=semeval2010,ddi \\
         encoder1=relation,llm \\
-        encoder2=bow_sdp,verbalized_sdp
+        encoder2=bow_sdp,verbalized_sdp,none
 """
 
 from __future__ import annotations
@@ -272,6 +287,40 @@ class CombineEmbeddings(nn.Module):
             emb2 = self._encode_single(self.encoder2, item)
             batch_embs.append(torch.cat([emb1, emb2], dim=0))
         return torch.stack(batch_embs, dim=0)  # (B, H1+H2)
+
+
+# ---------------------------------------------------------------------------
+# Single-encoder wrapper
+# ---------------------------------------------------------------------------
+
+class SingleEncoderWrapper(nn.Module):
+    """Thin wrapper that satisfies the :class:`SoftmaxMLP` interface for one encoder.
+
+    Provides ``self.model.config.hidden_size`` (used by :class:`MLP` to
+    compute layer widths) and a ``forward(items)`` method that dispatches via
+    :meth:`CombineEmbeddings._encode_single`, so any encoder type supported by
+    :class:`CombineEmbeddings` works here without duplication.
+
+    Used automatically when ``encoder2.type == "none"`` (single-encoder mode).
+
+    Args:
+        encoder: the single encoder to wrap.
+    """
+
+    def __init__(self, encoder: nn.Module) -> None:
+        super().__init__()
+        self.encoder = encoder
+        hidden = CombineEmbeddings._get_hidden_size(encoder)
+        self.model = SimpleNamespace(config=SimpleNamespace(hidden_size=hidden))
+        logger.info("SingleEncoderWrapper — hidden_size: %d", hidden)
+
+    def forward(self, items: list[dict]) -> torch.Tensor:
+        """Encode a batch and return a ``(B, H)`` float32 tensor."""
+        batch_embs = [
+            CombineEmbeddings._encode_single(self.encoder, item)
+            for item in items
+        ]
+        return torch.stack(batch_embs, dim=0)
 
 
 # ---------------------------------------------------------------------------
@@ -581,9 +630,16 @@ def build_nlp_tool(name: str) -> NLPTool:
     raise ValueError(f"Unknown NLP tool: {name!r}. Choose 'spacy' or 'stanza'.")
 
 
-def build_encoder2(cfg: DictConfig, device: str) -> nn.Module:
-    """Instantiate the second encoder from Hydra config."""
+def build_encoder2(cfg: DictConfig, device: str) -> nn.Module | None:
+    """Instantiate the second encoder from Hydra config, or return ``None``.
+
+    Returns ``None`` when ``cfg.encoder2.type == "none"``, enabling
+    single-encoder mode via :class:`SingleEncoderWrapper` in
+    :func:`build_combined_encoder`.
+    """
     enc = cfg.encoder2
+    if enc.type == "none":
+        return None
     nlp_tool_name = enc.get("nlp_tool", "spacy")
     nlp_tool = build_nlp_tool(nlp_tool_name)
     if enc.type == "bow_sdp":
@@ -591,6 +647,28 @@ def build_encoder2(cfg: DictConfig, device: str) -> nn.Module:
     if enc.type == "verbalized_sdp":
         return VerbalizedSDPEncoder(nlp_tool=nlp_tool, model_name=enc.model_name, device=device)
     raise ValueError(f"Unknown encoder2 type: {enc.type!r}")
+
+
+def build_combined_encoder(
+    encoder1: nn.Module,
+    encoder2: nn.Module | None,
+) -> nn.Module:
+    """Return a :class:`CombineEmbeddings` or :class:`SingleEncoderWrapper`.
+
+    Args:
+        encoder1: always required.
+        encoder2: second encoder, or ``None`` for single-encoder mode.
+
+    Returns:
+        :class:`CombineEmbeddings` when both encoders are provided;
+        :class:`SingleEncoderWrapper` wrapping *encoder1* when *encoder2*
+        is ``None``.
+    """
+    if encoder2 is None:
+        logger.info("Single-encoder mode — wrapping encoder1 with SingleEncoderWrapper")
+        return SingleEncoderWrapper(encoder1)
+    logger.info("Dual-encoder mode — combining encoders with CombineEmbeddings")
+    return CombineEmbeddings(encoder1, encoder2)
 
 
 # ---------------------------------------------------------------------------
@@ -626,7 +704,7 @@ def main(cfg: DictConfig) -> None:
             "encoder1_model": cfg.encoder1.get("model_name", "n/a"),
             "encoder2_type": cfg.encoder2.type,
             "encoder2_model": cfg.encoder2.get("model_name", "n/a"),
-            "encoder2_nlp_tool": cfg.encoder2.get("nlp_tool", "spacy"),
+            "encoder2_nlp_tool": cfg.encoder2.get("nlp_tool", "n/a"),
             "batch_size": cfg.training.batch_size,
             "lr": cfg.training.lr,
             "max_epoch": cfg.training.max_epoch,
@@ -650,7 +728,7 @@ def main(cfg: DictConfig) -> None:
             logger.info("Building encoder2 (%s) …", cfg.encoder2.type)
             encoder2 = build_encoder2(cfg, device)
 
-            combine = CombineEmbeddings(encoder1, encoder2)
+            combine = build_combined_encoder(encoder1, encoder2)
 
             # ── Model ───────────────────────────────────────────────────────
             model = SoftmaxMLP(
