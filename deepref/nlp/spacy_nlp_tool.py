@@ -1,7 +1,8 @@
 import spacy
 import subprocess
-from deepref.nlp.nlp_tool import NLPTool
 import sys
+
+from deepref.nlp.nlp_tool import NLPTool, ParsedToken
 
 class SpacyNLPTool(NLPTool):
     def __init__(self, model:str = None):
@@ -23,5 +24,20 @@ class SpacyNLPTool(NLPTool):
             for i in range(ent.start, ent.end):
                 ner[i] = ent.label_
         assert len([token.text for token in doc]) == len(upos) == len(deps) == len(ner)
-                
+
         return tokens, upos, deps, ner
+
+    def parse_for_sdp(self, sentence: str) -> list[ParsedToken]:
+        """Parse *sentence* with spaCy and return a list of :class:`ParsedToken` objects."""
+        doc = self.nlp(sentence)
+        return [
+            ParsedToken(
+                idx=token.i,
+                text=token.text,
+                dep_=token.dep_,
+                head_idx=token.head.i,
+                char_start=token.idx,
+                char_end=token.idx + len(token.text),
+            )
+            for token in doc
+        ]

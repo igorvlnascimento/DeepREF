@@ -4,6 +4,11 @@ from transformers import AutoModel, AutoTokenizer
 
 from deepref.encoder.sentence_encoder import SentenceEncoder
 
+from pathlib import Path
+
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
+CACHE_DIR = str(BASE_DIR / "tmp")
+
 
 class LLMEncoder(SentenceEncoder):
     """Concrete sentence encoder backed by a HuggingFace transformer.
@@ -37,6 +42,8 @@ class LLMEncoder(SentenceEncoder):
             trust_remote_code=True,
             torch_dtype=torch.float16,
             attn_implementation=attn_implementation,
+            cache_dir=CACHE_DIR
+            
         ).to(device)
 
         if not trainable:

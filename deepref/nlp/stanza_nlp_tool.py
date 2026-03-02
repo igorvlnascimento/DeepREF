@@ -1,7 +1,8 @@
 import os
 import stanza
 from stanza.pipeline.core import DownloadMethod
-from deepref.nlp.nlp_tool import NLPTool
+
+from deepref.nlp.nlp_tool import NLPTool, ParsedToken
 
 
 class StanzaNLPTool(NLPTool):
@@ -63,3 +64,24 @@ class StanzaNLPTool(NLPTool):
 
         assert len(words) == len(upos) == len(deps) == len(ner)
         return tokens, upos, deps, ner
+
+    def parse_for_sdp(self, sentence: str) -> list[ParsedToken]:
+        """Parse *sentence* with Stanza and return a list of :class:`ParsedToken` objects.
+
+        Stanza uses 1-based head indices; ROOT tokens carry ``word.head == 0``,
+        which is normalised here to ``head_idx = idx`` (self-loop), matching the
+        spaCy convention used by :class:`~deepref.encoder.sdp_encoder.SDPEncoder`.
+        """
+        doc = self.nlp(sentence)
+        words = [w for sent in doc.sentences for w in sent.words]
+        return [
+            ParsedToken(
+                idx=i,
+                text=w.text,
+                dep_=w.deprel or 'dep',
+                head_idx=w.head - 1 if w.head > 0 else i,
+                char_start=w.start_char,
+                char_end=w.end_char,
+            )
+            for i, w in enumerate(words)
+        ]

@@ -98,12 +98,23 @@ if __name__ == "__main__":
     parser.add_argument("--path", required=True, help="Path to directory containing SemEval2018 XML and txt files")
     args = parser.parse_args()
 
-    preprocessor = SemEval2018Preprocessor()
-    sentences = preprocessor.get_sentences(args.path)
-    tool = SpacyNLPTool("en_core_web_trf")
     if "semeval20181-1" in args.path:
-        preprocessor.write_csv("semeval20181-1", sentences, tool)
+        dataset_name = "semeval20181-1"
     elif "semeval20181-2" in args.path:
-        preprocessor.write_csv("semeval20181-2", sentences, tool)
+        dataset_name = "semeval20181-2"
     else:
-        raise ValueError("Invalid path")
+        raise ValueError("Invalid path: must contain 'semeval20181-1' or 'semeval20181-2'")
+
+    preprocessor = SemEval2018Preprocessor()
+    tool = SpacyNLPTool("en_core_web_trf")
+
+    base = Path(args.path)
+    train_path = next((p for p in base.rglob("Train") if p.is_dir()), None)
+    test_path = next((p for p in base.rglob("Test") if p.is_dir()), None)
+
+    if train_path and test_path:
+        train_sentences = list(preprocessor.get_sentences(str(train_path)))
+        test_sentences = list(preprocessor.get_sentences(str(test_path)))
+        preprocessor.write_split_csvs(dataset_name, train_sentences, test_sentences, tool)
+    else:
+        preprocessor.write_csv(dataset_name, preprocessor.get_sentences(args.path), tool)
