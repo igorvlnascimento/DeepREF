@@ -59,6 +59,7 @@ from deepref.framework.early_stopping import EarlyStopping
 from deepref.framework.sentence_re_trainer import SentenceRETrainer
 from deepref.framework.utils import AverageMeter
 from deepref.model.softmax_mlp import SoftmaxMLP
+from deepref.nlp.nlp_tool import NLPTool
 
 logging.basicConfig(
     level=logging.INFO,
@@ -537,7 +538,7 @@ def build_encoder1(cfg: DictConfig, device: str) -> nn.Module:
     """Instantiate the first encoder from Hydra config."""
     enc = cfg.encoder1
     if enc.type == "relation":
-        return RelationEncoder(model_name=enc.model_name, max_length=enc.max_length)
+        return RelationEncoder(model_name=enc.model_name, max_length=enc.max_length, device=device)
     if enc.type == "llm":
         return LLMEncoder(
             model_name=enc.model_name,
@@ -549,13 +550,26 @@ def build_encoder1(cfg: DictConfig, device: str) -> nn.Module:
     raise ValueError(f"Unknown encoder1 type: {enc.type!r}")
 
 
+def build_nlp_tool(name: str) -> NLPTool:
+    """Instantiate an NLP tool by name (``'spacy'`` or ``'stanza'``)."""
+    if name == "spacy":
+        from deepref.nlp.spacy_nlp_tool import SpacyNLPTool
+        return SpacyNLPTool()
+    if name == "stanza":
+        from deepref.nlp.stanza_nlp_tool import StanzaNLPTool
+        return StanzaNLPTool()
+    raise ValueError(f"Unknown NLP tool: {name!r}. Choose 'spacy' or 'stanza'.")
+
+
 def build_encoder2(cfg: DictConfig, device: str) -> nn.Module:
     """Instantiate the second encoder from Hydra config."""
     enc = cfg.encoder2
+    nlp_tool_name = enc.get("nlp_tool", "spacy")
+    nlp_tool = build_nlp_tool(nlp_tool_name)
     if enc.type == "bow_sdp":
-        return BoWSDPEncoder()
+        return BoWSDPEncoder(nlp_tool=nlp_tool)
     if enc.type == "verbalized_sdp":
-        return VerbalizedSDPEncoder(model_name=enc.model_name, device=device)
+        return VerbalizedSDPEncoder(nlp_tool=nlp_tool, model_name=enc.model_name, device=device)
     raise ValueError(f"Unknown encoder2 type: {enc.type!r}")
 
 
@@ -592,6 +606,7 @@ def main(cfg: DictConfig) -> None:
             "encoder1_model": cfg.encoder1.get("model_name", "n/a"),
             "encoder2_type": cfg.encoder2.type,
             "encoder2_model": cfg.encoder2.get("model_name", "n/a"),
+            "encoder2_nlp_tool": cfg.encoder2.get("nlp_tool", "spacy"),
             "batch_size": cfg.training.batch_size,
             "lr": cfg.training.lr,
             "max_epoch": cfg.training.max_epoch,
