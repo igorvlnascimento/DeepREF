@@ -64,6 +64,10 @@ class RelationEncoder(LLMEncoder):
         onehot_e2   = torch.zeros(hidden.size()[:2]).float().to(hidden.device)  # (B, L)
         onehot_mask = torch.zeros(hidden.size()[:2]).float().to(hidden.device)  # (B, L)
 
+        pos_e1   = pos_e1.to(hidden.device)
+        pos_e2   = pos_e2.to(hidden.device)
+        pos_mask = pos_mask.to(hidden.device)
+
         onehot_e1   = onehot_e1.scatter_(1, pos_e1, 1)
         onehot_e2   = onehot_e2.scatter_(1, pos_e2, 1)
         onehot_mask = onehot_mask.scatter_(1, pos_mask, 1)
