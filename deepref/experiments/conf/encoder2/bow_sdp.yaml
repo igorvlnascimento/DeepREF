@@ -1,2 +1,3 @@
-type: bow_sdp
-nlp_tool: spacy
+# @package _global_
+encoder2:
+  type: bow_sdp

@@ -7,6 +7,7 @@ import torch
 from tqdm import tqdm
 
 from deepref.dataset.re_dataset import REDataset, RELoader
+from deepref.framework.early_stopping import EarlyStopping
 from deepref.framework.utils import AverageMeter
 from deepref.model.base_model import SentenceRE
 
@@ -90,25 +91,35 @@ class SentenceRETrainer(nn.Module):
 
     def train_model(self, warmup=True, metric='acc'):
         best_metric = 0
+        patience = self.training_parameters.get("patience", 0)
+        early_stopper = EarlyStopping(patience=patience)
         for epoch in range(self.max_epoch):
             logging.info("=== Epoch %d train ===" % epoch)
-            self.iterate_loader(self.train_loader, 
-                                warmup=warmup, 
+            self.iterate_loader(self.train_loader,
+                                warmup=warmup,
                                 training=True)
-        
-            # Val 
+
+            # Val
             logging.info("=== Epoch %d val ===" % epoch)
             result, _, _  = self.eval_model(self.test_loader)
             #self.results_per_epoch(ground_truth, pred_labels, result, epoch)
             logging.info('Metric {} current / best: {} / {}'.format(metric, result[metric], best_metric))
 
-            if result[metric] > best_metric:
+            improved = result[metric] > best_metric
+            if improved:
                 logging.info("Best ckpt and saved.")
                 folder_path = '/'.join(self.ckpt.split('/')[:-1])
                 if not os.path.exists(folder_path):
                     os.mkdir(folder_path)
                 torch.save({'state_dict': self.model.state_dict()}, self.ckpt)
                 best_metric = result[metric]
+
+            if early_stopper.step(improved):
+                logging.info(
+                    "Early stopping triggered after epoch %d (no improvement for %d epochs)",
+                    epoch, patience,
+                )
+                break
         logging.info("Best %s on val set: %f" % (metric, best_metric))
 
     def eval_model(self, eval_loader):

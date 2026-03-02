@@ -1,3 +1,4 @@
+import re
 from abc import ABC, abstractmethod
 from collections import defaultdict
 
@@ -54,15 +55,48 @@ class DatasetPreprocessor(ABC):
     @abstractmethod
     def get_sentences(self, path):
         ...
-    
-    def write_csv(self, dataset_name, sentences, nlp_tool):
+
+    def remove_entity_marks(self, sentence: str) -> str:
+        """Remove all ENTITY* marker tokens from a tagged sentence."""
+        pattern = (
+            r'\b(ENTITYSTART|ENTITYEND'
+            r'|ENTITYOTHERSTART|ENTITYOTHEREND'
+            r'|ENTITYUNRELATEDSTART|ENTITYUNRELATEDEND)\b'
+        )
+        return self.remove_whitespace(re.sub(pattern, '', sentence))
+
+    def _build_df(self, sentences, nlp_tool) -> pd.DataFrame:
         out = defaultdict(list)
         example_generator = ExampleGenerator(nlp_tool=nlp_tool)
         for tagged_sentence, relation in tqdm(sentences):
             example_dict = example_generator.generate(tagged_sentence, relation)
             for k, v in example_dict.items():
-                out[k].append(" ".join(v))
-        df = pd.DataFrame(out)
+                out[k].append(" ".join(v) if isinstance(v, list) else v)
+        return pd.DataFrame(out)
+
+    def write_csv(self, dataset_name, sentences, nlp_tool):
+        df = self._build_df(sentences, nlp_tool)
         output_path = f"benchmark/{dataset_name}.csv"
         df.to_csv(output_path, sep='\t', encoding='utf-8', index=False)
         print(f"Written {len(df)} rows to {output_path}")
+
+    def write_split_csvs(self, dataset_name, train_sentences, test_sentences, nlp_tool):
+        """Write separate train and test CSV files using the dataset's natural split.
+
+        Outputs:
+            benchmark/{dataset_name}_train.csv
+            benchmark/{dataset_name}_test.csv
+        """
+        print(f"Processing train split for '{dataset_name}' …")
+        train_df = self._build_df(train_sentences, nlp_tool)
+        print(f"Processing test split for '{dataset_name}' …")
+        test_df = self._build_df(test_sentences, nlp_tool)
+
+        train_path = f"benchmark/{dataset_name}_train.csv"
+        test_path = f"benchmark/{dataset_name}_test.csv"
+
+        train_df.to_csv(train_path, sep='\t', encoding='utf-8', index=False)
+        test_df.to_csv(test_path, sep='\t', encoding='utf-8', index=False)
+
+        print(f"Written {len(train_df)} rows to {train_path}")
+        print(f"Written {len(test_df)} rows to {test_path}")
