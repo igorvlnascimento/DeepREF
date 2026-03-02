@@ -6,99 +6,144 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ### Installation
 ```bash
-pip install -r requirements.txt
-python setup.py develop
-# or with uv:
 uv sync
+# or:
+pip install -r requirements.txt && python setup.py develop
 ```
+Requires Python ≥ 3.13.
 
 ### Running Tests
 ```bash
-# Run all tests
+# All tests
 pytest deepref/tests/
 
-# Run a specific test file
-pytest deepref/tests/test_config.py
+# Single file or test
+pytest deepref/tests/framework/test_sentence_re_trainer.py
+pytest deepref/tests/framework/test_sentence_re_trainer.py::TestEarlyStopping::test_disabled_when_patience_zero
 
-# Run a specific test
-pytest deepref/tests/test_config.py::test_should_return_correct_preprocessing_combinations_while_combining
+# Skip integration tests (require large model downloads / GPU)
+pytest deepref/tests/ -m "not integration"
 ```
 
 ### Training
 ```bash
-# Train with default dataset (semeval2010), reads hyperparams from deepref/hyperparameters/hyperparams_<dataset>.json
+# Reads/creates deepref/hyperparameters/hyperparams_<dataset>.json automatically
 python deepref/framework/train.py --dataset semeval2010
 ```
+
+### Combine-Embeddings Experiment (Hydra + MLflow)
+```bash
+# Single run (defaults: relation + bow_sdp, semeval2010)
+python deepref/experiments/run_combine_embeddings_experiments.py
+
+# All 4 encoder combinations via multirun
+python deepref/experiments/run_combine_embeddings_experiments.py \
+    --multirun encoder1=relation,llm encoder2=bow_sdp,verbalized_sdp
+
+# Override individual training params
+python deepref/experiments/run_combine_embeddings_experiments.py \
+    training.patience=1 training.max_epoch=5
+```
+MLflow tracking URI and experiment name are set in `deepref/experiments/conf/combine_experiment.yaml`. Run `mlflow ui` to inspect results.
 
 ### Hyperparameter Optimization
 ```bash
 python deepref/optimization/bo_optimizer.py -d semeval2010 -m micro_f1 -t 50
-# -d: dataset (semeval2010, semeval20181-1, semeval20181-2, ddi)
-# -m: metric (micro_f1, macro_f1, acc)
+# -d: semeval2010 | semeval20181-1 | semeval20181-2 | ddi
+# -m: micro_f1 | macro_f1 | acc
 # -t: number of Optuna trials
 ```
 
 ### Dataset Download & Preprocessing
 ```bash
 bash benchmark/download_<dataset_name>.sh
-# Optionally configure NLP tool before preprocessing:
-export NLP_TOOL=spacy  # or stanza
+# NLP tool selection (spacy is faster; stanza is more accurate):
+export NLP_TOOL=spacy   # or stanza
 export NLP_MODEL=en_core_web_sm
 ```
+HuggingFace model weights and tokenizer caches are stored in `tmp/`.
+
+---
 
 ## Architecture
 
-DeepREF is a framework for deep learning-based relation classification (sentence-level NLP task). The codebase was initially based on OpenNRE and adds optimization, preprocessing, and fine-tuning capabilities.
+DeepREF is a sentence-level relation classification framework. The core pipeline converts raw datasets → CSV → preprocessed TXT → training.
 
 ### Data Flow
-1. **Raw datasets** → downloaded via `benchmark/download_<dataset>.sh` scripts
-2. **Converters** (`deepref/dataset/converters/`) → transform raw data into standard CSV format stored in `benchmark/<dataset>/original/`
-3. **Preprocessors** (`deepref/dataset/preprocessors/`) → apply text transformations and write `.txt` files to `benchmark/<dataset>/<preprocessing_str>/`
-4. **Training** (`deepref/framework/train.py`) → loads `.txt` files, builds encoder + model, trains and evaluates
+1. **Download** — `benchmark/download_<dataset>.sh` fetches raw files.
+2. **Convert** — `deepref/dataset/converters/<dataset>_converter.py` transforms raw data into tab-separated CSV (`benchmark/<dataset>/original/`) with columns: `original_sentence, e1, e2, relation_type, pos_tags, dependencies_labels, ner, sk_entities`. Entity fields are JSON-serialized dicts with `name` and `position`.
+3. **Preprocess** — `deepref/dataset/preprocessors/` applies text transforms (see codes below) and writes per-line Python-dict `.txt` files to `benchmark/<dataset>/<preprocessing_str>/`.
+4. **Train** — `deepref/framework/train.py` loads TXT files, instantiates encoder + model, trains, and evaluates.
+
+Preprocessing codes: `eb` (entity blinding), `nb` (NER blinding), `d` (digit blinding), `b` (bracket removal), `p` (punctuation removal), `sw` (stopword removal). Combinations are stored as sorted strings, e.g. `"b+d+sw"`.
+
+### Encoder Hierarchy
+
+All encoders ultimately extend `nn.Module`.
+
+```
+SentenceEncoder (abstract, deepref/encoder/sentence_encoder.py)
+└── LLMEncoder   (deepref/encoder/llm_encoder.py)
+    │   Loads AutoModel + AutoTokenizer; registers <e1></e1><e2></e2> tokens;
+    │   forward(texts) → L2-normalised average-pool embeddings (B, H).
+    │   Model weights cached in tmp/.
+    ├── RelationEncoder  (deepref/encoder/relation_encoder.py)
+    │     Formats input as: "<e1>head</e1> … <e2>tail</e2> … [MASK]"
+    │     forward() → concat of hidden states at <e1>, <e2>, [MASK] → (B, 3H)
+    └── VerbalizedSDPEncoder  (deepref/encoder/sdp_encoder.py)
+          Inherits both SDPEncoder (spaCy BFS) and LLMEncoder.
+          Verbalizes the shortest dependency path, then encodes via LLMEncoder.
+
+SDPEncoder (abstract, deepref/encoder/sdp_encoder.py)
+    Provides spaCy en_core_web_trf parsing, BFS shortest-dependency-path,
+    and verbalization: "Sentence … | Entity-1: […] | Entity-2: […] | Dependency path: …"
+└── BoWSDPEncoder(SDPEncoder, SentenceEncoder)
+      No transformer. forward(item) → multi-hot tensor over dep_vocab (len_vocab,).
+```
+
+`bert_encoder.py` and `base_bert_encoder.py` are legacy encoders kept for backward compatibility.
 
 ### Key Modules
 
-**`deepref/config.py`** — Central configuration: lists all valid `DATASETS`, `MODELS`, `METRICS`, `PREPROCESSING_TYPES`, `PRETRAIN_WEIGHTS`, and default `HPARAMS`. Add new datasets/models here.
+**`deepref/config.py`** — Canonical lists of valid `DATASETS`, `MODELS`, `METRICS`, `PREPROCESSING_TYPES`, `PRETRAIN_WEIGHTS`, and default `HPARAMS`. Any new dataset or model must be registered here.
 
 **`deepref/framework/`**
-- `train.py` — `Training` class orchestrates the full pipeline: preprocessing, encoder selection, model creation, training loop
-- `sentence_re.py` / `sentence_re_trainer.py` — Core training/eval framework wrapping PyTorch
-- `fine_tuner.py` — Alternative LoRA-based fine-tuning path using HuggingFace `Trainer` + PEFT
-- `data_loader.py` — `SentenceREDataset` / `SentenceRELoader` for the `.txt`-format data; `BagREDataset` for bag-level RE
-
-**`deepref/encoder/`**
-- `sentence_encoder.py` — `SentenceEncoder`: generic HuggingFace `AutoModel` wrapper with entity special tokens (`<e1>`, `</e1>`, `<e2>`, `</e2>`) and average pooling
-- `bert_encoder.py` — `BERTEncoder` (CLS token) and `BERTEntityEncoder` (entity marker positions)
-- `base_bert_encoder.py` — `EBEMEncoder` with optional position/POS/dependency embeddings
+- `train.py` — `Training` class: full pipeline from preprocessing through evaluation. Entry point for standard training.
+- `sentence_re_trainer.py` — `SentenceRETrainer(nn.Module)`: epoch loop, optimizer, warmup scheduler, checkpoint saving. Reads `patience` from `training_parameters` for early stopping.
+- `early_stopping.py` — `EarlyStopping(patience)`: `step(improved) -> bool`. `patience=0` disables it.
+- `fine_tuner.py` — LoRA-based fine-tuning via HuggingFace `Trainer` + PEFT (alternative to `SentenceRETrainer`).
+- `data_loader.py` — `SentenceREDataset` / `SentenceRELoader` for TXT-format data.
 
 **`deepref/model/`**
-- `softmax_nn.py` — `SoftmaxNN`: wraps an encoder + linear classifier head (primary model)
-- `softmax_mlp.py` — MLP variant
-- `pairwise_ranking_loss.py` — Custom loss for CRCNN model
+- `softmax_nn.py` — `SoftmaxNN`: encoder + linear head (standard model).
+- `softmax_mlp.py` — `SoftmaxMLP`: encoder + MLP head; used by combine-embeddings experiments.
 
 **`deepref/dataset/`**
-- `re_dataset.py` — `REDataset`: PyTorch Dataset reading from CSV (used by `FineTuner`)
-- `dataset.py` — `Dataset`: manages `Sentence` objects and writes to `.txt`/CSV formats
-- `sentence.py` — `Sentence`: holds token, entity, POS, dependency, NER, and relation data
-- `converters/` — One converter per dataset, inheriting `DatasetConverter`; must implement `get_entity_dict()` and `get_sentences()` (generator with `yield`)
-- `preprocessors/` — One preprocessor per text transformation type (`sw`, `p`, `b`, `d`, `eb`, `nb`)
+- `re_dataset.py` — `REDataset`: PyTorch Dataset over CSV; used by `FineTuner` and combine-embeddings experiments.
+- `converters/` — One `DatasetConverter` subclass per dataset; must implement `get_entity_dict()` and `get_sentences()` (generator with `yield`).
+- `preprocessors/` — One class per preprocessing type.
+
+**`deepref/experiments/`**
+- `run_combine_embeddings_experiments.py` — Hydra-driven experiment that concatenates two encoder embeddings via `CombineEmbeddings`, trains `SoftmaxMLP` using `CombineRETrainer` (a `SentenceRETrainer` subclass), and logs all metrics + params to MLflow.
+- `conf/combine_experiment.yaml` — Default config (`training.patience: 3`, `training.max_epoch: 5`, etc.).
+- `conf/encoder1/` and `conf/encoder2/` — Hydra config groups for encoder selection.
+- `conf/dataset/` — Per-dataset CSV paths.
 
 **`deepref/optimization/`**
-- `bo_optimizer.py` — Bayesian optimization via Optuna (TPE sampler + Hyperband pruner); saves result visualizations to `results/<dataset>/`
+- `bo_optimizer.py` — Optuna TPE + Hyperband Bayesian optimization over preprocessing × model × hyperparameter space.
 
 ### Hyperparameter Files
-`deepref/hyperparameters/hyperparams_<dataset>.json` — JSON file specifying model, pretrain weights, batch size, lr, preprocessing list, and embedding flags for a given dataset. Auto-created with defaults if missing.
+`deepref/hyperparameters/hyperparams_<dataset>.json` — auto-created with defaults on first run. Specifies model, pretrain weights, batch size, lr, preprocessing list, and embedding flags.
+
+### Data Formats
+- **CSV**: tab-separated; `benchmark/<dataset>/original/`; columns `original_sentence, e1, e2, relation_type, pos_tags, dependencies_labels, ner, sk_entities`.
+- **TXT**: one Python dict string per line; keys `token, h, t, relation, pos_tags, deps, ner, sk`; `benchmark/<dataset>/<preprocessing_str>/`.
+- **rel2id JSON**: `benchmark/<dataset>/<dataset>_rel2id.json` — relation name → integer id.
+- **Checkpoints**: `ckpt/<dataset>_<model>.pth.tar`.
+- **Results**: `results/<dataset>/ResultsDeepREF_<dataset>_<datetime>.txt`.
 
 ### Adding New Components
 
-**New model**: Create encoder in `deepref/encoder/`, register in `deepref/encoder/__init__.py`, add name to `MODELS` in `deepref/config.py`, add instantiation logic in `deepref/framework/train.py`.
+**New encoder**: Subclass `LLMEncoder` (or `SentenceEncoder` for non-transformer encoders). Register in `deepref/encoder/__init__.py` and add to `MODELS` in `deepref/config.py`. Add instantiation logic in `deepref/framework/train.py`.
 
-**New dataset**: Add download script `benchmark/download_<dataset>.sh`, create converter in `deepref/dataset/converters/` inheriting `DatasetConverter`, add dataset name to `DATASETS` in `deepref/config.py`.
-
-### Data Formats
-- **CSV** (intermediate): columns `original_sentence, e1, e2, relation_type, pos_tags, dependencies_labels, ner, sk_entities`; tab-separated; stored in `benchmark/<dataset>/original/`
-- **TXT** (training input): each line is a Python dict string with keys `token, h, t, relation, pos_tags, deps, ner, sk`; stored in `benchmark/<dataset>/<preprocessing_str>/`
-- **rel2id JSON**: `benchmark/<dataset>/<dataset>_rel2id.json` — maps relation name → integer id
-
-### Results
-Training results written to `results/<dataset>/ResultsDeepREF_<dataset>_<datetime>.txt`. Model checkpoints saved to `ckpt/<dataset>_<model>.pth.tar`.
+**New dataset**: Add `benchmark/download_<dataset>.sh`, create `deepref/dataset/converters/<dataset>_converter.py` inheriting `DatasetConverter`, add to `DATASETS` in `deepref/config.py`.
