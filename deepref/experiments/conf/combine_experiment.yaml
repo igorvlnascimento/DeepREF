@@ -10,13 +10,13 @@ mlflow:
 
 training:
   lr: 2.0e-5
-  max_epoch: 5
-  batch_size: 32
+  max_epoch: 3
+  batch_size: 64
   num_mlp_layers: 3
   dropout: 0.1
   opt: adamw
-  weight_decay: 0.0
-  warmup_step: 0
+  weight_decay: 1e-5
+  warmup_step: 300
   seed: 42
   patience: 3
 
