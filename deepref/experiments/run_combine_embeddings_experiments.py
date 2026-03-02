@@ -269,7 +269,7 @@ class CombineEmbeddings(nn.Module):
         batch_embs: list[torch.Tensor] = []
         for item in items:
             emb1 = self._encode_single(self.encoder1, item)
-            emb2 = self._encode_single(self.encoder2, item)
+            emb2 = self._encode_single(self.encoder2, item).to(emb1.device)
             batch_embs.append(torch.cat([emb1, emb2], dim=0))
         return torch.stack(batch_embs, dim=0)  # (B, H1+H2)
 

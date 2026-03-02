@@ -105,11 +105,13 @@ SDPEncoder (abstract, deepref/encoder/sdp_encoder.py)
 
 ### Key Modules
 
+**`deepref/utils/model_registry.py`** — `ModelRegistry` singleton that caches HuggingFace models/tokenizers across all encoders. All `LLMEncoder` subclasses use it. Key methods: `load(model_name, device, attn_implementation, trainable)`, `tokenize()`, `run()`, `run_from_input_ids()`, `get_model_hidden_size()`. Special tokens `<e1>`, `</e1>`, `<e2>`, `</e2>` are registered automatically on first load. Models are frozen by default (`trainable=False`).
+
 **`deepref/config.py`** — Canonical lists of valid `DATASETS`, `MODELS`, `METRICS`, `PREPROCESSING_TYPES`, `PRETRAIN_WEIGHTS`, and default `HPARAMS`. Any new dataset or model must be registered here.
 
 **`deepref/framework/`**
 - `train.py` — `Training` class: full pipeline from preprocessing through evaluation. Entry point for standard training.
-- `sentence_re_trainer.py` — `SentenceRETrainer(nn.Module)`: epoch loop, optimizer, warmup scheduler, checkpoint saving. Reads `patience` from `training_parameters` for early stopping.
+- `sentence_re_trainer.py` — `SentenceRETrainer(nn.Module)`: epoch loop, optimizer (AdamW for LLM models, SGD otherwise), 300-step linear warmup scheduler, checkpoint saving. Reads `patience` from `training_parameters` for early stopping. `CombineRETrainer` in `experiments/` is a subclass used for combine-embeddings runs.
 - `early_stopping.py` — `EarlyStopping(patience)`: `step(improved) -> bool`. `patience=0` disables it.
 - `fine_tuner.py` — LoRA-based fine-tuning via HuggingFace `Trainer` + PEFT (alternative to `SentenceRETrainer`).
 - `data_loader.py` — `SentenceREDataset` / `SentenceRELoader` for TXT-format data.
@@ -129,6 +131,10 @@ SDPEncoder (abstract, deepref/encoder/sdp_encoder.py)
 - `conf/encoder1/` and `conf/encoder2/` — Hydra config groups for encoder selection.
 - `conf/dataset/` — Per-dataset CSV paths.
 
+**`deepref/nlp/`**
+- `nlp_tool.py` — Abstract `NLPTool` interface for dependency parsing and NER.
+- `spacy_nlp_tool.py` / `stanza_nlp_tool.py` — Concrete implementations. Selected at runtime via `NLP_TOOL` env var (`spacy` or `stanza`). SpaCy is faster; Stanza is more accurate.
+
 **`deepref/optimization/`**
 - `bo_optimizer.py` — Optuna TPE + Hyperband Bayesian optimization over preprocessing × model × hyperparameter space.
 
@@ -144,6 +150,6 @@ SDPEncoder (abstract, deepref/encoder/sdp_encoder.py)
 
 ### Adding New Components
 
-**New encoder**: Subclass `LLMEncoder` (or `SentenceEncoder` for non-transformer encoders). Register in `deepref/encoder/__init__.py` and add to `MODELS` in `deepref/config.py`. Add instantiation logic in `deepref/framework/train.py`.
+**New encoder**: Subclass `LLMEncoder` (or `SentenceEncoder` for non-transformer encoders). Call `ModelRegistry().load(model_name, device)` in `__init__` and use `ModelRegistry()` methods for tokenization and inference — do not load models directly. Register in `deepref/encoder/__init__.py` and add to `MODELS` in `deepref/config.py`. Add instantiation logic in `deepref/framework/train.py`.
 
 **New dataset**: Add `benchmark/download_<dataset>.sh`, create `deepref/dataset/converters/<dataset>_converter.py` inheriting `DatasetConverter`, add to `DATASETS` in `deepref/config.py`.
