@@ -3,6 +3,7 @@ import torch.nn.functional as F
 from transformers import AutoModel, AutoTokenizer
 
 from deepref.encoder.sentence_encoder import SentenceEncoder
+from deepref.utils.model_registry import ModelRegistry
 
 
 class LLMEncoder(SentenceEncoder):
@@ -32,21 +33,13 @@ class LLMEncoder(SentenceEncoder):
         trainable=False,
     ):
         super().__init__()
-        self.model = AutoModel.from_pretrained(
-            model_name,
-            trust_remote_code=True,
-            torch_dtype=torch.float16,
-            attn_implementation=attn_implementation,
-        ).to(device)
+        self.registry = ModelRegistry()
+        self.registry.load(model_name, 
+                           device=device, 
+                           trainable=trainable, 
+                           attn_implementation=attn_implementation)
 
-        if not trainable:
-            self.freeze_model()
-
-        self.tokenizer = AutoTokenizer.from_pretrained(model_name)
-        self.tokenizer.add_special_tokens({
-            "additional_special_tokens": ["<e1>", "</e1>", "<e2>", "</e2>"]
-        })
-        self.model.resize_token_embeddings(len(self.tokenizer))
+        self.model_name = model_name
 
         self.max_length = max_length
         self.padding_side = padding_side
@@ -73,12 +66,11 @@ class LLMEncoder(SentenceEncoder):
         Returns:
             dict with ``'input_ids'`` and ``'attention_mask'`` tensors.
         """
-        return self.tokenizer(
+        return self.registry.tokenize(
+            self.model_name,
             item,
             max_length=self.max_length,
             padding="max_length",
-            truncation=True,
-            return_tensors="pt",
         )
 
     def forward(self, texts: str | list[str]) -> torch.Tensor:
@@ -90,13 +82,7 @@ class LLMEncoder(SentenceEncoder):
         Returns:
             Float32 tensor of shape ``(N, hidden_dim)``, L2-normalised.
         """
-        device = next(self.model.parameters()).device
-        batch = self.tokenize(texts)
-        batch = {k: v.to(device) for k, v in batch.items()}
-        model_outputs = self.model(**batch)
+
+        model_outputs, batch = self.registry.run(self.model_name, texts)
         return self.average_pool(model_outputs.last_hidden_state, batch["attention_mask"])
 
-    def freeze_model(self):
-        """Freeze all model parameters."""
-        for p in self.model.parameters():
-            p.requires_grad = False

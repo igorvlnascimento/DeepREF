@@ -21,7 +21,13 @@ class RelationEncoder(LLMEncoder):
     returns their concatenation as the sentence representation.
     """
 
-    def __init__(self, model_name, max_length=512, blank_padding=True):
+    def __init__(self, 
+                 model_name, 
+                 max_length=512, 
+                 blank_padding=True, 
+                 device="cpu", 
+                 attn_implementation="eager", 
+                 trainable=False):
         """
         Args:
             model_name: HuggingFace model name or local path
@@ -29,12 +35,16 @@ class RelationEncoder(LLMEncoder):
             blank_padding: pad/truncate sequences to ``max_length``
         """
         logging.info('Loading {} pre-trained checkpoint.'.format(model_name))
-        super().__init__(model_name, max_length=max_length)
+        super().__init__(model_name, 
+                         max_length=max_length, 
+                         device=device, 
+                         attn_implementation=attn_implementation, 
+                         trainable=trainable)
 
         self.blank_padding = blank_padding
 
         # Output dimension: concatenation of e1, e2, and mask hidden states
-        self.hidden_size = self.model.config.hidden_size * 3
+        self.hidden_size = self.registry.get_model_hidden_size(model_name) * 3
 
     def forward(self, token, att_mask, pos_e1, pos_e2, pos_mask):
         """
@@ -47,7 +57,7 @@ class RelationEncoder(LLMEncoder):
         Return:
             (B, 3H) concatenated e1 / e2 / mask hidden states
         """
-        outputs = self.model(token, attention_mask=att_mask)
+        outputs, _ = self.registry.run_from_input_ids(self.model_name, token, attention_mask=att_mask)
         hidden = outputs.last_hidden_state  # (B, L, H)
 
         onehot_e1   = torch.zeros(hidden.size()[:2]).float().to(hidden.device)  # (B, L)
@@ -109,10 +119,10 @@ class RelationEncoder(LLMEncoder):
         # Tokenize each sentence segment individually
         if is_token:
             def _tok(span):
-                return self.tokenizer.tokenize(' '.join(span))
+                return self.registry.tokenize_as_str(self.model_name, ' '.join(span))
         else:
             def _tok(span):
-                return self.tokenizer.tokenize(span)
+                return self.registry.tokenize_as_str(self.model_name, span)
 
         sent0   = _tok(sentence[:pos_min[0]])
         ent_min = _tok(sentence[pos_min[0]:pos_min[1]])
@@ -129,14 +139,16 @@ class RelationEncoder(LLMEncoder):
             ent_max_marked = ['<e1>'] + ent_max + ['</e1>']
 
         # Relation prompt with the model's native mask token
-        prompt_tokens = self.tokenizer.tokenize(
+        prompt_tokens = self.registry.tokenize_as_str(self.model_name,
             f"The relation between {head_name} and {tail_name} is"
         )
-        mask_token = self.tokenizer.mask_token  # '[MASK]' / '<mask>' / …
+        mask_token = self.registry.get_tokenizer_mask_token(self.model_name) # '[MASK]' / '<mask>' / …
 
         # Model-specific sequence boundaries (CLS / SEP, BOS / EOS, …)
-        cls = [self.tokenizer.cls_token] if self.tokenizer.cls_token else []
-        sep = [self.tokenizer.sep_token] if self.tokenizer.sep_token else []
+        cls_token = self.registry.get_tokenizer_cls_token(self.model_name)
+        sep_token = self.registry.get_tokenizer_sep_token(self.model_name)
+        cls = [cls_token] if cls_token else []
+        sep = [sep_token] if sep_token else []
 
         re_tokens = (cls
                      + sent0 + ent_min_marked + sent1 + ent_max_marked + sent2
@@ -148,12 +160,14 @@ class RelationEncoder(LLMEncoder):
         idx_e2   = min(self.max_length - 1, re_tokens.index('<e2>'))
         idx_mask = min(self.max_length - 1, re_tokens.index(mask_token))
 
-        indexed_tokens = self.tokenizer.convert_tokens_to_ids(re_tokens)
+        indexed_tokens = self.registry.convert_tokens_to_ids(self.model_name, re_tokens)
         avai_len = len(indexed_tokens)
 
         # Pad or truncate to max_length
         if self.blank_padding:
-            pad_id = self.tokenizer.pad_token_id if self.tokenizer.pad_token_id is not None else 0
+            pad_token_id = self.registry.get_tokenizer_pad_token_id(self.model_name)
+
+            pad_id = pad_token_id if pad_token_id is not None else 0
             while len(indexed_tokens) < self.max_length:
                 indexed_tokens.append(pad_id)
             indexed_tokens = indexed_tokens[:self.max_length]
