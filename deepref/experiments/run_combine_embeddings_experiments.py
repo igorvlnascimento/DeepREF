@@ -211,7 +211,7 @@ class CombineEmbeddings(nn.Module):
             return len(encoder.dep_vocab)
         # LLMEncoder (and VerbalizedSDPEncoder which inherits it)
         if isinstance(encoder, LLMEncoder):
-            return encoder.model.config.hidden_size
+            return encoder.registry.get_model_hidden_size(encoder.model_name)
         raise ValueError(
             f"Cannot determine hidden size for encoder type: {type(encoder)}"
         )

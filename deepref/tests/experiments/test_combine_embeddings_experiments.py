@@ -107,8 +107,8 @@ def mock_llm_encoder():
     mock_model = _make_mock_model(MOCK_HIDDEN)
     mock_tokenizer = MagicMock()
     with (
-        patch("deepref.encoder.llm_encoder.AutoModel.from_pretrained", return_value=mock_model),
-        patch("deepref.encoder.llm_encoder.AutoTokenizer.from_pretrained", return_value=mock_tokenizer),
+        patch("deepref.utils.model_registry.AutoModel.from_pretrained", return_value=mock_model),
+        patch("deepref.utils.model_registry.AutoTokenizer.from_pretrained", return_value=mock_tokenizer),
     ):
         enc = LLMEncoder("mock-llm")
     return enc
@@ -125,8 +125,8 @@ def mock_relation_encoder():
     mock_tokenizer.sep_token = "[SEP]"
     mock_tokenizer.pad_token_id = 0
     with (
-        patch("deepref.encoder.llm_encoder.AutoModel.from_pretrained", return_value=mock_model),
-        patch("deepref.encoder.llm_encoder.AutoTokenizer.from_pretrained", return_value=mock_tokenizer),
+        patch("deepref.utils.model_registry.AutoModel.from_pretrained", return_value=mock_model),
+        patch("deepref.utils.model_registry.AutoTokenizer.from_pretrained", return_value=mock_tokenizer),
     ):
         enc = RelationEncoder("mock-relation", max_length=16)
     return enc
@@ -139,10 +139,10 @@ def mock_verbalized_encoder():
     mock_model = _make_mock_model(MOCK_HIDDEN)
     mock_tokenizer = MagicMock()
     with (
-        patch("deepref.encoder.llm_encoder.AutoModel.from_pretrained", return_value=mock_model),
-        patch("deepref.encoder.llm_encoder.AutoTokenizer.from_pretrained", return_value=mock_tokenizer),
+        patch("deepref.utils.model_registry.AutoModel.from_pretrained", return_value=mock_model),
+        patch("deepref.utils.model_registry.AutoTokenizer.from_pretrained", return_value=mock_tokenizer),
     ):
-        enc = VerbalizedSDPEncoder("mock-verbalized")
+        enc = VerbalizedSDPEncoder(nlp_tool=MagicMock(), model_name="mock-verbalized")
     return enc
 
 
