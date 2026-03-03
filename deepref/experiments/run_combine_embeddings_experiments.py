@@ -655,7 +655,7 @@ def build_encoder1(cfg: DictConfig, device: str) -> nn.Module:
             trainable=enc.get("trainable", False),
             attn_implementation=enc.get("attn_implementation", "eager"),
         )
-    if enc.type == "[bert_entity]":
+    if enc.type == "bert_entity":
         return BertEntityEncoder(
             model_name=enc.model_name,
             max_length=enc.max_length,
