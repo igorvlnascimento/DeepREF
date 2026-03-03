@@ -58,7 +58,7 @@ class RelationEncoder(LLMEncoder):
             (B, 3H) concatenated e1 / e2 / mask hidden states
         """
         outputs = self.registry.run_from_input_ids(self.model_name, token, attention_mask=att_mask)
-        hidden = outputs.last_hidden_state  # (B, L, H)
+        hidden = outputs.last_hidden_state.float()  # (B, L, H) — cast to float32
 
         onehot_e1   = torch.zeros(hidden.size()[:2]).float().to(hidden.device)  # (B, L)
         onehot_e2   = torch.zeros(hidden.size()[:2]).float().to(hidden.device)  # (B, L)

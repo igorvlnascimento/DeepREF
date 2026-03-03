@@ -15,10 +15,14 @@ class ModelRegistry:
     def load(self, model_name: str, device="cuda", attn_implementation="eager", trainable=False):
         if model_name not in self._models:
             print(f"Loading {model_name} onto {device}...")
+            # Use float32 for trainable models: float16 gradients overflow
+            # to inf/NaN during the backward pass without gradient scaling.
+            # float16 is kept for frozen models (inference only) to save memory.
+            dtype = torch.float32 if trainable else torch.float16
             self._models[model_name] = {
                 "model": AutoModel.from_pretrained(model_name,
                                                    trust_remote_code=True,
-                                                   torch_dtype=torch.float16,
+                                                   torch_dtype=dtype,
                                                    attn_implementation=attn_implementation).to(device),
                 "tokenizer": AutoTokenizer.from_pretrained(model_name),
                 "device": device,
