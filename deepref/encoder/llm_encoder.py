@@ -38,15 +38,21 @@ class LLMEncoder(SentenceEncoder):
     ):
         super().__init__()
         self.registry = ModelRegistry()
-        self.registry.load(model_name, 
-                           device=device, 
-                           trainable=trainable, 
+        self.registry.load(model_name,
+                           device=device,
+                           trainable=trainable,
                            attn_implementation=attn_implementation)
 
         self.model_name = model_name
-
         self.max_length = max_length
         self.padding_side = padding_side
+
+        # Register the backbone as a proper nn.Module child so that
+        # self.parameters() / the optimizer can reach its weights when
+        # trainable=True.  Frozen models are intentionally left out so
+        # their parameters are never passed to the optimizer.
+        if trainable:
+            self._trainable_backbone = self.registry._models[model_name]["model"]
 
     def train(self, mode: bool = True):
         """Propagate train/eval mode to the backbone stored in ModelRegistry.

@@ -14,9 +14,9 @@ training:
   batch_size: 64
   num_mlp_layers: 3
   dropout: 0.1
-  opt: sgd
+  opt: adamw
   weight_decay: 1e-5
-  warmup_step: 300
+  warmup_step: 0
   seed: 42
   patience: 3
 
