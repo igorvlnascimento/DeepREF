@@ -1,6 +1,5 @@
 import torch
 import torch.nn.functional as F
-from transformers import AutoModel, AutoTokenizer
 
 from deepref.encoder.sentence_encoder import SentenceEncoder
 from deepref.utils.model_registry import ModelRegistry
