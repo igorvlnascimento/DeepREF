@@ -28,11 +28,14 @@ class ModelRegistry:
                 "device": device,
                 "trainable": trainable,
             }
-            self._models[model_name]["tokenizer"].add_special_tokens({
+            n_new = self._models[model_name]["tokenizer"].add_special_tokens({
                 "additional_special_tokens": ["<e1>", "</e1>", "<e2>", "</e2>"]
             })
             self._models[model_name]["model"].resize_token_embeddings(len(self._models[model_name]["tokenizer"]))
-            self._models[model_name]["model"].transformer.wte.weight[-1] = self._models[model_name]["model"].transformer.wte.weight[-2]
+            with torch.no_grad():
+                old_embeddings = self._models[model_name]["model"].get_input_embeddings().weight[:-n_new]
+                avg_embedding = old_embeddings.mean(dim=0)
+                self._models[model_name]["model"].get_input_embeddings().weight[-n_new:] = avg_embedding
             if not trainable:
                 self.freeze_model(model_name)
             print(f"✅ {model_name} loaded onto {device} (trainable={trainable})")
