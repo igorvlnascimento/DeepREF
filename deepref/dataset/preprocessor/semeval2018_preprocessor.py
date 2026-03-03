@@ -1,4 +1,5 @@
 import argparse
+import json
 from tqdm import tqdm
 from pyexpat import ExpatError
 import xml.etree.ElementTree as ET
@@ -10,7 +11,17 @@ from nltk.tokenize.punkt import PunktSentenceTokenizer, PunktParameters
 
 from deepref.nlp.spacy_nlp_tool import SpacyNLPTool
 
-class SemEval2018Preprocessor(DatasetPreprocessor):    
+class SemEval2018Preprocessor(DatasetPreprocessor):
+
+    LABEL_MAP = {
+        1: 'USAGE',
+        2: 'RESULT',
+        3: 'MODEL-FEATURE',
+        4: 'PART_WHOLE',
+        5: 'TOPIC',
+        6: 'COMPARE',
+    }
+
     def get_entity_dict(self, text_elements):
         punk_param = PunktParameters()
         abbreviations = ['e.g', 'viz', 'al']
@@ -49,6 +60,45 @@ class SemEval2018Preprocessor(DatasetPreprocessor):
                         entity_dict_sentence[e]['charOffset'] = [f'{char_offset_start}-{char_offset_end}']
                 yield s, entity_dict_sentence
     
+    def get_entity_dict_from_json(self, doc):
+        """Process a JSON document, yielding (sentence, entity_dict) per sentence.
+
+        Entities are located via char_start/char_end offsets (char_end exclusive)
+        in doc['abstract'].  The yielded entity_dict uses the same charOffset
+        format as get_entity_dict: {'word': str, 'charOffset': ['start-end']}
+        with an inclusive end index.
+        """
+        punk_param = PunktParameters()
+        punk_param.abbrev_types = {'e.g', 'viz', 'al'}
+        tokenizer = PunktSentenceTokenizer(punk_param)
+
+        text = doc.get('abstract', '')
+        entity_dict = {}
+        for entity in doc.get('entities', []):
+            eid = entity['id']
+            start = entity['char_start']
+            end = entity['char_end']  # exclusive
+            word = text[start:end]
+            entity_dict[eid] = {'word': word, 'charOffset': [f'{start}-{end - 1}']}
+
+        sentences = tokenizer.tokenize(text)
+        for i, s in enumerate(sentences):
+            sentences_length = (
+                0 if len(' '.join(sentences[:i])) == 0
+                else len(' '.join(sentences[:i])) + 1
+            )
+            entity_dict_sentence = {}
+            for eid, edata in entity_dict.items():
+                pos_start, pos_end = map(int, edata['charOffset'][0].split('-'))
+                if pos_start >= sentences_length and pos_end <= len(s) + sentences_length:
+                    rel_start = pos_start - sentences_length
+                    rel_end = pos_end - sentences_length
+                    entity_dict_sentence[eid] = {
+                        'word': edata['word'],
+                        'charOffset': [f'{rel_start}-{rel_end}'],
+                    }
+            yield s, entity_dict_sentence
+
     def get_entity_pairs(self, path):
         entity_pairs = {}
         for filepath in Path(path).rglob('*.txt'):
@@ -64,32 +114,82 @@ class SemEval2018Preprocessor(DatasetPreprocessor):
                     e2_id = line[line.find(',')+1:line.find(')')]
                     entity_pairs[e1_id] = {'relation': relation, 'e1': e1_id, 'e2':e2_id}
         return entity_pairs
-    
+
+    def get_entity_pairs_from_json(self, relations):
+        """Build an entity-pair lookup from a JSON relations list.
+
+        Each relation is a dict with keys: label (int), arg1, arg2, reverse (bool).
+        The canonical direction is arg1→arg2; when reverse=True the roles are swapped
+        so that e1 is the true first argument.
+        """
+        entity_pairs = {}
+        for rel in relations:
+            label = self.LABEL_MAP.get(rel['label'], str(rel['label']))
+            if rel.get('reverse', False):
+                e1_id, e2_id = rel['arg2'], rel['arg1']
+            else:
+                e1_id, e2_id = rel['arg1'], rel['arg2']
+            entity_pairs[e1_id] = {'relation': label, 'e1': e1_id, 'e2': e2_id}
+        return entity_pairs
+
     def get_sentences(self, path):
+        if list(Path(path).rglob('*.json')):
+            yield from self._get_sentences_from_json(path)
+        else:
+            yield from self._get_sentences_from_xml(path)
+
+    def _get_sentences_from_xml(self, path):
         for filepath in Path(path).rglob('*.xml'):
             try:
                 tree = ET.parse(str(filepath))
                 root = tree.getroot()
             except ExpatError:
                 pass
-            
+
             text_elements = root.findall('./text/')
-            
+            pairs = self.get_entity_pairs(path)
+
             for sentence, entity_dict in tqdm(self.get_entity_dict(text_elements)):
                 for e1_id in entity_dict:
-                    pairs = self.get_entity_pairs(path)
                     if e1_id in pairs:
                         e2_id = pairs[e1_id]['e2']
                         relation = pairs[e1_id]['relation'].lower()
-                        
+
                         other_entities = self.get_other_entities(entity_dict, e1_id, e2_id)
                         e1_data = entity_dict[e1_id]
-                        if e2_id in entity_dict:
-                            e2_data = entity_dict[e2_id]
-                        else:
+                        if e2_id not in entity_dict:
                             continue
+                        e2_data = entity_dict[e2_id]
                         tagged_sentence = self.tag_sentence(sentence, e1_data, e2_data, other_entities)
-                            
+
+                        yield tagged_sentence, relation
+
+    def _get_sentences_from_json(self, path):
+        for filepath in sorted(Path(path).rglob('*.json')):
+            content = filepath.read_text()
+            stripped = content.strip()
+            if stripped.startswith('['):
+                docs = json.loads(stripped)
+            else:
+                docs = [json.loads(line) for line in stripped.splitlines() if line.strip()]
+
+            for doc in tqdm(docs, desc=filepath.name):
+                entity_pairs = self.get_entity_pairs_from_json(doc.get('relations', []))
+
+                for sentence, entity_dict in self.get_entity_dict_from_json(doc):
+                    for e1_id in entity_dict:
+                        if e1_id not in entity_pairs:
+                            continue
+                        e2_id = entity_pairs[e1_id]['e2']
+                        relation = entity_pairs[e1_id]['relation'].lower()
+
+                        if e2_id not in entity_dict:
+                            continue
+
+                        other_entities = self.get_other_entities(entity_dict, e1_id, e2_id)
+                        tagged_sentence = self.tag_sentence(
+                            sentence, entity_dict[e1_id], entity_dict[e2_id], other_entities
+                        )
                         yield tagged_sentence, relation
 
 
