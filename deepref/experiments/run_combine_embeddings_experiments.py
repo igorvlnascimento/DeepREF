@@ -441,6 +441,7 @@ class CombineRETrainer(SentenceRETrainer):
             self.cuda()
 
         self.ckpt = ckpt
+        self.global_step = 0
 
     # ------------------------------------------------------------------
     # Core loop
@@ -465,7 +466,6 @@ class CombineRETrainer(SentenceRETrainer):
         device = next(self.model.parameters()).device
         avg_loss = AverageMeter()
         avg_acc = AverageMeter()
-        global_step = 0
 
         t = tqdm(loader)
         for data in t:
@@ -477,15 +477,16 @@ class CombineRETrainer(SentenceRETrainer):
 
             acc = float((pred == labels).long().sum()) / labels.size(0)
             avg_acc.update(acc, labels.size(0))
-            t.set_postfix(loss=avg_loss.avg, acc=avg_acc.avg)
 
             if training:
                 loss = self.criterion(logits, labels)
                 avg_loss.update(loss.item(), 1)
 
-                if warmup:
+                # Manual linear warmup — only when no HF scheduler is active to
+                # avoid both mechanisms fighting over the learning rate.
+                if warmup and self.scheduler is None:
                     warmup_steps = 300
-                    rate = min(1.0, global_step / warmup_steps) if warmup_steps > 0 else 1.0
+                    rate = min(1.0, (self.global_step + 1) / warmup_steps)
                     for pg in self.optimizer.param_groups:
                         pg["lr"] = self.lr * rate
 
@@ -494,7 +495,9 @@ class CombineRETrainer(SentenceRETrainer):
                 if self.scheduler is not None:
                     self.scheduler.step()
                 self.optimizer.zero_grad()
-                global_step += 1
+                self.global_step += 1
+
+            t.set_postfix(loss=avg_loss.avg, acc=avg_acc.avg)
 
         return avg_loss.avg if training else None
 

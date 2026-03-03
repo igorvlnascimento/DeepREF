@@ -12,7 +12,7 @@ class ModelRegistry:
             cls._instance = super().__new__(cls)
         return cls._instance
 
-    def load(self, model_name: str, device="cuda", attn_implementation="eager",trainable=False):
+    def load(self, model_name: str, device="cuda", attn_implementation="eager", trainable=False):
         if model_name not in self._models:
             print(f"Loading {model_name} onto {device}...")
             self._models[model_name] = {
@@ -22,14 +22,15 @@ class ModelRegistry:
                                                    attn_implementation=attn_implementation).to(device),
                 "tokenizer": AutoTokenizer.from_pretrained(model_name),
                 "device": device,
+                "trainable": trainable,
             }
             self._models[model_name]["tokenizer"].add_special_tokens({
-            "additional_special_tokens": ["<e1>", "</e1>", "<e2>", "</e2>"]
+                "additional_special_tokens": ["<e1>", "</e1>", "<e2>", "</e2>"]
             })
             self._models[model_name]["model"].resize_token_embeddings(len(self._models[model_name]["tokenizer"]))
             if not trainable:
                 self.freeze_model(model_name)
-            print(f"✅ {model_name} loaded onto {device}")
+            print(f"✅ {model_name} loaded onto {device} (trainable={trainable})")
         return self._models[model_name]
 
     def is_loaded(self, model_name: str) -> bool:
@@ -88,12 +89,16 @@ class ModelRegistry:
         """Tokenizes and runs a full forward pass. Returns model outputs."""
         entry = self._get_or_raise(model_name)
         model = entry["model"]
+        trainable = entry["trainable"]
 
         inputs = self.tokenize(model_name, text, **kwargs)
 
-        model.eval()
-        with torch.no_grad():
+        if trainable:
             outputs = model(**inputs)
+        else:
+            model.eval()
+            with torch.no_grad():
+                outputs = model(**inputs)
 
         return outputs, inputs
 
@@ -102,13 +107,17 @@ class ModelRegistry:
         entry = self._get_or_raise(model_name)
         model = entry["model"]
         device = entry["device"]
+        trainable = entry["trainable"]
 
         input_ids = input_ids.to(device)
         attention_mask = attention_mask.to(device)
 
-        model.eval()
-        with torch.no_grad():
+        if trainable:
             outputs = model(input_ids=input_ids, attention_mask=attention_mask)
+        else:
+            model.eval()
+            with torch.no_grad():
+                outputs = model(input_ids=input_ids, attention_mask=attention_mask)
 
         return outputs
 
