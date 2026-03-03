@@ -27,31 +27,31 @@ class ModelRegistry:
                 )
             return self._models[model_name]
         print(f"Loading {model_name} onto {device}...")
-            # Use float32 for trainable models: float16 gradients overflow
-            # to inf/NaN during the backward pass without gradient scaling.
-            # float16 is kept for frozen models (inference only) to save memory.
-            dtype = torch.float32 if trainable else torch.float16
-            self._models[model_name] = {
-                "model": AutoModel.from_pretrained(model_name,
-                                                   trust_remote_code=True,
-                                                   torch_dtype=dtype,
-                                                   attn_implementation=attn_implementation).to(device),
-                "tokenizer": AutoTokenizer.from_pretrained(model_name),
-                "device": device,
-                "trainable": trainable,
-                "attn_implementation": attn_implementation,
-            }
-            n_new = self._models[model_name]["tokenizer"].add_special_tokens({
-                "additional_special_tokens": ["<e1>", "</e1>", "<e2>", "</e2>"]
-            })
-            self._models[model_name]["model"].resize_token_embeddings(len(self._models[model_name]["tokenizer"]))
-            with torch.no_grad():
-                old_embeddings = self._models[model_name]["model"].get_input_embeddings().weight[:-n_new]
-                avg_embedding = old_embeddings.mean(dim=0)
-                self._models[model_name]["model"].get_input_embeddings().weight[-n_new:] = avg_embedding
-            if not trainable:
-                self.freeze_model(model_name)
-            print(f"✅ {model_name} loaded onto {device} (trainable={trainable})")
+        # Use float32 for trainable models: float16 gradients overflow
+        # to inf/NaN during the backward pass without gradient scaling.
+        # float16 is kept for frozen models (inference only) to save memory.
+        dtype = torch.float32 if trainable else torch.float16
+        self._models[model_name] = {
+            "model": AutoModel.from_pretrained(model_name,
+                                               trust_remote_code=True,
+                                               torch_dtype=dtype,
+                                               attn_implementation=attn_implementation).to(device),
+            "tokenizer": AutoTokenizer.from_pretrained(model_name),
+            "device": device,
+            "trainable": trainable,
+            "attn_implementation": attn_implementation,
+        }
+        n_new = self._models[model_name]["tokenizer"].add_special_tokens({
+            "additional_special_tokens": ["<e1>", "</e1>", "<e2>", "</e2>"]
+        })
+        self._models[model_name]["model"].resize_token_embeddings(len(self._models[model_name]["tokenizer"]))
+        with torch.no_grad():
+            old_embeddings = self._models[model_name]["model"].get_input_embeddings().weight[:-n_new]
+            avg_embedding = old_embeddings.mean(dim=0)
+            self._models[model_name]["model"].get_input_embeddings().weight[-n_new:] = avg_embedding
+        if not trainable:
+            self.freeze_model(model_name)
+        print(f"✅ {model_name} loaded onto {device} (trainable={trainable})")
         return self._models[model_name]
 
     def is_loaded(self, model_name: str) -> bool:
