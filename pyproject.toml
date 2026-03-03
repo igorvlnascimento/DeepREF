@@ -27,7 +27,6 @@ dependencies = [
     "tqdm>=4.67.3",
     "transformers>=5.2.0",
     "mlflow>=2.0.0",
-    "flash-attn>=2.8.3",
 ]
 
 [tool.pytest.ini_options]
