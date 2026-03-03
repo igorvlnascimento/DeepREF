@@ -14,6 +14,7 @@ from deepref.nlp.spacy_nlp_tool import SpacyNLPTool
 class SemEval2018Preprocessor(DatasetPreprocessor):
 
     LABEL_MAP = {
+        0: 'NONE',
         1: 'USAGE',
         2: 'RESULT',
         3: 'MODEL-FEATURE',
