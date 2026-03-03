@@ -5,3 +5,7 @@ encoder1:
   max_length: 128
   trainable: false
   attn_implementation: sdpa
+  training:
+    lr: 2.0e-5
+    weight_decay: 1e-5
+    warmup_step: 0

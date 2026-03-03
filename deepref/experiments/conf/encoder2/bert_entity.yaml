@@ -1,0 +1,9 @@
+type: bert_entity
+model_name: bert-base-uncased
+max_length: 128
+trainable: false
+attn_implementation: eager
+training:
+  lr: 2.0e-5
+  weight_decay: 1e-5
+  warmup_step: 0

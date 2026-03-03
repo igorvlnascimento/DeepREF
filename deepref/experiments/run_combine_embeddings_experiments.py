@@ -67,6 +67,7 @@ from torch.utils.data import DataLoader, random_split
 from tqdm import tqdm
 
 from deepref.dataset.re_dataset import REDataset
+from deepref.encoder.bert_entity_encoder import BertEntityEncoder
 from deepref.encoder.llm_encoder import LLMEncoder
 from deepref.encoder.relation_encoder import RelationEncoder
 from deepref.encoder.sdp_encoder import BoWSDPEncoder, VerbalizedSDPEncoder
@@ -218,8 +219,8 @@ class CombineEmbeddings(nn.Module):
     @staticmethod
     def _get_hidden_size(encoder: nn.Module) -> int:
         """Return the output dimensionality of *encoder* for a single sample."""
-        # RelationEncoder sets self.hidden_size = 3 * model.config.hidden_size
-        if isinstance(encoder, RelationEncoder):
+        # BertEntityEncoder (and its subclass RelationEncoder) expose self.hidden_size
+        if isinstance(encoder, BertEntityEncoder):
             return encoder.hidden_size
         # BoWSDPEncoder has no neural model; output = dep_vocab length
         if isinstance(encoder, BoWSDPEncoder):
@@ -252,6 +253,11 @@ class CombineEmbeddings(nn.Module):
             token, att_mask, pos_e1, pos_e2, pos_mask = encoder.tokenize(item)
             emb = encoder.forward(token, att_mask, pos_e1, pos_e2, pos_mask)
             return emb.squeeze(0).float()  # (3H,)
+
+        if isinstance(encoder, BertEntityEncoder):
+            token, att_mask, pos_e1, pos_e2 = encoder.tokenize(item)
+            emb = encoder.forward(token, att_mask, pos_e1, pos_e2)
+            return emb.squeeze(0).float()  # (2H,)
 
         if isinstance(encoder, VerbalizedSDPEncoder):
             emb = encoder.forward(item)    # (1, H)
@@ -398,29 +404,56 @@ class CombineRETrainer(SentenceRETrainer):
         opt = training_parameters["opt"]
         lr = training_parameters["lr"]
         weight_decay = training_parameters.get("weight_decay", 0.0)
+        enc1_lr     = training_parameters.get("encoder1_lr", lr)
+        enc1_wd     = training_parameters.get("encoder1_weight_decay", weight_decay)
+        enc1_warmup = training_parameters.get("encoder1_warmup_step", 0)
+        enc2_lr     = training_parameters.get("encoder2_lr", lr)
+        enc2_wd     = training_parameters.get("encoder2_weight_decay", weight_decay)
+        enc2_warmup = training_parameters.get("encoder2_warmup_step", 0)
 
-        params = self.parameters()
         if opt == "sgd":
-            self.optimizer = optim.SGD(params, lr, weight_decay=weight_decay)
-        elif opt == "adam":
-            self.optimizer = optim.Adam(params, lr, weight_decay=weight_decay)
-        elif opt == "adamw":
-            from torch.optim import AdamW
-            named = list(self.named_parameters())
+            self.optimizer = optim.SGD(self.parameters(), lr, weight_decay=weight_decay)
+        elif opt in ("adam", "adamw"):
             no_decay = ["bias", "LayerNorm.bias", "LayerNorm.weight"]
-            grouped = [
-                {
-                    "params": [p for n, p in named if not any(nd in n for nd in no_decay)],
-                    "weight_decay": 0.01,
-                    "lr": lr,
-                },
-                {
-                    "params": [p for n, p in named if any(nd in n for nd in no_decay)],
-                    "weight_decay": 0.0,
-                    "lr": lr,
-                },
+            all_named = list(self.named_parameters())
+
+            # encoder1 backbone: dual-encoder path (.encoder1._backbone_)
+            # or single-encoder path (.encoder._backbone_)
+            enc1_named = [
+                (n, p) for n, p in all_named
+                if "encoder1._backbone_" in n or "encoder._backbone_" in n
             ]
-            self.optimizer = AdamW(grouped)
+            # encoder2 backbone: dual-encoder path (.encoder2._backbone_)
+            enc2_named = [
+                (n, p) for n, p in all_named
+                if "encoder2._backbone_" in n
+            ]
+            # classifier head: everything that is not a backbone
+            backbone_names = {n for n, _ in enc1_named} | {n for n, _ in enc2_named}
+            cls_named = [(n, p) for n, p in all_named if n not in backbone_names]
+
+            def _make_groups(named_params, param_lr, param_wd, group_warmup_steps=0):
+                """Split params into decay / no-decay groups with stored initial_lr."""
+                decay  = [p for n, p in named_params if not any(nd in n for nd in no_decay)]
+                no_dec = [p for n, p in named_params if     any(nd in n for nd in no_decay)]
+                groups = []
+                if decay:
+                    groups.append({"params": decay,  "lr": param_lr, "weight_decay": param_wd, "initial_lr": param_lr, "warmup_steps": group_warmup_steps})
+                if no_dec:
+                    groups.append({"params": no_dec, "lr": param_lr, "weight_decay": 0.0,      "initial_lr": param_lr, "warmup_steps": group_warmup_steps})
+                return groups
+
+            param_groups = (
+                _make_groups(enc1_named, enc1_lr, enc1_wd, enc1_warmup)
+                + _make_groups(enc2_named, enc2_lr, enc2_wd, enc2_warmup)
+                + _make_groups(cls_named,  lr,      weight_decay)
+            )
+
+            if opt == "adamw":
+                from torch.optim import AdamW
+                self.optimizer = AdamW(param_groups)
+            else:
+                self.optimizer = optim.Adam(param_groups)
         else:
             raise ValueError(f"Invalid optimizer: {opt!r}. Choose sgd, adam, or adamw.")
 
@@ -484,11 +517,14 @@ class CombineRETrainer(SentenceRETrainer):
 
                 # Manual linear warmup — only when no HF scheduler is active to
                 # avoid both mechanisms fighting over the learning rate.
+                # Each param group has its own warmup_steps and initial_lr so
+                # per-encoder schedules are independent.
                 if warmup and self.scheduler is None:
-                    warmup_steps = 300
-                    rate = min(1.0, (self.global_step + 1) / warmup_steps)
                     for pg in self.optimizer.param_groups:
-                        pg["lr"] = self.lr * rate
+                        group_warmup = pg.get("warmup_steps", 0)
+                        if group_warmup > 0:
+                            rate = min(1.0, (self.global_step + 1) / group_warmup)
+                            pg["lr"] = pg.get("initial_lr", self.lr) * rate
 
                 loss.backward()
                 self.optimizer.step()
@@ -615,6 +651,15 @@ def build_encoder1(cfg: DictConfig, device: str) -> nn.Module:
             max_length=enc.max_length,
             device=device,
             trainable=enc.get("trainable", False),
+            attn_implementation=enc.get("attn_implementation", "eager"),
+        )
+    if enc.type == "bert_entity":
+        return BertEntityEncoder(
+            model_name=enc.model_name,
+            max_length=enc.max_length,
+            device=device,
+            trainable=enc.get("trainable", False),
+            attn_implementation=enc.get("attn_implementation", "eager"),
         )
     if enc.type == "llm":
         return LLMEncoder(
@@ -648,6 +693,14 @@ def build_encoder2(cfg: DictConfig, device: str) -> nn.Module | None:
     enc = cfg.encoder2
     if enc.type == "none":
         return None
+    if enc.type == "bert_entity":
+        return BertEntityEncoder(
+            model_name=enc.model_name,
+            max_length=enc.max_length,
+            device=device,
+            trainable=enc.get("trainable", False),
+            attn_implementation=enc.get("attn_implementation", "eager"),
+        )
     nlp_tool_name = enc.get("nlp_tool", "spacy")
     nlp_tool = build_nlp_tool(nlp_tool_name)
     if enc.type == "bow_sdp":
@@ -680,6 +733,73 @@ def build_combined_encoder(
 
 
 # ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+def _log_confusion_matrix(
+    y_true: list[int],
+    y_pred: list[int],
+    rel2id: dict[str, int],
+    run_name: str,
+) -> None:
+    """Plot a confusion matrix and log it as an MLflow PNG artifact.
+
+    The figure is written to a temporary file, logged under the MLflow
+    ``figures/`` artifact path, then deleted.
+
+    Args:
+        y_true:   ground-truth class indices.
+        y_pred:   predicted class indices.
+        rel2id:   relation-name → class-index mapping (used to derive labels).
+        run_name: used as the figure title.
+    """
+    import tempfile
+
+    import matplotlib
+    matplotlib.use("Agg")  # non-interactive backend — safe in all environments
+    import matplotlib.pyplot as plt
+    import seaborn as sns
+    from sklearn.metrics import confusion_matrix
+
+    id2rel = {v: k for k, v in rel2id.items()}
+    labels = sorted(id2rel.keys())
+    class_names = [id2rel[i] for i in labels]
+    n = len(labels)
+
+    cm = confusion_matrix(y_true, y_pred, labels=labels)
+
+    # Scale figure so each cell is roughly 0.6 in × 0.6 in; minimum 8 × 8.
+    fig_size = max(8, n * 0.6)
+    fig, ax = plt.subplots(figsize=(fig_size, fig_size))
+
+    sns.heatmap(
+        cm,
+        annot=n <= 30,   # skip per-cell numbers when the matrix is very large
+        fmt="d",
+        cmap="Blues",
+        xticklabels=class_names,
+        yticklabels=class_names,
+        linewidths=0.4,
+        ax=ax,
+    )
+    ax.set_xlabel("Predicted label", fontsize=12)
+    ax.set_ylabel("True label", fontsize=12)
+    ax.set_title(f"Confusion matrix — {run_name}", fontsize=13, pad=12)
+    plt.xticks(rotation=45, ha="right", fontsize=max(6, 10 - n // 5))
+    plt.yticks(rotation=0,  fontsize=max(6, 10 - n // 5))
+    plt.tight_layout()
+
+    with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as f:
+        fig_path = f.name
+    fig.savefig(fig_path, dpi=150)
+    plt.close(fig)
+
+    mlflow.log_artifact(fig_path, artifact_path="figures")
+    os.remove(fig_path)
+    logger.info("Confusion matrix logged to MLflow artifacts (figures/)")
+
+
+# ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------
 
@@ -706,13 +826,31 @@ def main(cfg: DictConfig) -> None:
     )
 
     with mlflow.start_run(run_name=run_name):
+        # Per-encoder training overrides (fall back to global training params)
+        enc1_training = cfg.encoder1.get("training", {})
+        enc2_training = cfg.encoder2.get("training", {}) if cfg.encoder2.type != "none" else {}
+        enc1_lr     = enc1_training.get("lr",           cfg.training.lr)                    if enc1_training else cfg.training.lr
+        enc1_wd     = enc1_training.get("weight_decay", cfg.training.get("weight_decay", 0.0)) if enc1_training else cfg.training.get("weight_decay", 0.0)
+        enc1_warmup = enc1_training.get("warmup_step",  0)                                  if enc1_training else 0
+        enc2_lr     = enc2_training.get("lr",           cfg.training.lr)                    if enc2_training else cfg.training.lr
+        enc2_wd     = enc2_training.get("weight_decay", cfg.training.get("weight_decay", 0.0)) if enc2_training else cfg.training.get("weight_decay", 0.0)
+        enc2_warmup = enc2_training.get("warmup_step",  0)                                  if enc2_training else 0
+
         mlflow.log_params({
             "dataset": cfg.dataset.name,
             "encoder1_type": cfg.encoder1.type,
             "encoder1_model": cfg.encoder1.get("model_name", "n/a"),
+            "encoder1_trainable": cfg.encoder1.get("trainable", False),
+            "encoder1_lr": enc1_lr,
+            "encoder1_weight_decay": enc1_wd,
+            "encoder1_warmup_step": enc1_warmup,
             "encoder2_type": cfg.encoder2.type,
             "encoder2_model": cfg.encoder2.get("model_name", "n/a"),
             "encoder2_nlp_tool": cfg.encoder2.get("nlp_tool", "n/a"),
+            "encoder2_trainable": cfg.encoder2.get("trainable", False),
+            "encoder2_lr": enc2_lr if cfg.encoder2.type != "none" else "n/a",
+            "encoder2_weight_decay": enc2_wd if cfg.encoder2.type != "none" else "n/a",
+            "encoder2_warmup_step": enc2_warmup if cfg.encoder2.type != "none" else "n/a",
             "batch_size": cfg.training.batch_size,
             "lr": cfg.training.lr,
             "max_epoch": cfg.training.max_epoch,
@@ -763,6 +901,12 @@ def main(cfg: DictConfig) -> None:
                 "weight_decay": cfg.training.get("weight_decay", 0.0),
                 "warmup_step": cfg.training.get("warmup_step", 0),
                 "patience": cfg.training.get("patience", 0),
+                "encoder1_lr": enc1_lr,
+                "encoder1_weight_decay": enc1_wd,
+                "encoder1_warmup_step": enc1_warmup,
+                "encoder2_lr": enc2_lr,
+                "encoder2_weight_decay": enc2_wd,
+                "encoder2_warmup_step": enc2_warmup,
             }
 
             trainer = CombineRETrainer(
@@ -780,7 +924,7 @@ def main(cfg: DictConfig) -> None:
 
             # ── Test evaluation ─────────────────────────────────────────────
             logger.info("=== Test evaluation ===")
-            test_result, _, _ = trainer.eval_model(trainer.test_loader)
+            test_result, test_preds, test_labels = trainer.eval_model(trainer.test_loader)
             mlflow.log_metrics({
                 "test_micro_p":  test_result["micro_p"],
                 "test_micro_r":  test_result["micro_r"],
@@ -793,6 +937,8 @@ def main(cfg: DictConfig) -> None:
                 "Test metrics — micro_f1: %.4f  macro_f1: %.4f",
                 test_result["micro_f1"], test_result["macro_f1"],
             )
+
+            _log_confusion_matrix(test_labels, test_preds, train_dataset.rel2id, run_name)
 
             mlflow.set_tag("status", "success")
 

@@ -68,7 +68,7 @@ class REDataset(Dataset):
     def get_labels_dict(self):
         if self.df is None:
             return {}
-        relation_types = list(self.df["relation_type"].unique())
+        relation_types = list(self.df["relation_type"].dropna().unique())
         relation_types.sort()
         rel2id = {relation_types[i]: i for i in range(len(relation_types))}
         return rel2id

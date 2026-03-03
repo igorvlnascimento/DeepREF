@@ -13,8 +13,20 @@ class ModelRegistry:
         return cls._instance
 
     def load(self, model_name: str, device="cuda", attn_implementation="eager", trainable=False):
-        if model_name not in self._models:
-            print(f"Loading {model_name} onto {device}...")
+        if model_name in self._models:
+            stored = self._models[model_name]
+            if stored["trainable"] != trainable or stored["attn_implementation"] != attn_implementation:
+                raise ValueError(
+                    f"Model '{model_name}' is already loaded with "
+                    f"trainable={stored['trainable']}, "
+                    f"attn_implementation={stored['attn_implementation']!r}. "
+                    f"Requested trainable={trainable}, "
+                    f"attn_implementation={attn_implementation!r}. "
+                    "Unload the model first with registry.unload() before "
+                    "reloading with different settings."
+                )
+            return self._models[model_name]
+        print(f"Loading {model_name} onto {device}...")
             # Use float32 for trainable models: float16 gradients overflow
             # to inf/NaN during the backward pass without gradient scaling.
             # float16 is kept for frozen models (inference only) to save memory.
@@ -27,6 +39,7 @@ class ModelRegistry:
                 "tokenizer": AutoTokenizer.from_pretrained(model_name),
                 "device": device,
                 "trainable": trainable,
+                "attn_implementation": attn_implementation,
             }
             n_new = self._models[model_name]["tokenizer"].add_special_tokens({
                 "additional_special_tokens": ["<e1>", "</e1>", "<e2>", "</e2>"]

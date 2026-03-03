@@ -1,3 +1,4 @@
+import re
 import torch
 import torch.nn.functional as F
 
@@ -49,23 +50,20 @@ class LLMEncoder(SentenceEncoder):
 
         # Register the backbone as a proper nn.Module child so that
         # self.parameters() / the optimizer can reach its weights when
-        # trainable=True.  Frozen models are intentionally left out so
-        # their parameters are never passed to the optimizer.
+        # trainable=True.  Use the sanitized model_name as the attribute
+        # key so that:
+        #   - multiple trainable encoders in the same module tree each
+        #     expose their backbone under a unique, model-specific name;
+        #   - torch.save / load_state_dict work correctly across runs
+        #     (the key is deterministic given model_name).
+        # Frozen models are intentionally excluded so their parameters
+        # are never passed to the optimizer.
+        # With the backbone as a registered submodule, PyTorch's standard
+        # .train() / .eval() propagation reaches it automatically — no
+        # manual override is needed.
         if trainable:
-            self._trainable_backbone = self.registry._models[model_name]["model"]
-
-    def train(self, mode: bool = True):
-        """Propagate train/eval mode to the backbone stored in ModelRegistry.
-
-        PyTorch's default ``train()`` / ``eval()`` propagation only reaches
-        registered ``nn.Module`` children.  Because the HuggingFace backbone
-        lives inside the ``ModelRegistry`` singleton (not as a child module),
-        we forward the mode change manually so that dropout and layer norm
-        behave correctly during training vs. evaluation.
-        """
-        super().train(mode)
-        self.registry.set_train_mode(self.model_name, mode)
-        return self
+            attr = "_backbone_" + re.sub(r"[^a-zA-Z0-9]", "_", model_name)
+            self.add_module(attr, self.registry._models[model_name]["model"])
 
     def average_pool(
         self,
