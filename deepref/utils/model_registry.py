@@ -32,6 +32,7 @@ class ModelRegistry:
                 "additional_special_tokens": ["<e1>", "</e1>", "<e2>", "</e2>"]
             })
             self._models[model_name]["model"].resize_token_embeddings(len(self._models[model_name]["tokenizer"]))
+            self._models[model_name]["model"].transformer.wte.weight[-1] = self._models[model_name]["model"].transformer.wte.weight[-2]
             if not trainable:
                 self.freeze_model(model_name)
             print(f"✅ {model_name} loaded onto {device} (trainable={trainable})")
