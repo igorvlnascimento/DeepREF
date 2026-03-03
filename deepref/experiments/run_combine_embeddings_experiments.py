@@ -610,7 +610,12 @@ def build_encoder1(cfg: DictConfig, device: str) -> nn.Module:
     """Instantiate the first encoder from Hydra config."""
     enc = cfg.encoder1
     if enc.type == "relation":
-        return RelationEncoder(model_name=enc.model_name, max_length=enc.max_length, device=device)
+        return RelationEncoder(
+            model_name=enc.model_name,
+            max_length=enc.max_length,
+            device=device,
+            trainable=enc.get("trainable", False),
+        )
     if enc.type == "llm":
         return LLMEncoder(
             model_name=enc.model_name,

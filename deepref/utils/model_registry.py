@@ -131,6 +131,16 @@ class ModelRegistry:
         for p in self._models[model_name]["model"].parameters():
             p.requires_grad = False
 
+    def set_train_mode(self, model_name: str, mode: bool) -> None:
+        """Set the backbone's train/eval mode, but only when trainable=True.
+
+        Frozen models are always kept in eval mode so that dropout and batch
+        norm behave correctly during inference.
+        """
+        entry = self._get_or_raise(model_name)
+        if entry["trainable"]:
+            entry["model"].train(mode)
+
     def get_model_hidden_size(self, model_name: str):
         return self._models[model_name]["model"].config.hidden_size
     

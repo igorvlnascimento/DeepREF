@@ -48,6 +48,19 @@ class LLMEncoder(SentenceEncoder):
         self.max_length = max_length
         self.padding_side = padding_side
 
+    def train(self, mode: bool = True):
+        """Propagate train/eval mode to the backbone stored in ModelRegistry.
+
+        PyTorch's default ``train()`` / ``eval()`` propagation only reaches
+        registered ``nn.Module`` children.  Because the HuggingFace backbone
+        lives inside the ``ModelRegistry`` singleton (not as a child module),
+        we forward the mode change manually so that dropout and layer norm
+        behave correctly during training vs. evaluation.
+        """
+        super().train(mode)
+        self.registry.set_train_mode(self.model_name, mode)
+        return self
+
     def average_pool(
         self,
         last_hidden_states: torch.Tensor,
