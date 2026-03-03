@@ -106,6 +106,8 @@ class CombineREDataset(REDataset):
         # Replicate only the DataFrame + rel2id parts of REDataset.__init__
         # to avoid requiring a HuggingFace tokenizer at the dataset level.
         self.df = self.get_dataframe(csv_path)
+        if self.df is not None:
+            self.df = self.df.dropna(subset=["relation_type"]).reset_index(drop=True)
         self.rel2id = rel2id if rel2id is not None else self.get_labels_dict()
         self.pipeline = None
         self.max_length = 0
@@ -653,7 +655,7 @@ def build_encoder1(cfg: DictConfig, device: str) -> nn.Module:
             trainable=enc.get("trainable", False),
             attn_implementation=enc.get("attn_implementation", "eager"),
         )
-    if enc.type == "bert_entity":
+    if enc.type == "[bert_entity]":
         return BertEntityEncoder(
             model_name=enc.model_name,
             max_length=enc.max_length,
