@@ -188,10 +188,13 @@ class SDPEncoder(ABC):
         e2_indices = self._find_token_indices(parsed_tokens, e2_char_start, e2_char_end)
 
         if not e1_indices or not e2_indices:
-            raise ValueError(
-                f"Could not locate entity tokens in the parsed sentence. "
-                f"e1={item['h']['name']!r}, e2={item['t']['name']!r}"
+            import logging
+            logging.warning(
+                "Could not locate entity tokens in the parsed sentence. "
+                "e1=%r, e2=%r — returning empty SDP.",
+                item['h']['name'], item['t']['name'],
             )
+            return []
 
         e1_head = self._get_entity_head(parsed_tokens, e1_indices)
         e2_head = self._get_entity_head(parsed_tokens, e2_indices)
@@ -199,10 +202,12 @@ class SDPEncoder(ABC):
         path_indices = self._bfs_sdp(parsed_tokens, [e1_head], [e2_head])
 
         if path_indices is None:
-            raise ValueError(
-                f"No dependency path between {item['h']['name']!r} "
-                f"and {item['t']['name']!r}."
+            import logging
+            logging.warning(
+                "No dependency path between %r and %r — returning empty SDP.",
+                item['h']['name'], item['t']['name'],
             )
+            return []
 
         return [
             (
@@ -230,6 +235,8 @@ class SDPEncoder(ABC):
         Returns:
             Single-line string.
         """
+        if not path:
+            return ""
         parts: list[str] = []
         for token, dep, _direction in path[:-1]:
             parts.append(f"{token} --{dep}-->")
