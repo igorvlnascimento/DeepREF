@@ -1,7 +1,17 @@
-from typing import Dict
+from pathlib import Path
 
 import torch
 from transformers import AutoModel, AutoTokenizer
+
+CURRENT = Path(__file__).resolve()
+PROJECT_ROOT = ""
+
+for parent in CURRENT.parents:
+    if (parent / "pyproject.toml").exists():
+        PROJECT_ROOT = parent
+        break
+
+CACHE_DIR = PROJECT_ROOT / "tmp"
 
 class ModelRegistry:
     _instance = None
@@ -35,7 +45,8 @@ class ModelRegistry:
             "model": AutoModel.from_pretrained(model_name,
                                                trust_remote_code=True,
                                                torch_dtype=dtype,
-                                               attn_implementation=attn_implementation).to(device),
+                                               attn_implementation=attn_implementation,
+                                               cache_dir=CACHE_DIR).to(device),
             "tokenizer": AutoTokenizer.from_pretrained(model_name),
             "device": device,
             "trainable": trainable,
