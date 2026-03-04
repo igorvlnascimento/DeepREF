@@ -7,7 +7,7 @@ from deepref.encoder.llm_encoder import LLMEncoder
 class BertEntityEncoder(LLMEncoder):
     """Entity-span encoder backed by a HuggingFace transformer.
 
-    Extends :class:`LLMEncoder` by locating the ``<e1>`` and ``<e2>`` entity
+    Extends :class:`LLMEncoder` by locating the ``[E1]`` and ``<e2>`` entity
     marker positions in the token sequence and returning the concatenation of
     their hidden states as the sentence representation.
 
@@ -53,9 +53,9 @@ class BertEntityEncoder(LLMEncoder):
 
         Produces the sequence::
 
-            sent_before  <e1>  head  </e1>  sent_between  <e2>  tail  </e2>  sent_after
+            sent_before  [E1]  head  [/E1]  sent_between  <e2>  tail  </e2>  sent_after
 
-        (or with ``<e1>`` / ``<e2>`` swapped when the tail entity appears first).
+        (or with ``[E1]`` / ``<e2>`` swapped when the tail entity appears first).
         CLS / SEP tokens and any relation prompt are **not** included — callers
         are responsible for wrapping.
 
@@ -64,7 +64,7 @@ class BertEntityEncoder(LLMEncoder):
 
         Returns:
             ``(middle_tokens, idx_e1, idx_e2)`` where the indices are positions
-            of ``<e1>`` and ``<e2>`` inside *middle_tokens* (zero-based).
+            of ``[E1]`` and ``<e2>`` inside *middle_tokens* (zero-based).
         """
         if "text" in item:
             sentence = item["text"]
@@ -97,15 +97,15 @@ class BertEntityEncoder(LLMEncoder):
         sent2   = _tok(sentence[pos_max[1]:])
 
         if not rev:
-            ent_min_marked = ["<e1>"] + ent_min + ["</e1>"]
-            ent_max_marked = ["<e2>"] + ent_max + ["</e2>"]
+            ent_min_marked = ["[E1]"] + ent_min + ["[/E1]"]
+            ent_max_marked = ["[E2]"] + ent_max + ["[/E2]"]
         else:
-            ent_min_marked = ["<e2>"] + ent_min + ["</e2>"]
-            ent_max_marked = ["<e1>"] + ent_max + ["</e1>"]
+            ent_min_marked = ["[E2]"] + ent_min + ["[/E2]"]
+            ent_max_marked = ["[E1]"] + ent_max + ["[/E1]"]
 
         middle_tokens = sent0 + ent_min_marked + sent1 + ent_max_marked + sent2
-        idx_e1 = middle_tokens.index("<e1>")
-        idx_e2 = middle_tokens.index("<e2>")
+        idx_e1 = middle_tokens.index("[E1]")
+        idx_e2 = middle_tokens.index("[E2]")
 
         return middle_tokens, idx_e1, idx_e2
 
@@ -170,11 +170,11 @@ class BertEntityEncoder(LLMEncoder):
         pos_e1: torch.Tensor,
         pos_e2: torch.Tensor,
     ) -> tuple[torch.Tensor, torch.Tensor]:
-        """Extract the hidden states at the ``<e1>`` and ``<e2>`` positions.
+        """Extract the hidden states at the ``[E1]`` and ``<e2>`` positions.
 
         Args:
             hidden:  ``(B, L, H)`` float32 hidden state tensor.
-            pos_e1:  ``(B, 1)`` index of the ``<e1>`` marker.
+            pos_e1:  ``(B, 1)`` index of the ``[E1]`` marker.
             pos_e2:  ``(B, 1)`` index of the ``<e2>`` marker.
 
         Returns:
@@ -202,7 +202,7 @@ class BertEntityEncoder(LLMEncoder):
         Args:
             token:    ``(B, L)`` token id tensor.
             att_mask: ``(B, L)`` attention mask.
-            pos_e1:   ``(B, 1)`` position of the ``<e1>`` marker.
+            pos_e1:   ``(B, 1)`` position of the ``[E1]`` marker.
             pos_e2:   ``(B, 1)`` position of the ``<e2>`` marker.
 
         Returns:
