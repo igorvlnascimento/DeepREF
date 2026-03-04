@@ -1,0 +1,4 @@
+# @package _global_
+model:
+  name: bert-base-uncased
+  max_length: 128
