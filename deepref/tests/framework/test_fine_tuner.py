@@ -8,7 +8,7 @@ from transformers import TrainingArguments
 
 from deepref.dataset.re_dataset import REDataset
 from deepref.encoder.sentence_encoder import SentenceEncoder
-from deepref.framework.fine_tuner import FineTuner
+from deepref.framework.re_fine_tuner import FineTuner
 
 MODEL_NAME = "HuggingFaceTB/SmolLM-135M-Instruct"
 
