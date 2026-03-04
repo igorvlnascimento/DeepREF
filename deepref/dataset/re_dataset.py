@@ -11,7 +11,7 @@ from torch.utils.data import DataLoader, Dataset
 from deepref.dataset.text_transform import TextTransformerPipeline
 
 class REDataset(Dataset):
-    def __init__(self, csv_path, tokenizer, pipeline: TextTransformerPipeline | None = None) -> None:
+    def __init__(self, csv_path: str | list[str], tokenizer, pipeline: TextTransformerPipeline | None = None) -> None:
         self.df = self.get_dataframe(csv_path)
         self.tokenizer = tokenizer
         self.rel2id = self.get_labels_dict()
@@ -57,7 +57,16 @@ class REDataset(Dataset):
         
         return " ".join(sentennce_splitted)
 
-    def get_dataframe(self, csv_path: str) -> pd.DataFrame | None:
+    def get_dataframe(self, csv_path: str | list[str]) -> pd.DataFrame | None:
+        if isinstance(csv_path, list):
+            dfs = [self._load_single_csv(p) for p in csv_path]
+            dfs = [df for df in dfs if df is not None]
+            if not dfs:
+                return None
+            return pd.concat(dfs, ignore_index=True)
+        return self._load_single_csv(csv_path)
+
+    def _load_single_csv(self, csv_path: str) -> pd.DataFrame | None:
         path = Path(csv_path)
         if not path.suffix:
             path = path.with_suffix('.csv')

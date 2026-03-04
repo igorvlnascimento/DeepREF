@@ -102,7 +102,7 @@ class CombineREDataset(REDataset):
     combined encoders perform their own tokenization internally.
     """
 
-    def __init__(self, csv_path: str, rel2id: dict | None = None) -> None:
+    def __init__(self, csv_path: str | list[str], rel2id: dict | None = None) -> None:
         # Replicate only the DataFrame + rel2id parts of REDataset.__init__
         # to avoid requiring a HuggingFace tokenizer at the dataset level.
         self.df = self.get_dataframe(csv_path)
@@ -156,7 +156,11 @@ def load_split_datasets(
         path = Path(p)
         return str(path if path.is_absolute() else Path(cwd) / path)
 
-    train_ds = CombineREDataset(resolve(cfg_dataset.train_csv_path))
+    train_paths = [resolve(cfg_dataset.train_csv_path)]
+    for extra in cfg_dataset.get("extra_train_csv_paths", []):
+        train_paths.append(resolve(extra))
+
+    train_ds = CombineREDataset(train_paths if len(train_paths) > 1 else train_paths[0])
     test_ds = CombineREDataset(resolve(cfg_dataset.test_csv_path))
 
     # Unify relation labels across both splits
@@ -166,8 +170,8 @@ def load_split_datasets(
     test_ds.rel2id = unified_rel2id
 
     logger.info(
-        "Loaded '%s': train=%d  test=%d  classes=%d",
-        cfg_dataset.name, len(train_ds), len(test_ds), len(unified_rel2id),
+        "Loaded '%s': train=%d (from %d file(s))  test=%d  classes=%d",
+        cfg_dataset.name, len(train_ds), len(train_paths), len(test_ds), len(unified_rel2id),
     )
     return train_ds, test_ds
 
