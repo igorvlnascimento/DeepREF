@@ -41,12 +41,27 @@ class ModelRegistry:
         # to inf/NaN during the backward pass without gradient scaling.
         # float16 is kept for frozen models (inference only) to save memory.
         dtype = torch.float32 if trainable else torch.float16
+
+        def _load_model():
+            return AutoModel.from_pretrained(
+                model_name,
+                trust_remote_code=True,
+                torch_dtype=dtype,
+                attn_implementation=attn_implementation,
+                cache_dir=CACHE_DIR,
+            ).to(device)
+
+        try:
+            model = _load_model()
+        except torch.cuda.OutOfMemoryError:
+            print(f"⚠️  GPU OOM while loading '{model_name}'. Unloading all GPU models and retrying...")
+            for name in list(self._models.keys()):
+                if self._models[name]["device"] == device:
+                    self.unload(name)
+            model = _load_model()
+
         self._models[model_name] = {
-            "model": AutoModel.from_pretrained(model_name,
-                                               trust_remote_code=True,
-                                               torch_dtype=dtype,
-                                               attn_implementation=attn_implementation,
-                                               cache_dir=CACHE_DIR).to(device),
+            "model": model,
             "tokenizer": AutoTokenizer.from_pretrained(model_name),
             "device": device,
             "trainable": trainable,
