@@ -892,10 +892,15 @@ def main(cfg: DictConfig) -> None:
             )
 
             # ── Trainer ─────────────────────────────────────────────────────
-            ckpt_path = os.path.join(
+            enc1_model_name = cfg.encoder1.get("model_name", cfg.encoder1.type)
+            ckpt_dir = os.path.join(
                 cwd,
                 "ckpt",
-                f"{cfg.dataset.name}_{cfg.encoder1.type}_{cfg.encoder2.type}.pth.tar",
+                enc1_model_name.replace("/", "_"),
+            )
+            ckpt_path = os.path.join(
+                ckpt_dir,
+                f"{cfg.dataset.name}_{cfg.encoder1.type}_{cfg.encoder2.type}.pth",
             )
 
             training_parameters = {
