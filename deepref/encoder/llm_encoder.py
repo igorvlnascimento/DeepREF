@@ -15,7 +15,7 @@ class LLMEncoder(SentenceEncoder):
     """Concrete sentence encoder backed by a HuggingFace transformer.
 
     Loads an ``AutoModel`` and ``AutoTokenizer`` from a pretrained checkpoint,
-    registers entity special tokens (``<e1>``, ``</e1>``, ``<e2>``, ``</e2>``),
+    registers entity special tokens (``[E1]``, ``[/E1]``, ``[E2]``, ``[/E2]``),
     and encodes text via average pooling with L2 normalisation.
 
     Args:

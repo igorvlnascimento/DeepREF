@@ -44,7 +44,7 @@ class REDataset(Dataset):
         return item
     
     def format_sentence(self, sentence, e1, e2):
-        marks = ["<e1>", "</e1>", "<e2>", "</e2>"]
+        marks = ["[E1]", "[/E1]", "[E2]", "[/E2]"]
         sentennce_splitted = sentence.split()
         e1_position = ast.literal_eval(e1)["position"]
         e2_position = ast.literal_eval(e2)["position"]

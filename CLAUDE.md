@@ -84,12 +84,12 @@ All encoders ultimately extend `nn.Module`.
 ```
 SentenceEncoder (abstract, deepref/encoder/sentence_encoder.py)
 └── LLMEncoder   (deepref/encoder/llm_encoder.py)
-    │   Loads AutoModel + AutoTokenizer; registers <e1></e1><e2></e2> tokens;
+    │   Loads AutoModel + AutoTokenizer; registers [E1][/E1][E2][/E2] tokens;
     │   forward(texts) → L2-normalised average-pool embeddings (B, H).
     │   Model weights cached in tmp/.
     ├── RelationEncoder  (deepref/encoder/relation_encoder.py)
-    │     Formats input as: "<e1>head</e1> … <e2>tail</e2> … [MASK]"
-    │     forward() → concat of hidden states at <e1>, <e2>, [MASK] → (B, 3H)
+    │     Formats input as: "[E1]head[/E1] … [E2]tail[/E2] … [MASK]"
+    │     forward() → concat of hidden states at [E1], [E2], [MASK] → (B, 3H)
     └── VerbalizedSDPEncoder  (deepref/encoder/sdp_encoder.py)
           Inherits both SDPEncoder (spaCy BFS) and LLMEncoder.
           Verbalizes the shortest dependency path, then encodes via LLMEncoder.
@@ -105,7 +105,7 @@ SDPEncoder (abstract, deepref/encoder/sdp_encoder.py)
 
 ### Key Modules
 
-**`deepref/utils/model_registry.py`** — `ModelRegistry` singleton that caches HuggingFace models/tokenizers across all encoders. All `LLMEncoder` subclasses use it. Key methods: `load(model_name, device, attn_implementation, trainable)`, `tokenize()`, `run()`, `run_from_input_ids()`, `get_model_hidden_size()`. Special tokens `<e1>`, `</e1>`, `<e2>`, `</e2>` are registered automatically on first load. Models are frozen by default (`trainable=False`).
+**`deepref/utils/model_registry.py`** — `ModelRegistry` singleton that caches HuggingFace models/tokenizers across all encoders. All `LLMEncoder` subclasses use it. Key methods: `load(model_name, device, attn_implementation, trainable)`, `tokenize()`, `run()`, `run_from_input_ids()`, `get_model_hidden_size()`. Special tokens `[E1]`, `[/E1]`, `[E2]`, `[/E2]` are registered automatically on first load. Models are frozen by default (`trainable=False`).
 
 **`deepref/config.py`** — Canonical lists of valid `DATASETS`, `MODELS`, `METRICS`, `PREPROCESSING_TYPES`, `PRETRAIN_WEIGHTS`, and default `HPARAMS`. Any new dataset or model must be registered here.
 

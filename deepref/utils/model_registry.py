@@ -55,10 +55,17 @@ class ModelRegistry:
             model = _load_model()
         except torch.cuda.OutOfMemoryError:
             print(f"⚠️  GPU OOM while loading '{model_name}'. Unloading all GPU models and retrying...")
+            model_names = list(self._models.keys())
             for name in list(self._models.keys()):
                 if self._models[name]["device"] == device:
                     self.unload(name)
             model = _load_model()
+            for name in model_names:
+                try:
+                    self.load(name, device=device, attn_implementation=attn_implementation, trainable=trainable)
+                except torch.cuda.OutOfMemoryError:
+                    continue
+
 
         self._models[model_name] = {
             "model": model,
@@ -68,7 +75,7 @@ class ModelRegistry:
             "attn_implementation": attn_implementation,
         }
         n_new = self._models[model_name]["tokenizer"].add_special_tokens({
-            "additional_special_tokens": ["<e1>", "</e1>", "<e2>", "</e2>"]
+            "additional_special_tokens": ["[E1]", "[/E1]", "[E2]", "[/E2]"]
         })
         self._models[model_name]["model"].resize_token_embeddings(len(self._models[model_name]["tokenizer"]))
         with torch.no_grad():

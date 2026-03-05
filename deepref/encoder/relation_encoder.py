@@ -9,10 +9,10 @@ class RelationEncoder(BertEntityEncoder):
 
     Each sample is formatted as::
 
-        {sent_before} <e1> {head} </e1> {sent_between} <e2> {tail} </e2> {sent_after}
+        {sent_before} [E1] {head} [/E1] {sent_between} [E2] {tail} [/E2] {sent_after}
         The relation between {head_name} and {tail_name} is [MASK].
 
-    The ``forward`` pass extracts the hidden states at ``<e1>``, ``<e2>``, and
+    The ``forward`` pass extracts the hidden states at ``[E1]``, ``[E2]``, and
     ``[MASK]`` using the entity-extraction logic inherited from
     :class:`BertEntityEncoder`, then returns their concatenation as the
     sentence representation.
@@ -114,8 +114,8 @@ class RelationEncoder(BertEntityEncoder):
         Args:
             token:    ``(B, L)`` token id tensor.
             att_mask: ``(B, L)`` attention mask.
-            pos_e1:   ``(B, 1)`` position of the ``<e1>`` marker.
-            pos_e2:   ``(B, 1)`` position of the ``<e2>`` marker.
+            pos_e1:   ``(B, 1)`` position of the ``[E1]`` marker.
+            pos_e2:   ``(B, 1)`` position of the ``[E2]`` marker.
             pos_mask: ``(B, 1)`` position of the mask token.
 
         Returns:
