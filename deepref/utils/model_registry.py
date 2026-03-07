@@ -1,3 +1,4 @@
+import gc
 from pathlib import Path
 
 import torch
@@ -93,7 +94,9 @@ class ModelRegistry:
     def unload(self, model_name: str):
         if model_name in self._models:
             del self._models[model_name]
-            torch.cuda.empty_cache()
+            gc.collect()
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
             print(f"🗑️ {model_name} unloaded from GPU")
 
     def list_loaded(self):
