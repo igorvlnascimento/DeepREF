@@ -1,0 +1,26 @@
+defaults:
+  - encoder1: bert_entity
+  - encoder2: none
+  - dataset: semeval2010
+  - _self_
+
+# Directory where VectorDatabase files are written.
+# Relative paths are resolved from the original working directory (not Hydra's output dir).
+output_dir: embeddings/
+
+# Number of samples per encoder forward pass during generation.
+# Falls back to 64 if not set.
+batch_size: 64
+
+device: cpu
+
+# When true, fit StandardScaler → PCA(0.95) → L2 Norm on the train VDB and
+# apply the fitted pipeline to the test VDB before saving.
+fit_pipeline: false
+
+seed: 42
+
+# When true, re-generate and overwrite embeddings even if the output directory
+# already contains files for this encoder/dataset combination.
+# Defaults to false so repeated runs are cheap.
+force: false

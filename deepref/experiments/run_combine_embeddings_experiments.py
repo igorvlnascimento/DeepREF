@@ -40,6 +40,14 @@ Cross dataset × encoder multirun:
         dataset=semeval2010,ddi \\
         encoder1=relation,llm \\
         encoder2=bow_sdp,verbalized_sdp,none
+
+VectorDatabase mode (pre-compute embeddings once, train MLP head on tensors):
+    python deepref/experiments/run_combine_embeddings_experiments.py \\
+        vector_db.enabled=true
+
+    Optionally save the generated VectorDatabases to disk:
+    python deepref/experiments/run_combine_embeddings_experiments.py \\
+        vector_db.enabled=true vector_db.save_dir=embeddings/
 """
 
 from __future__ import annotations
@@ -53,7 +61,9 @@ from typing import Any
 
 import hydra
 import mlflow
+import numpy as np
 import torch
+from torch import random
 import torch.nn as nn
 from omegaconf import DictConfig, OmegaConf
 from sklearn.metrics import (
@@ -67,6 +77,8 @@ from torch.utils.data import DataLoader, random_split
 from tqdm import tqdm
 
 from deepref.dataset.re_dataset import REDataset
+from deepref.embedding.embedding_generator import EmbeddingGenerator
+from deepref.embedding.vector_database import VectorDatabase
 from deepref.encoder.bert_entity_encoder import BertEntityEncoder
 from deepref.encoder.llm_encoder import LLMEncoder
 from deepref.encoder.relation_encoder import RelationEncoder
@@ -76,12 +88,21 @@ from deepref.framework.sentence_re_trainer import SentenceRETrainer
 from deepref.framework.utils import AverageMeter
 from deepref.model.softmax_mlp import SoftmaxMLP
 from deepref.nlp.nlp_tool import NLPTool
+from deepref.utils.model_registry import ModelRegistry
 
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s %(levelname)s %(message)s",
 )
 logger = logging.getLogger(__name__)
+
+def set_seed(seed: int = 42):
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
 
 
 # ---------------------------------------------------------------------------
@@ -645,6 +666,156 @@ class CombineRETrainer(SentenceRETrainer):
 
 
 # ---------------------------------------------------------------------------
+# VectorDB trainer
+# ---------------------------------------------------------------------------
+
+class VectorDBRETrainer(CombineRETrainer):
+    """CombineRETrainer variant that trains directly on pre-computed embeddings.
+
+    Accepts :class:`~deepref.embedding.vector_database.VectorDatabase` instances
+    instead of :class:`CombineREDataset`.  The encoder is bypassed at training
+    time: each batch is an ``(embeddings, labels)`` tensor pair produced by the
+    VDB DataLoader, and the forward pass calls the MLP head and classifier
+    directly — ``model.model(emb)`` → ``model.fc(rep)`` — skipping
+    ``model.sentence_encoder``.
+
+    This enables fast iteration on the classifier head without re-running the
+    (slow, GPU-bound) encoder on every epoch.
+
+    Args:
+        model: :class:`~deepref.model.softmax_mlp.SoftmaxMLP` instance.
+        train_vdb: pre-computed training embeddings.
+        test_vdb: pre-computed test embeddings.
+        ckpt: checkpoint file path.
+        training_parameters: same dict accepted by :class:`CombineRETrainer`.
+    """
+
+    def __init__(
+        self,
+        model: SoftmaxMLP,
+        train_vdb: VectorDatabase,
+        test_vdb: VectorDatabase,
+        ckpt: str,
+        training_parameters: dict[str, Any],
+    ) -> None:
+        nn.Module.__init__(self)
+
+        self.model = model
+        self.training_parameters = training_parameters
+        self.max_epoch = training_parameters["max_epoch"]
+        self.criterion = training_parameters["criterion"]
+        self.lr = training_parameters["lr"]
+        batch_size = training_parameters["batch_size"]
+
+        val_size = max(1, round(len(train_vdb) * 0.1))
+        train_size = len(train_vdb) - val_size
+        train_split, val_split = random_split(train_vdb, [train_size, val_size])
+        logger.info(
+            "VectorDB split — train: %d  val: %d  test: %d",
+            train_size, val_size, len(test_vdb),
+        )
+
+        self.train_loader = DataLoader(train_split, batch_size=batch_size, shuffle=True)
+        self.val_loader   = DataLoader(val_split,   batch_size=batch_size, shuffle=False)
+        self.test_loader  = DataLoader(test_vdb,    batch_size=batch_size, shuffle=False)
+
+        opt = training_parameters["opt"]
+        weight_decay = training_parameters.get("weight_decay", 0.0)
+        if opt == "sgd":
+            self.optimizer = optim.SGD(
+                model.parameters(), self.lr, weight_decay=weight_decay
+            )
+        elif opt in ("adam", "adamw"):
+            from torch.optim import AdamW
+            Opt = AdamW if opt == "adamw" else optim.Adam
+            self.optimizer = Opt(
+                model.parameters(), lr=self.lr, weight_decay=weight_decay
+            )
+        else:
+            raise ValueError(f"Invalid optimizer: {opt!r}. Choose sgd, adam, or adamw.")
+
+        self.scheduler = None
+
+        if torch.cuda.is_available():
+            self.cuda()
+
+        self.ckpt = ckpt
+        self.global_step = 0
+
+    def iterate_loader(
+        self,
+        loader: DataLoader,
+        warmup: bool = True,
+        global_step: int = 0,
+        training: bool = True,
+    ) -> float | None:
+        """One pass through a VDB DataLoader with ``(embeddings, labels)`` batches.
+
+        The encoder is not invoked.  Embeddings are forwarded directly through
+        ``model.model`` (MLP layers) and ``model.fc`` (classifier head).
+        """
+        device = next(self.model.parameters()).device
+        avg_loss = AverageMeter()
+        avg_acc  = AverageMeter()
+
+        t = tqdm(loader)
+        for emb, labels in t:
+            emb    = emb.to(device)
+            labels = labels.to(device)
+
+            rep    = self.model.model(emb)   # MLP layers  → (B, H')
+            logits = self.model.fc(rep)      # classifier  → (B, N)
+            _, pred = logits.max(-1)
+
+            acc = float((pred == labels).long().sum()) / labels.size(0)
+            avg_acc.update(acc, labels.size(0))
+
+            if training:
+                loss = self.criterion(logits, labels)
+                avg_loss.update(loss.item(), 1)
+                loss.backward()
+                self.optimizer.step()
+                self.optimizer.zero_grad()
+                self.global_step += 1
+
+            t.set_postfix(loss=avg_loss.avg, acc=avg_acc.avg)
+
+        return avg_loss.avg if training else None
+
+    def eval_model(
+        self,
+        eval_loader: DataLoader,
+    ) -> tuple[dict[str, float], list[int], list[int]]:
+        """Evaluate on *eval_loader* using pre-computed embeddings."""
+        self.eval()
+        pred_result: list[int] = []
+        all_labels:  list[int] = []
+        device = next(self.model.parameters()).device
+
+        with torch.no_grad():
+            for emb, labels in tqdm(eval_loader):
+                emb    = emb.to(device)
+                labels = labels.to(device)
+                rep    = self.model.model(emb)
+                logits = self.model.fc(rep)
+                _, pred = logits.max(-1)
+                pred_result.extend(pred.tolist())
+                all_labels.extend(labels.tolist())
+
+        result = {
+            "acc":     accuracy_score(all_labels, pred_result),
+            "micro_p": precision_score(all_labels, pred_result, average="micro", zero_division=0),
+            "micro_r": recall_score(all_labels, pred_result, average="micro", zero_division=0),
+            "micro_f1": f1_score(all_labels, pred_result, average="micro", zero_division=0),
+            "macro_p": precision_score(all_labels, pred_result, average="macro", zero_division=0),
+            "macro_r": recall_score(all_labels, pred_result, average="macro", zero_division=0),
+            "macro_f1": f1_score(all_labels, pred_result, average="macro", zero_division=0),
+        }
+        logger.info("Eval result: %s", result)
+        return result, pred_result, all_labels
+
+
+# ---------------------------------------------------------------------------
 # Encoder factory
 # ---------------------------------------------------------------------------
 
@@ -831,6 +1002,8 @@ def main(cfg: DictConfig) -> None:
         f"__{cfg.encoder2.type}"
     )
 
+    set_seed(cfg.training.seed)
+
     with mlflow.start_run(run_name=run_name):
         # Per-encoder training overrides (fall back to global training params)
         enc1_training = cfg.encoder1.get("training", {})
@@ -841,6 +1014,8 @@ def main(cfg: DictConfig) -> None:
         enc2_lr     = enc2_training.get("lr",           cfg.training.lr)                    if enc2_training else cfg.training.lr
         enc2_wd     = enc2_training.get("weight_decay", cfg.training.get("weight_decay", 0.0)) if enc2_training else cfg.training.get("weight_decay", 0.0)
         enc2_warmup = enc2_training.get("warmup_step",  0)                                  if enc2_training else 0
+
+        use_vector_db: bool = cfg.vector_db.enabled
 
         mlflow.log_params({
             "dataset": cfg.dataset.name,
@@ -865,6 +1040,7 @@ def main(cfg: DictConfig) -> None:
             "opt": cfg.training.opt,
             "seed": cfg.training.seed,
             "patience": cfg.training.get("patience", 0),
+            "use_vector_db": use_vector_db,
         })
 
         try:
@@ -920,13 +1096,74 @@ def main(cfg: DictConfig) -> None:
                 "encoder2_warmup_step": enc2_warmup,
             }
 
-            trainer = CombineRETrainer(
-                model=model,
-                train_dataset=train_dataset,
-                test_dataset=test_dataset,
-                ckpt=ckpt_path,
-                training_parameters=training_parameters,
-            )
+            if use_vector_db:
+                # ── VectorDB path: load from disk or generate then save ──────
+                vdb_batch_size = cfg.vector_db.get("batch_size", cfg.training.batch_size)
+                vdb_save_dir   = cfg.vector_db.get("save_dir", None)
+
+                vdb_stem = f"{cfg.dataset.name}_{cfg.encoder1.type}_{cfg.encoder2.type}"
+                enc1_model_name = cfg.encoder1.get("model_name", cfg.encoder1.type)
+                if vdb_save_dir:
+                    save_dir = (
+                        Path(vdb_save_dir)
+                        if Path(vdb_save_dir).is_absolute()
+                        else Path(cwd) / vdb_save_dir
+                    ) / enc1_model_name.replace("/", "_")
+                    train_stem = str(save_dir / f"{vdb_stem}_train")
+                    test_stem  = str(save_dir / f"{vdb_stem}_test")
+                    train_exists = Path(train_stem + VectorDatabase._INDEX_SUFFIX).exists()
+                    test_exists  = Path(test_stem  + VectorDatabase._INDEX_SUFFIX).exists()
+                else:
+                    save_dir     = None
+                    train_exists = False
+                    test_exists  = False
+
+                if train_exists:
+                    logger.info("Loading train VDB from %s.*", train_stem)
+                    train_vdb = VectorDatabase.load(train_stem)
+                else:
+                    logger.info(
+                        "Generating train VectorDatabase (batch_size=%d) …", vdb_batch_size
+                    )
+                    train_vdb = EmbeddingGenerator(
+                        combine, train_dataset, batch_size=vdb_batch_size, device=device,
+                        collate_fn=combine_collate_fn,
+                    ).generate()
+                    if save_dir:
+                        save_dir.mkdir(parents=True, exist_ok=True)
+                        train_vdb.save(train_stem)
+                        logger.info("Saved train VDB → %s.*", train_stem)
+
+                if test_exists:
+                    logger.info("Loading test VDB from %s.*", test_stem)
+                    test_vdb = VectorDatabase.load(test_stem)
+                else:
+                    logger.info("Generating test VectorDatabase …")
+                    test_vdb = EmbeddingGenerator(
+                        combine, test_dataset, batch_size=vdb_batch_size, device=device,
+                        collate_fn=combine_collate_fn,
+                    ).generate()
+                    if save_dir:
+                        save_dir.mkdir(parents=True, exist_ok=True)
+                        test_vdb.save(test_stem)
+                        logger.info("Saved test VDB → %s.*", test_stem)
+
+                trainer = VectorDBRETrainer(
+                    model=model,
+                    train_vdb=train_vdb,
+                    test_vdb=test_vdb,
+                    ckpt=ckpt_path,
+                    training_parameters=training_parameters,
+                )
+            else:
+                # ── Traditional path: embed on the fly during each training step ──
+                trainer = CombineRETrainer(
+                    model=model,
+                    train_dataset=train_dataset,
+                    test_dataset=test_dataset,
+                    ckpt=ckpt_path,
+                    training_parameters=training_parameters,
+                )
 
             # ── Training ────────────────────────────────────────────────────
             best_micro_f1 = trainer.train_model(metric="micro_f1")
@@ -960,6 +1197,10 @@ def main(cfg: DictConfig) -> None:
             logger.error("Run '%s' failed:\n%s", run_name, traceback.format_exc())
             mlflow.set_tag("status", "failed")
             raise
+        finally:
+            registry = ModelRegistry()
+            for name in list(registry.list_loaded()):
+                registry.unload(name)
 
 
 if __name__ == "__main__":
