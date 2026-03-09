@@ -28,6 +28,8 @@ dependencies = [
     "tqdm>=4.67.3",
     "transformers>=5.2.0",
     "mlflow>=2.0.0",
+    "xgboost>=3.2.0",
+    "lightgbm>=4.6.0",
 ]
 
 [tool.pytest.ini_options]
