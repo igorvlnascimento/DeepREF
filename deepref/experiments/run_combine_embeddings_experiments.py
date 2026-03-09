@@ -1,11 +1,15 @@
 """
 Combine-Embeddings experiment runner.
 
-Trains a SoftmaxMLP classifier on top of one or two encoders using
-SentenceRETrainer as the training engine.  When two encoders are used their
-embeddings are concatenated via :class:`CombineEmbeddings`; when only one
-encoder is used a :class:`SingleEncoderWrapper` feeds it directly into the
-classifier.
+Trains a classifier on top of one or two encoders using SentenceRETrainer as
+the training engine.  When two encoders are used their embeddings are
+concatenated via :class:`CombineEmbeddings`; when only one encoder is used a
+:class:`SingleEncoderWrapper` feeds it directly into the classifier.
+
+Supported classifiers (``training.model_type``):
+  softmax_mlp   — MLP with softmax head (gradient-based, default)
+  xgboost       — XGBoost multi-class classifier (sklearn API)
+  lightgbm      — LightGBM multi-class classifier (sklearn API)
 
 Dual-encoder combinations (driven by Hydra multirun):
   encoder1=relation  encoder2=bow_sdp
@@ -41,6 +45,9 @@ Cross dataset × encoder multirun:
         encoder1=relation,llm \\
         encoder2=bow_sdp,verbalized_sdp,none
 
+XGBoost / LightGBM run:
+    python deepref/experiments/run_combine_embeddings_experiments.py \\
+        training.model_type=xgboost
 VectorDatabase mode (pre-compute embeddings once, train MLP head on tensors):
     python deepref/experiments/run_combine_embeddings_experiments.py \\
         vector_db.enabled=true
@@ -294,8 +301,8 @@ class CombineEmbeddings(nn.Module):
             return encoder.forward(item).float()  # (len_dep_vocab,)
 
         if isinstance(encoder, LLMEncoder):
-            text = " ".join(item["token"])
-            emb = encoder.forward(text)    # (1, H)
+            token_ids, attention_mask = encoder.tokenize(item)
+            emb = encoder.forward(token_ids, attention_mask)    # (1, H)
             return emb.squeeze(0).float()  # (H,)
 
         raise ValueError(f"Unsupported encoder type: {type(encoder)}")
@@ -357,6 +364,89 @@ class SingleEncoderWrapper(nn.Module):
 
 
 # ---------------------------------------------------------------------------
+# Sklearn-based classifier wrapper
+# ---------------------------------------------------------------------------
+
+class SklearnREClassifier(nn.Module):
+    """Wraps an XGBoost or LightGBM classifier with a sentence encoder.
+
+    The encoder produces embeddings; the sklearn classifier is then fitted on
+    those embeddings.  :meth:`forward` encodes a batch of items and returns
+    class probabilities as a ``(B, C)`` float32 tensor, making it compatible
+    with :meth:`CombineRETrainer.eval_model`.
+
+    Training is performed by :meth:`CombineRETrainer._train_sklearn`, which
+    collects all embeddings upfront and calls :meth:`fit` — no gradient
+    descent is used.
+
+    Args:
+        sentence_encoder: combined encoder (``CombineEmbeddings`` or
+            ``SingleEncoderWrapper``) that maps items to embeddings.
+        num_class: number of relation classes.
+        rel2id: relation-name → class-index mapping.
+        model_type: ``"xgboost"`` or ``"lightgbm"``.
+    """
+
+    IS_SKLEARN: bool = True  # detected by CombineRETrainer
+
+    def __init__(
+        self,
+        sentence_encoder: nn.Module,
+        num_class: int,
+        rel2id: dict,
+        model_type: str = "xgboost",
+    ) -> None:
+        super().__init__()
+        self.sentence_encoder = sentence_encoder
+        self.num_class = num_class
+        self.rel2id = rel2id
+        self.id2rel = {v: k for k, v in rel2id.items()}
+        self._model_type = model_type
+        self._clf = self._build_clf(model_type, num_class)
+
+    @staticmethod
+    def _build_clf(model_type: str, num_class: int):
+        if model_type == "xgboost":
+            from xgboost import XGBClassifier
+            return XGBClassifier(
+                objective="multi:softprob",
+                num_class=num_class,
+                eval_metric="mlogloss",
+                n_estimators=100,
+                use_label_encoder=False,
+            )
+        if model_type == "lightgbm":
+            from lightgbm import LGBMClassifier
+            return LGBMClassifier(
+                objective="multiclass",
+                num_class=num_class,
+                n_estimators=100,
+                verbose=-1,
+            )
+        raise ValueError(
+            f"Unknown sklearn model_type: {model_type!r}. Choose 'xgboost' or 'lightgbm'."
+        )
+
+    def fit(self, X: "np.ndarray", y: "np.ndarray") -> None:  # type: ignore[name-defined]
+        """Fit the sklearn classifier on precomputed embeddings."""
+        self._clf.fit(X, y)
+
+    def forward(self, items: list[dict]) -> torch.Tensor:
+        """Encode *items* and return class probabilities as a ``(B, C)`` tensor.
+
+        Compatible with ``logits.max(-1)`` used in
+        :meth:`CombineRETrainer.eval_model`.
+        """
+        import numpy as np
+
+        with torch.no_grad():
+            embeddings = self.sentence_encoder(items=items)  # (B, H)
+        X = embeddings.cpu().numpy()
+        proba = self._clf.predict_proba(X)               # (B, C)
+        return torch.from_numpy(np.array(proba, dtype=np.float32))
+
+
+# ---------------------------------------------------------------------------
 # Trainer
 # ---------------------------------------------------------------------------
 
@@ -382,7 +472,7 @@ class CombineRETrainer(SentenceRETrainer):
 
     def __init__(
         self,
-        model: SoftmaxMLP,
+        model: nn.Module,
         train_dataset: REDataset,
         test_dataset: REDataset,
         ckpt: str,
@@ -398,6 +488,10 @@ class CombineRETrainer(SentenceRETrainer):
         self.criterion = training_parameters["criterion"]
         self.lr = training_parameters["lr"]
         batch_size = training_parameters["batch_size"]
+
+        # Detect whether this is a sklearn-based model (XGBoost / LightGBM).
+        # When True, the gradient-based optimizer and scheduler are skipped.
+        self._is_sklearn: bool = getattr(model, "IS_SKLEARN", False)
 
         # Split train_dataset: 90 % train / 10 % validation (minimum 1 val sample).
         val_size = max(1, round(len(train_dataset) * 0.1))
@@ -427,75 +521,84 @@ class CombineRETrainer(SentenceRETrainer):
             collate_fn=combine_collate_fn,
         )
 
-        # Optimizer
-        opt = training_parameters["opt"]
-        lr = training_parameters["lr"]
-        weight_decay = training_parameters.get("weight_decay", 0.0)
-        enc1_lr     = training_parameters.get("encoder1_lr", lr)
-        enc1_wd     = training_parameters.get("encoder1_weight_decay", weight_decay)
-        enc1_warmup = training_parameters.get("encoder1_warmup_step", 0)
-        enc2_lr     = training_parameters.get("encoder2_lr", lr)
-        enc2_wd     = training_parameters.get("encoder2_weight_decay", weight_decay)
-        enc2_warmup = training_parameters.get("encoder2_warmup_step", 0)
+        # Optimizer + scheduler — only for gradient-based models.
+        if not self._is_sklearn:
+            opt = training_parameters["opt"]
+            lr = training_parameters["lr"]
+            weight_decay = training_parameters.get("weight_decay", 0.0)
+            enc1_lr     = training_parameters.get("encoder1_lr", lr)
+            enc1_wd     = training_parameters.get("encoder1_weight_decay", weight_decay)
+            enc1_warmup = training_parameters.get("encoder1_warmup_step", 0)
+            enc2_lr     = training_parameters.get("encoder2_lr", lr)
+            enc2_wd     = training_parameters.get("encoder2_weight_decay", weight_decay)
+            enc2_warmup = training_parameters.get("encoder2_warmup_step", 0)
 
-        if opt == "sgd":
-            self.optimizer = optim.SGD(self.parameters(), lr, weight_decay=weight_decay)
-        elif opt in ("adam", "adamw"):
-            no_decay = ["bias", "LayerNorm.bias", "LayerNorm.weight"]
-            all_named = list(self.named_parameters())
+            if opt == "sgd":
+                self.optimizer = optim.SGD(self.parameters(), lr, weight_decay=weight_decay)
+            elif opt in ("adam", "adamw"):
+                no_decay = ["bias", "LayerNorm.bias", "LayerNorm.weight"]
+                all_named = list(self.named_parameters())
 
-            # encoder1 backbone: dual-encoder path (.encoder1._backbone_)
-            # or single-encoder path (.encoder._backbone_)
-            enc1_named = [
-                (n, p) for n, p in all_named
-                if "encoder1._backbone_" in n or "encoder._backbone_" in n
-            ]
-            # encoder2 backbone: dual-encoder path (.encoder2._backbone_)
-            enc2_named = [
-                (n, p) for n, p in all_named
-                if "encoder2._backbone_" in n
-            ]
-            # classifier head: everything that is not a backbone
-            backbone_names = {n for n, _ in enc1_named} | {n for n, _ in enc2_named}
-            cls_named = [(n, p) for n, p in all_named if n not in backbone_names]
+                # encoder1 backbone: dual-encoder path (.encoder1._backbone_)
+                # or single-encoder path (.encoder._backbone_)
+                enc1_named = [
+                    (n, p) for n, p in all_named
+                    if "encoder1._backbone_" in n or "encoder._backbone_" in n
+                ]
+                # encoder2 backbone: dual-encoder path (.encoder2._backbone_)
+                enc2_named = [
+                    (n, p) for n, p in all_named
+                    if "encoder2._backbone_" in n
+                ]
+                # classifier head: everything that is not a backbone
+                backbone_names = {n for n, _ in enc1_named} | {n for n, _ in enc2_named}
+                cls_named = [(n, p) for n, p in all_named if n not in backbone_names]
 
-            def _make_groups(named_params, param_lr, param_wd, group_warmup_steps=0):
-                """Split params into decay / no-decay groups with stored initial_lr."""
-                decay  = [p for n, p in named_params if not any(nd in n for nd in no_decay)]
-                no_dec = [p for n, p in named_params if     any(nd in n for nd in no_decay)]
-                groups = []
-                if decay:
-                    groups.append({"params": decay,  "lr": param_lr, "weight_decay": param_wd, "initial_lr": param_lr, "warmup_steps": group_warmup_steps})
-                if no_dec:
-                    groups.append({"params": no_dec, "lr": param_lr, "weight_decay": 0.0,      "initial_lr": param_lr, "warmup_steps": group_warmup_steps})
-                return groups
+                def _make_groups(named_params, param_lr, param_wd, group_warmup_steps=0):
+                    """Split params into decay / no-decay groups with stored initial_lr."""
+                    decay  = [p for n, p in named_params if not any(nd in n for nd in no_decay)]
+                    no_dec = [p for n, p in named_params if     any(nd in n for nd in no_decay)]
+                    groups = []
+                    if decay:
+                        groups.append({"params": decay,  "lr": param_lr, "weight_decay": param_wd, "initial_lr": param_lr, "warmup_steps": group_warmup_steps})
+                    if no_dec:
+                        groups.append({"params": no_dec, "lr": param_lr, "weight_decay": 0.0,      "initial_lr": param_lr, "warmup_steps": group_warmup_steps})
+                    return groups
 
-            param_groups = (
-                _make_groups(enc1_named, enc1_lr, enc1_wd, enc1_warmup)
-                + _make_groups(enc2_named, enc2_lr, enc2_wd, enc2_warmup)
-                + _make_groups(cls_named,  lr,      weight_decay)
-            )
+                param_groups = (
+                    _make_groups(enc1_named, enc1_lr, enc1_wd, enc1_warmup)
+                    + _make_groups(enc2_named, enc2_lr, enc2_wd, enc2_warmup)
+                    + _make_groups(cls_named,  lr,      weight_decay)
+                )
 
-            if opt == "adamw":
-                from torch.optim import AdamW
-                self.optimizer = AdamW(param_groups)
+                if opt == "adamw":
+                    from torch.optim import AdamW
+                    self.optimizer = AdamW(param_groups)
+                else:
+                    self.optimizer = optim.Adam(param_groups)
             else:
-                self.optimizer = optim.Adam(param_groups)
-        else:
-            raise ValueError(f"Invalid optimizer: {opt!r}. Choose sgd, adam, or adamw.")
+                raise ValueError(f"Invalid optimizer: {opt!r}. Choose sgd, adam, or adamw.")
 
-        # LR scheduler
-        warmup_step = training_parameters.get("warmup_step", 0)
-        if warmup_step > 0:
-            from transformers import get_linear_schedule_with_warmup
-            training_steps = train_size // batch_size * self.max_epoch
-            self.scheduler = get_linear_schedule_with_warmup(
-                self.optimizer,
-                num_warmup_steps=warmup_step,
-                num_training_steps=training_steps,
-            )
+            # LR scheduler
+            warmup_step = training_parameters.get("warmup_step", 0)
+            if warmup_step > 0:
+                from transformers import get_linear_schedule_with_warmup
+                training_steps = train_size // batch_size * self.max_epoch
+                self.scheduler = get_linear_schedule_with_warmup(
+                    self.optimizer,
+                    num_warmup_steps=warmup_step,
+                    num_training_steps=training_steps,
+                )
+            else:
+                self.scheduler = None
         else:
+            # Sklearn models have no gradient-based optimizer.
+            self.optimizer = None
             self.scheduler = None
+            logger.info(
+                "Sklearn model detected (%s) — skipping optimizer/scheduler setup.",
+                getattr(model, "_model_type", "unknown"),
+            )
 
         if torch.cuda.is_available():
             self.cuda()
@@ -608,22 +711,97 @@ class CombineRETrainer(SentenceRETrainer):
         return result, pred_result, all_labels
 
     # ------------------------------------------------------------------
+    # Sklearn helpers
+    # ------------------------------------------------------------------
+
+    def _collect_embeddings(
+        self,
+        loader: DataLoader,
+    ) -> "tuple[np.ndarray, np.ndarray]":  # type: ignore[name-defined]
+        """Collect all embeddings and labels from *loader* without gradients.
+
+        Returns:
+            ``(X, y)`` where ``X`` has shape ``(N, H)`` and ``y`` has shape
+            ``(N,)``.  Uses the model's ``sentence_encoder`` directly so that
+            the sklearn classifier head is bypassed.
+        """
+        import numpy as np
+
+        self.eval()
+        all_embeddings: list = []
+        all_labels: list = []
+
+        with torch.no_grad():
+            for data in tqdm(loader, desc="Collecting embeddings"):
+                items = data["items"]
+                labels = data["labels"]
+                embs = self.model.sentence_encoder(items=items)  # (B, H)
+                all_embeddings.append(embs.cpu().numpy())
+                all_labels.append(labels.numpy())
+
+        return (
+            np.concatenate(all_embeddings, axis=0),
+            np.concatenate(all_labels, axis=0),
+        )
+
+    def _train_sklearn(self, metric: str) -> float:
+        """Fit the sklearn classifier on encoder embeddings and return best *metric*.
+
+        Steps:
+        1. Encode all training samples (no gradient).
+        2. Fit the sklearn model (``XGBClassifier`` / ``LGBMClassifier``).
+        3. Save the fitted model with :mod:`joblib`.
+        4. Evaluate on the validation split and log metrics to MLflow.
+        """
+        import joblib
+
+        logger.info("=== Collecting train embeddings for sklearn fitting ===")
+        X_train, y_train = self._collect_embeddings(self.train_loader)
+
+        logger.info(
+            "Fitting %s on %d samples (dim=%d) …",
+            self.model._model_type, len(X_train), X_train.shape[1],
+        )
+        self.model.fit(X_train, y_train)
+
+        # Persist the fitted sklearn estimator
+        folder = os.path.dirname(self.ckpt)
+        if folder:
+            os.makedirs(folder, exist_ok=True)
+        ckpt_sklearn = self.ckpt.replace(".pth", ".joblib")
+        joblib.dump(self.model._clf, ckpt_sklearn)
+        logger.info("Sklearn model saved to %s", ckpt_sklearn)
+
+        # Validation metrics (single "epoch" for MLflow compatibility)
+        logger.info("=== Val evaluation ===")
+        result, _, _ = self.eval_model(self.val_loader)
+        mlflow.log_metrics(
+            {f"val_{k}": v for k, v in result.items() if isinstance(v, float)},
+            step=0,
+        )
+        logger.info("Val result: %s", result)
+        return result.get(metric, 0.0)
+
+    # ------------------------------------------------------------------
     # Training loop with MLflow logging
     # ------------------------------------------------------------------
 
     def train_model(self, warmup: bool = True, metric: str = "macro_f1") -> float:
-        """Train for ``max_epoch`` epochs, log metrics to MLflow per epoch.
+        """Train the model and return the best value of *metric*.
 
-        Evaluates on the validation split (10 % of the original training data)
-        after each epoch to track the best checkpoint and drive early stopping.
-        Saves the best checkpoint (by *metric* on the validation set) to
-        ``self.ckpt``.  Stops early when the monitored metric has not improved
-        for ``patience`` consecutive epochs (``patience=0`` disables early
-        stopping).
+        Dispatches to :meth:`_train_sklearn` for sklearn-based models
+        (XGBoost / LightGBM) or runs the gradient-based epoch loop for
+        :class:`~deepref.model.softmax_mlp.SoftmaxMLP`.
 
-        Returns:
-            Best value of *metric* achieved during training.
+        For gradient-based training:
+        * Evaluates on the validation split after each epoch.
+        * Saves the best checkpoint (by *metric*) to ``self.ckpt``.
+        * Stops early when *metric* has not improved for ``patience``
+          consecutive epochs (``patience=0`` disables early stopping).
         """
+        if self._is_sklearn:
+            return self._train_sklearn(metric)
+
         best_metric = 0.0
         patience = self.training_parameters.get("patience", 0)
         early_stopper = EarlyStopping(patience=patience)
@@ -910,6 +1088,54 @@ def build_combined_encoder(
 
 
 # ---------------------------------------------------------------------------
+# Model factory
+# ---------------------------------------------------------------------------
+
+def build_model(
+    cfg: DictConfig,
+    sentence_encoder: nn.Module,
+    num_class: int,
+    rel2id: dict,
+) -> nn.Module:
+    """Instantiate the classifier from ``cfg.training.model_type``.
+
+    Args:
+        cfg: full Hydra config.
+        sentence_encoder: combined encoder to embed sentences.
+        num_class: number of relation classes.
+        rel2id: relation-name → class-index mapping.
+
+    Returns:
+        A :class:`~deepref.model.softmax_mlp.SoftmaxMLP` for
+        ``model_type="softmax_mlp"`` or a :class:`SklearnREClassifier`
+        for ``"xgboost"`` / ``"lightgbm"``.
+    """
+    model_type: str = cfg.training.get("model_type", "softmax_mlp")
+
+    if model_type == "softmax_mlp":
+        return SoftmaxMLP(
+            sentence_encoder=sentence_encoder,
+            num_class=num_class,
+            rel2id=rel2id,
+            dropout=cfg.training.dropout,
+            num_layers=cfg.training.num_mlp_layers,
+        )
+
+    if model_type in ("xgboost", "lightgbm"):
+        return SklearnREClassifier(
+            sentence_encoder=sentence_encoder,
+            num_class=num_class,
+            rel2id=rel2id,
+            model_type=model_type,
+        )
+
+    raise ValueError(
+        f"Unknown model_type: {model_type!r}. "
+        "Choose 'softmax_mlp', 'xgboost', or 'lightgbm'."
+    )
+
+
+# ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 
@@ -1000,6 +1226,7 @@ def main(cfg: DictConfig) -> None:
         f"{cfg.dataset.name}"
         f"__{cfg.encoder1.type}"
         f"__{cfg.encoder2.type}"
+        f"__{cfg.training.get('model_type', 'softmax_mlp')}"
     )
 
     set_seed(cfg.training.seed)
@@ -1015,10 +1242,12 @@ def main(cfg: DictConfig) -> None:
         enc2_wd     = enc2_training.get("weight_decay", cfg.training.get("weight_decay", 0.0)) if enc2_training else cfg.training.get("weight_decay", 0.0)
         enc2_warmup = enc2_training.get("warmup_step",  0)                                  if enc2_training else 0
 
+        model_type: str = cfg.training.get("model_type", "softmax_mlp")
         use_vector_db: bool = cfg.vector_db.enabled
 
         mlflow.log_params({
             "dataset": cfg.dataset.name,
+            "model_type": model_type,
             "encoder1_type": cfg.encoder1.type,
             "encoder1_model": cfg.encoder1.get("model_name", "n/a"),
             "encoder1_trainable": cfg.encoder1.get("trainable", False),
@@ -1035,8 +1264,8 @@ def main(cfg: DictConfig) -> None:
             "batch_size": cfg.training.batch_size,
             "lr": cfg.training.lr,
             "max_epoch": cfg.training.max_epoch,
-            "num_mlp_layers": cfg.training.num_mlp_layers,
-            "dropout": cfg.training.dropout,
+            "num_mlp_layers": cfg.training.get("num_mlp_layers", "n/a"),
+            "dropout": cfg.training.get("dropout", "n/a"),
             "opt": cfg.training.opt,
             "seed": cfg.training.seed,
             "patience": cfg.training.get("patience", 0),
@@ -1059,13 +1288,8 @@ def main(cfg: DictConfig) -> None:
             combine = build_combined_encoder(encoder1, encoder2)
 
             # ── Model ───────────────────────────────────────────────────────
-            model = SoftmaxMLP(
-                sentence_encoder=combine,
-                num_class=num_class,
-                rel2id=train_dataset.rel2id,
-                dropout=cfg.training.dropout,
-                num_layers=cfg.training.num_mlp_layers,
-            )
+            model = build_model(cfg, combine, num_class, train_dataset.rel2id)
+            logger.info("Classifier: %s", model_type)
 
             # ── Trainer ─────────────────────────────────────────────────────
             enc1_model_name = cfg.encoder1.get("model_name", cfg.encoder1.type)
@@ -1076,7 +1300,7 @@ def main(cfg: DictConfig) -> None:
             )
             ckpt_path = os.path.join(
                 ckpt_dir,
-                f"{cfg.dataset.name}_{cfg.encoder1.type}_{cfg.encoder2.type}.pth",
+                f"{cfg.dataset.name}_{cfg.encoder1.type}_{cfg.encoder2.type}_{model_type}.pth",
             )
 
             training_parameters = {

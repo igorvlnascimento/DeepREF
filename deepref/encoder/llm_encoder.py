@@ -32,20 +32,20 @@ class LLMEncoder(SentenceEncoder):
         self,
         model_name,
         max_length=512,
+        pooling="last_token",
         padding_side="left",
         device="cpu",
         attn_implementation="eager",
         trainable=False,
     ):
-        super().__init__()
-        self.registry = ModelRegistry()
-        self.registry.load(model_name,
-                           device=device,
-                           trainable=trainable,
-                           attn_implementation=attn_implementation)
-
-        self.model_name = model_name
-        self.max_length = max_length
+        super().__init__(
+            model_name,
+            max_length=max_length,
+            device=device,
+            attn_implementation=attn_implementation,
+            trainable=trainable,
+        )
+        self.pooling = pooling
         self.padding_side = padding_side
 
         # Register the backbone as a proper nn.Module child so that
@@ -87,14 +87,43 @@ class LLMEncoder(SentenceEncoder):
         Returns:
             dict with ``'input_ids'`` and ``'attention_mask'`` tensors.
         """
-        return self.registry.tokenize(
+        token = item["token"]
+        h1 = item["h"]["pos"][0]
+        h2 = item["h"]["pos"][1]
+        t1 = item["t"]["pos"][0]
+        t2 = item["t"]["pos"][1]
+
+        if h1 < t1:
+            token = token[:t1] + ["[E2]"] + token[t1:t2] + ["[/E2]"] + token[t2:]
+            token = token[:h1] + ["[E1]"] + token[h1:h2] + ["[/E1]"] + token[h2:]
+        else:
+            token = token[:h1] + ["[E1]"] + token[h1:h2] + ["[/E1]"] + token[h2:]
+            token = token[:t1] + ["[E2]"] + token[t1:t2] + ["[/E2]"] + token[t2:]
+        prompt = f"""Instruct: Classify the semantic relation between the two marked entities.
+                    \nQuery: {" ".join(token)}"""
+        token_dict = self.registry.tokenize(
             self.model_name,
-            item,
+            prompt,
             max_length=self.max_length,
             padding="max_length",
         )
+        return token_dict["input_ids"], token_dict["attention_mask"]
+    
+    def last_token_pool(self, 
+                        last_hidden_states: torch.Tensor,
+                        attention_mask: torch.Tensor) -> torch.Tensor:
+        left_padding = (attention_mask[:, -1].sum() == attention_mask.shape[0])
+        if left_padding:
+            return last_hidden_states[:, -1]
+        else:
+            sequence_lengths = attention_mask.sum(dim=1) - 1
+            batch_size = last_hidden_states.shape[0]
+            return last_hidden_states[torch.arange(batch_size, device=last_hidden_states.device), sequence_lengths]
 
-    def forward(self, texts: str | list[str]) -> torch.Tensor:
+
+    def forward(self, 
+                token: torch.Tensor,
+                att_mask: torch.Tensor,) -> torch.Tensor:
         """Encode one or more texts and return L2-normalised average-pool embeddings.
 
         Args:
@@ -104,6 +133,11 @@ class LLMEncoder(SentenceEncoder):
             Float32 tensor of shape ``(N, hidden_dim)``, L2-normalised.
         """
 
-        model_outputs, batch = self.registry.run(self.model_name, texts)
-        return self.average_pool(model_outputs.last_hidden_state, batch["attention_mask"])
+        outputs = self.registry.run_from_input_ids(self.model_name, token, attention_mask=att_mask)
+        if self.pooling == "last_token":
+            return self.last_token_pool(outputs.last_hidden_state, att_mask)
+        elif self.pooling == "average":
+            return self.average_pool(outputs.last_hidden_state, att_mask)
+        else:
+            raise ValueError(f"Unknown pooling type: {self.pooling}")
 

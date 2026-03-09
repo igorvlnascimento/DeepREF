@@ -1,10 +1,11 @@
 import logging
 import torch
 
-from deepref.encoder.llm_encoder import LLMEncoder
+from deepref.encoder.sentence_encoder import SentenceEncoder
+from deepref.utils.model_registry import ModelRegistry
 
 
-class BertEntityEncoder(LLMEncoder):
+class BertEntityEncoder(SentenceEncoder):
     """Entity-span encoder backed by a HuggingFace transformer.
 
     Extends :class:`LLMEncoder` by locating the ``[E1]`` and ``<e2>`` entity

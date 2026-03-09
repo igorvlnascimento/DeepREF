@@ -49,7 +49,7 @@ class ModelRegistry:
                 trust_remote_code=True,
                 torch_dtype=dtype,
                 attn_implementation=attn_implementation,
-                cache_dir=CACHE_DIR,
+                cache_dir=CACHE_DIR
             ).to(device)
 
         try:
@@ -70,7 +70,7 @@ class ModelRegistry:
 
         self._models[model_name] = {
             "model": model,
-            "tokenizer": AutoTokenizer.from_pretrained(model_name),
+            "tokenizer": AutoTokenizer.from_pretrained(model_name, padding_side="left"),
             "device": device,
             "trainable": trainable,
             "attn_implementation": attn_implementation,

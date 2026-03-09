@@ -1,6 +1,6 @@
 defaults:
-  - encoder1: relation
-  - encoder2: bow_sdp
+  - encoder1: llm
+  - encoder2: none
   - dataset: semeval2010
   - _self_
 
@@ -9,6 +9,11 @@ mlflow:
   tracking_uri: null
 
 training:
+  # Classifier type: "softmax_mlp" (gradient-based MLP, default),
+  # "xgboost" (XGBoost multi-class), or "lightgbm" (LightGBM multi-class).
+  # Sklearn classifiers (xgboost / lightgbm) skip the epoch loop and fit
+  # directly on encoder embeddings — max_epoch, opt, and lr are ignored.
+  model_type: softmax_mlp
   lr: 2.0e-5
   max_epoch: 3
   batch_size: 64
