@@ -2,7 +2,7 @@
 encoder1:
   type: llm
   model_name: Qwen/Qwen3-Embedding-8B
-  max_length: 128
+  max_length: 8196
   trainable: false
   attn_implementation: sdpa
   training:

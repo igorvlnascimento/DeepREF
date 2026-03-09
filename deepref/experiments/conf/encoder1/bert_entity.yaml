@@ -1,7 +1,7 @@
 # @package _global_
 encoder1:
   type: bert_entity
-  model_name: bert-base-uncased
+  model_name: FacebookAI/roberta-large
   max_length: 128
   trainable: true
   attn_implementation: eager

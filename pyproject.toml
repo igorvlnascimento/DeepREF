@@ -33,6 +33,8 @@ dependencies = [
 markers = [
     "integration: marks tests that require large models or network access (deselect with '-m not integration')",
 ]
+[tool.uv.extra-build-dependencies]
+      flash-attn = ["torch"]
 dependencies = [
     "deap>=1.4.3",
     "kaleido>=1.2.0",
