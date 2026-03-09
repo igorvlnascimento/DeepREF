@@ -39,6 +39,12 @@ With preprocessing pipeline (StandardScaler → PCA(0.95) → L2 Norm)::
 
     python deepref/experiments/generate_embeddings.py fit_pipeline=true
 
+    When ``fit_pipeline=true``, **both** raw and PCA-transformed VDBs are
+    written.  Raw files keep the base stem; PCA files get a ``_pca`` infix::
+
+        <stem>_train.*       <stem>_test.*        # raw (always written)
+        <stem>_pca_train.*   <stem>_pca_test.*    # PCA (only when fit_pipeline=true)
+
 All combinations via multirun::
 
     python deepref/experiments/generate_embeddings.py --multirun \\
@@ -111,16 +117,29 @@ def main(cfg: DictConfig) -> None:
     train_stem = str(output_dir / f"{stem}_train")
     test_stem  = str(output_dir / f"{stem}_test")
 
+    pca_train_stem = str(output_dir / f"{stem}_pca_train")
+    pca_test_stem  = str(output_dir / f"{stem}_pca_test")
+
     train_exists = Path(train_stem + VectorDatabase._INDEX_SUFFIX).exists()
     test_exists  = Path(test_stem  + VectorDatabase._INDEX_SUFFIX).exists()
+    pca_train_exists = Path(pca_train_stem + VectorDatabase._INDEX_SUFFIX).exists()
+    pca_test_exists  = Path(pca_test_stem  + VectorDatabase._INDEX_SUFFIX).exists()
 
-    if train_exists and test_exists and not cfg.force:
+    raw_done = train_exists and test_exists
+    pca_done = pca_train_exists and pca_test_exists
+
+    if raw_done and (not cfg.fit_pipeline or pca_done) and not cfg.force:
         logger.info(
             "Embeddings already exist for '%s' in '%s' — skipping generation.\n"
-            "  train: %s.*\n"
-            "  test:  %s.*\n"
+            "  train (raw):  %s.*\n"
+            "  test  (raw):  %s.*\n"
+            "%s"
             "Set force=true to overwrite.",
             stem, output_dir, train_stem, test_stem,
+            (
+                f"  train (pca):  {pca_train_stem}.*\n"
+                f"  test  (pca):  {pca_test_stem}.*\n"
+            ) if cfg.fit_pipeline else "",
         )
         return
 
@@ -165,7 +184,14 @@ def main(cfg: DictConfig) -> None:
         ).generate()
         logger.info("Test VDB ready: %d samples, dim=%d", len(test_vdb), test_vdb.dim)
 
-        # ── Optional preprocessing pipeline ─────────────────────────────────
+        # ── Save raw embeddings (without PCA) ───────────────────────────────
+        train_vdb.save(train_stem)
+        logger.info("Saved train VDB (raw) → %s.*", train_stem)
+
+        test_vdb.save(test_stem)
+        logger.info("Saved test VDB  (raw) → %s.*", test_stem)
+
+        # ── Optional preprocessing pipeline (PCA) ────────────────────────────
         if cfg.fit_pipeline:
             logger.info(
                 "Fitting StandardScaler → PCA(0.95) → L2 Norm on train embeddings …"
@@ -180,12 +206,11 @@ def main(cfg: DictConfig) -> None:
             test_vdb.apply_pipeline(train_vdb.pipeline)
             logger.info("Test VDB after pipeline: dim=%d", test_vdb.dim)
 
-        # ── Save ────────────────────────────────────────────────────────────
-        train_vdb.save(train_stem)
-        logger.info("Saved train VDB → %s.*", train_stem)
+            train_vdb.save(pca_train_stem)
+            logger.info("Saved train VDB (pca) → %s.*", pca_train_stem)
 
-        test_vdb.save(test_stem)
-        logger.info("Saved test VDB  → %s.*", test_stem)
+            test_vdb.save(pca_test_stem)
+            logger.info("Saved test VDB  (pca) → %s.*", pca_test_stem)
 
         logger.info(
             "\nDone. Reload with:\n"
@@ -194,6 +219,13 @@ def main(cfg: DictConfig) -> None:
             "  test_vdb  = VectorDatabase.load(%r)",
             train_stem, test_stem,
         )
+        if cfg.fit_pipeline:
+            logger.info(
+                "PCA versions:\n"
+                "  train_vdb = VectorDatabase.load(%r)\n"
+                "  test_vdb  = VectorDatabase.load(%r)",
+                pca_train_stem, pca_test_stem,
+            )
 
     finally:
         registry = ModelRegistry()

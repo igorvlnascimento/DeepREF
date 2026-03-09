@@ -1,5 +1,5 @@
 defaults:
-  - encoder1: llm
+  - encoder1: bert_entity
   - encoder2: none
   - dataset: semeval2010
   - _self_
@@ -28,6 +28,6 @@ training:
 device: cuda
 
 vector_db:
-  enabled: false      # true → pre-compute embeddings once, train MLP head on tensors
+  enabled: true      # true → pre-compute embeddings once, train MLP head on tensors
   batch_size: null    # generation batch size; falls back to training.batch_size if null
-  save_dir: null      # if set, VectorDatabases are saved to this directory
+  save_dir: embeddings      # if set, VectorDatabases are saved to this directory

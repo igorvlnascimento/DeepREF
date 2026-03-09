@@ -29,6 +29,7 @@ class BertEntityEncoder(SentenceEncoder):
         model_name,
         max_length=512,
         blank_padding=True,
+        has_cls_embedding=False,
         device="cpu",
         attn_implementation="eager",
         trainable=False,
@@ -42,6 +43,7 @@ class BertEntityEncoder(SentenceEncoder):
             trainable=trainable,
         )
         self.blank_padding = blank_padding
+        self.has_cls_embedding = has_cls_embedding
         # Output: concatenation of e1 and e2 hidden states
         self.hidden_size = self.registry.get_model_hidden_size(model_name) * 2
 
@@ -164,6 +166,27 @@ class BertEntityEncoder(SentenceEncoder):
         pos_e2 = torch.tensor([[idx_e2]]).long()
 
         return t, att_mask, pos_e1, pos_e2
+    
+    def _extract_cls_embedding(
+        self,
+        hidden: torch.Tensor
+    ) -> torch.Tensor:
+        """Extract the hidden state at the ``[CLS]`` position.
+
+        Args:
+            hidden:  ``(B, L, H)`` float32 hidden state tensor.
+            pos_cls:  ``(B, 1)`` index of the ``[CLS]`` marker.
+
+        Returns:
+            ``(cls_hidden)`` — shape ``(B, H)``.
+        """
+        onehot_cls = torch.zeros(hidden.size()[:2]).float().to(hidden.device)
+
+        pos_cls = torch.zeros((hidden.size()[0], 1)).long().to(hidden.device)
+        onehot_cls = onehot_cls.scatter_(1, pos_cls.to(hidden.device), 1)
+
+        cls_hidden = (onehot_cls.unsqueeze(2) * hidden).sum(1)  # (B, H)
+        return cls_hidden
 
     def _extract_entity_embeddings(
         self,
@@ -214,4 +237,7 @@ class BertEntityEncoder(SentenceEncoder):
         )
         hidden = outputs.last_hidden_state.float()  # (B, L, H)
         e1_hidden, e2_hidden = self._extract_entity_embeddings(hidden, pos_e1, pos_e2)
+        if self.has_cls_embedding:
+            cls_hidden = self._extract_cls_embedding(hidden)
+            return torch.cat([cls_hidden, e1_hidden, e2_hidden], dim=1) # (B, 2H)
         return torch.cat([e1_hidden, e2_hidden], dim=1)  # (B, 2H)
