@@ -31,3 +31,4 @@ vector_db:
   enabled: true      # true → pre-compute embeddings once, train MLP head on tensors
   batch_size: null    # generation batch size; falls back to training.batch_size if null
   save_dir: embeddings      # if set, VectorDatabases are saved to this directory
+  fit_pipeline: false # if true, fit StandardScaler → PCA(0.95) → L2 Norm on train embeddings

@@ -55,6 +55,13 @@ VectorDatabase mode (pre-compute embeddings once, train MLP head on tensors):
     Optionally save the generated VectorDatabases to disk:
     python deepref/experiments/run_combine_embeddings_experiments.py \\
         vector_db.enabled=true vector_db.save_dir=embeddings/
+
+    With PCA preprocessing (StandardScaler → PCA(0.95) → L2 Norm):
+    python deepref/experiments/run_combine_embeddings_experiments.py \\
+        vector_db.enabled=true vector_db.fit_pipeline=true
+
+    PCA-transformed VDBs are saved alongside raw ones with a ``_pca`` infix
+    in the filename stem when ``vector_db.save_dir`` is also set.
 """
 
 from __future__ import annotations
@@ -431,6 +438,7 @@ def main(cfg: DictConfig) -> None:
             "seed": cfg.training.seed,
             "patience": cfg.training.get("patience", 0),
             "use_vector_db": use_vector_db,
+            "fit_pipeline": cfg.vector_db.get("fit_pipeline", False),
         })
 
         try:
@@ -447,10 +455,6 @@ def main(cfg: DictConfig) -> None:
             encoder2 = build_encoder2(cfg, device)
 
             combine = build_combined_encoder(encoder1, encoder2)
-
-            # ── Model ───────────────────────────────────────────────────────
-            model = build_model(cfg, combine, num_class, train_dataset.rel2id)
-            logger.info("Classifier: %s", model_type)
 
             # ── Trainer ─────────────────────────────────────────────────────
             enc1_model_name = cfg.encoder1.get("model_name", cfg.encoder1.type)
@@ -483,11 +487,19 @@ def main(cfg: DictConfig) -> None:
 
             if use_vector_db:
                 # ── VectorDB path: load from disk or generate then save ──────
+                fit_pipeline: bool = cfg.vector_db.get("fit_pipeline", False)
                 vdb_batch_size = cfg.vector_db.get("batch_size", cfg.training.batch_size)
                 vdb_save_dir   = cfg.vector_db.get("save_dir", None)
 
                 vdb_stem = f"{cfg.dataset.name}_{cfg.encoder1.type}_{cfg.encoder2.type}"
                 enc1_model_name = cfg.encoder1.get("model_name", cfg.encoder1.type)
+
+                save_dir = None
+                train_stem = test_stem = None
+                pca_train_stem = pca_test_stem = None
+                train_exists = test_exists = False
+                pca_train_exists = pca_test_exists = False
+
                 if vdb_save_dir:
                     save_dir = (
                         Path(vdb_save_dir)
@@ -496,14 +508,18 @@ def main(cfg: DictConfig) -> None:
                     ) / enc1_model_name.replace("/", "_")
                     train_stem = str(save_dir / f"{vdb_stem}_train")
                     test_stem  = str(save_dir / f"{vdb_stem}_test")
+                    pca_train_stem = str(save_dir / f"{vdb_stem}_pca_train")
+                    pca_test_stem  = str(save_dir / f"{vdb_stem}_pca_test")
                     train_exists = Path(train_stem + VectorDatabase._INDEX_SUFFIX).exists()
                     test_exists  = Path(test_stem  + VectorDatabase._INDEX_SUFFIX).exists()
-                else:
-                    save_dir     = None
-                    train_exists = False
-                    test_exists  = False
+                    pca_train_exists = fit_pipeline and Path(pca_train_stem + VectorDatabase._INDEX_SUFFIX).exists()
+                    pca_test_exists  = fit_pipeline and Path(pca_test_stem  + VectorDatabase._INDEX_SUFFIX).exists()
 
-                if train_exists:
+                # ── Load or generate train VDB ───────────────────────────────
+                if pca_train_exists:
+                    logger.info("Loading PCA train VDB from %s.*", pca_train_stem)
+                    train_vdb = VectorDatabase.load(pca_train_stem)
+                elif train_exists:
                     logger.info("Loading train VDB from %s.*", train_stem)
                     train_vdb = VectorDatabase.load(train_stem)
                 else:
@@ -519,7 +535,11 @@ def main(cfg: DictConfig) -> None:
                         train_vdb.save(train_stem)
                         logger.info("Saved train VDB → %s.*", train_stem)
 
-                if test_exists:
+                # ── Load or generate test VDB ────────────────────────────────
+                if pca_test_exists:
+                    logger.info("Loading PCA test VDB from %s.*", pca_test_stem)
+                    test_vdb = VectorDatabase.load(pca_test_stem)
+                elif test_exists:
                     logger.info("Loading test VDB from %s.*", test_stem)
                     test_vdb = VectorDatabase.load(test_stem)
                 else:
@@ -533,6 +553,40 @@ def main(cfg: DictConfig) -> None:
                         test_vdb.save(test_stem)
                         logger.info("Saved test VDB → %s.*", test_stem)
 
+                # ── PCA pipeline (fit on train, apply to test) ───────────────
+                if fit_pipeline and train_vdb.pipeline is None:
+                    logger.info(
+                        "Fitting StandardScaler → PCA(0.95) → L2 Norm on train embeddings …"
+                    )
+                    train_vdb.fit_pipeline()
+                    logger.info(
+                        "Train VDB after pipeline: dim=%d (was %d)",
+                        train_vdb.dim, train_vdb._raw_dim,
+                    )
+                    logger.info("Applying fitted pipeline to test embeddings …")
+                    test_vdb.apply_pipeline(train_vdb.pipeline)
+                    logger.info("Test VDB after pipeline: dim=%d", test_vdb.dim)
+                    if save_dir:
+                        save_dir.mkdir(parents=True, exist_ok=True)
+                        train_vdb.save(pca_train_stem)
+                        test_vdb.save(pca_test_stem)
+                        logger.info(
+                            "Saved PCA VDBs → %s.*  /  %s.*",
+                            pca_train_stem, pca_test_stem,
+                        )
+
+                # When PCA is active, update hidden_size so the MLP is built
+                # with the correct (reduced) input dimensionality.
+                if fit_pipeline:
+                    combine.model.config.hidden_size = train_vdb.dim
+                    logger.info(
+                        "Encoder hidden_size updated to PCA-reduced dim: %d", train_vdb.dim
+                    )
+
+                # ── Model ────────────────────────────────────────────────────
+                model = build_model(cfg, combine, num_class, train_dataset.rel2id)
+                logger.info("Classifier: %s", model_type)
+
                 trainer = VectorDBRETrainer(
                     model=model,
                     train_vdb=train_vdb,
@@ -542,6 +596,9 @@ def main(cfg: DictConfig) -> None:
                 )
             else:
                 # ── Traditional path: embed on the fly during each training step ──
+                model = build_model(cfg, combine, num_class, train_dataset.rel2id)
+                logger.info("Classifier: %s", model_type)
+
                 trainer = CombineRETrainer(
                     model=model,
                     train_dataset=train_dataset,
