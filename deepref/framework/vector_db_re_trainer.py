@@ -55,6 +55,7 @@ class VectorDBRETrainer(CombineRETrainer):
 
         self.model = model
         self.training_parameters = training_parameters
+        self._is_sklearn: bool = getattr(model, "IS_SKLEARN", False)
         self.max_epoch = training_parameters["max_epoch"]
         self.criterion = training_parameters["criterion"]
         self.lr = training_parameters["lr"]
