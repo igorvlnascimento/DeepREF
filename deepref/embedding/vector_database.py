@@ -133,7 +133,7 @@ class VectorDatabase(Dataset):
             ("pca", PCA(n_components=0.95)),
             ("normalizer", Normalizer(norm="l2")),
         ])
-        transformed = self.pipeline.fit_transform(raw).astype(np.float32)  # (N, D')
+        transformed = np.ascontiguousarray(self.pipeline.fit_transform(raw).astype(np.float32))  # (N, D')
 
         new_dim = transformed.shape[1]
         if self._index_type == "flat_ip":
@@ -167,7 +167,7 @@ class VectorDatabase(Dataset):
             raise RuntimeError("Cannot apply pipeline to an empty database.")
 
         raw = np.stack([self.index.reconstruct(i) for i in range(n)])  # (N, raw_dim)
-        transformed = pipeline.transform(raw).astype(np.float32)       # (N, D')
+        transformed = np.ascontiguousarray(pipeline.transform(raw).astype(np.float32))  # (N, D')
 
         new_dim = transformed.shape[1]
         if self._index_type == "flat_ip":
