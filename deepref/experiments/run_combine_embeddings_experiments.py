@@ -445,6 +445,7 @@ def main(cfg: DictConfig) -> None:
             "patience": cfg.training.get("patience", 0),
             "use_vector_db": use_vector_db,
             "fit_pipeline": cfg.vector_db.get("fit_pipeline", False),
+            "faiss_device": cfg.vector_db.get("faiss_device", None) or device,
         })
 
         try:
@@ -523,20 +524,22 @@ def main(cfg: DictConfig) -> None:
                     pca_train_exists = fit_pipeline and Path(pca_train_stem + VectorDatabase._INDEX_SUFFIX).exists()
                     pca_test_exists  = fit_pipeline and Path(pca_test_stem  + VectorDatabase._INDEX_SUFFIX).exists()
 
+                faiss_device: str = cfg.vector_db.get("faiss_device", device)
+
                 # ── Load or generate train VDB ───────────────────────────────
                 if pca_train_exists:
                     logger.info("Loading PCA train VDB from %s.*", pca_train_stem)
-                    train_vdb = VectorDatabase.load(pca_train_stem)
+                    train_vdb = VectorDatabase.load(pca_train_stem, device=faiss_device)
                 elif train_exists:
                     logger.info("Loading train VDB from %s.*", train_stem)
-                    train_vdb = VectorDatabase.load(train_stem)
+                    train_vdb = VectorDatabase.load(train_stem, device=faiss_device)
                 else:
                     logger.info(
                         "Generating train VectorDatabase (batch_size=%d) …", vdb_batch_size
                     )
                     train_vdb = EmbeddingGenerator(
                         combine, train_dataset, batch_size=vdb_batch_size, device=device,
-                        collate_fn=combine_collate_fn,
+                        faiss_device=faiss_device, collate_fn=combine_collate_fn,
                     ).generate()
                     if save_dir:
                         save_dir.mkdir(parents=True, exist_ok=True)
@@ -546,15 +549,15 @@ def main(cfg: DictConfig) -> None:
                 # ── Load or generate test VDB ────────────────────────────────
                 if pca_test_exists:
                     logger.info("Loading PCA test VDB from %s.*", pca_test_stem)
-                    test_vdb = VectorDatabase.load(pca_test_stem)
+                    test_vdb = VectorDatabase.load(pca_test_stem, device=faiss_device)
                 elif test_exists:
                     logger.info("Loading test VDB from %s.*", test_stem)
-                    test_vdb = VectorDatabase.load(test_stem)
+                    test_vdb = VectorDatabase.load(test_stem, device=faiss_device)
                 else:
                     logger.info("Generating test VectorDatabase …")
                     test_vdb = EmbeddingGenerator(
                         combine, test_dataset, batch_size=vdb_batch_size, device=device,
-                        collate_fn=combine_collate_fn,
+                        faiss_device=faiss_device, collate_fn=combine_collate_fn,
                     ).generate()
                     if save_dir:
                         save_dir.mkdir(parents=True, exist_ok=True)

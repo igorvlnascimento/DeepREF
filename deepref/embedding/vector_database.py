@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import os
-from typing import TYPE_CHECKING, Iterator, Literal
+from typing import TYPE_CHECKING, Any, Iterator, Literal
 
 import faiss
 import numpy as np
@@ -30,10 +30,18 @@ class VectorDatabase(Dataset):
     * :attr:`dim` reflects the PCA output dim; the original encoder dim is
       kept in :attr:`_raw_dim`.
 
+    GPU acceleration is available when ``faiss-gpu`` is installed.  Pass
+    ``device="cuda"`` (or ``"cuda:N"`` for a specific device) to move the
+    FAISS index to GPU.  :meth:`save` always serialises a CPU copy of the
+    index so files are portable.  :meth:`load` accepts the same ``device``
+    argument to restore a GPU-resident index from a CPU file.
+
     Args:
         dim: embedding dimensionality of the raw encoder output.
         index_type: FAISS index type — ``"flat_l2"`` (L2 distance) or
             ``"flat_ip"`` (inner product / cosine when vectors are normalised).
+        device: PyTorch-style device string — ``"cpu"`` (default), ``"cuda"``,
+            or ``"cuda:N"`` for GPU device *N*.
     """
 
     _INDEX_SUFFIX = ".index"
@@ -44,16 +52,54 @@ class VectorDatabase(Dataset):
         self,
         dim: int,
         index_type: Literal["flat_l2", "flat_ip"] = "flat_l2",
+        device: str = "cpu",
     ) -> None:
         self.dim = dim          # current stored dim; updated after fit_pipeline
         self._raw_dim = dim     # original encoder output dim; stable across pipeline fit
         self._index_type = index_type
+        self._device = device
+        self._gpu_device_id: int | None = self._parse_gpu_device(device)
+        self._gpu_res: Any = None
         self.pipeline: Pipeline | None = None
-        if index_type == "flat_ip":
-            self.index = faiss.IndexFlatIP(dim)
-        else:
-            self.index = faiss.IndexFlatL2(dim)
+        self.index = self._build_index(dim)
         self._labels: np.ndarray = np.empty(0, dtype=np.int64)
+
+    # ------------------------------------------------------------------
+    # GPU helpers
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _parse_gpu_device(device: str) -> int | None:
+        """Return the integer GPU device id, or ``None`` for CPU."""
+        if device == "cpu":
+            return None
+        if device == "cuda":
+            return 0
+        if device.startswith("cuda:"):
+            return int(device.split(":", 1)[1])
+        return None
+
+    def _build_index(self, dim: int) -> faiss.Index:
+        """Create a FAISS flat index of size *dim*, optionally on GPU."""
+        if self._index_type == "flat_ip":
+            cpu_index: faiss.Index = faiss.IndexFlatIP(dim)
+        else:
+            cpu_index = faiss.IndexFlatL2(dim)
+
+        if self._gpu_device_id is None:
+            return cpu_index
+
+        # Move to GPU — keep resources alive as an instance attribute so the
+        # GPU index is not invalidated by garbage collection.
+        if self._gpu_res is None:
+            self._gpu_res = faiss.StandardGpuResources()
+        return faiss.index_cpu_to_gpu(self._gpu_res, self._gpu_device_id, cpu_index)
+
+    def _to_cpu_index(self) -> faiss.Index:
+        """Return a CPU copy of the current index (no-op when already on CPU)."""
+        if self._gpu_device_id is not None:
+            return faiss.index_gpu_to_cpu(self.index)
+        return self.index
 
     # ------------------------------------------------------------------
     # Mutation
@@ -93,9 +139,11 @@ class VectorDatabase(Dataset):
         np_lbl = labels.detach().cpu().numpy().astype(np.int64)
 
         if self.pipeline is not None:
-            np_emb = self.pipeline.transform(np_emb).astype(np.float32)
+            np_emb = np.ascontiguousarray(
+                self.pipeline.transform(np_emb).astype(np.float32)
+            )
 
-        self.index.add(np_emb)
+        self.index.add(np.ascontiguousarray(np_emb))
         self._labels = np.concatenate([self._labels, np_lbl])
 
     # ------------------------------------------------------------------
@@ -126,20 +174,20 @@ class VectorDatabase(Dataset):
         if n == 0:
             raise RuntimeError("Cannot fit pipeline on an empty database.")
 
-        raw = np.stack([self.index.reconstruct(i) for i in range(n)])  # (N, raw_dim)
+        cpu_index = self._to_cpu_index()
+        raw = np.stack([cpu_index.reconstruct(i) for i in range(n)])  # (N, raw_dim)
 
         self.pipeline = Pipeline([
             ("scaler", StandardScaler()),
             ("pca", PCA(n_components=0.95)),
             ("normalizer", Normalizer(norm="l2")),
         ])
-        transformed = np.ascontiguousarray(self.pipeline.fit_transform(raw).astype(np.float32))  # (N, D')
+        transformed = np.ascontiguousarray(
+            self.pipeline.fit_transform(raw).astype(np.float32)
+        )  # (N, D')
 
         new_dim = transformed.shape[1]
-        if self._index_type == "flat_ip":
-            self.index = faiss.IndexFlatIP(new_dim)
-        else:
-            self.index = faiss.IndexFlatL2(new_dim)
+        self.index = self._build_index(new_dim)
         self.index.add(transformed)
         self.dim = new_dim
 
@@ -166,14 +214,14 @@ class VectorDatabase(Dataset):
         if n == 0:
             raise RuntimeError("Cannot apply pipeline to an empty database.")
 
-        raw = np.stack([self.index.reconstruct(i) for i in range(n)])  # (N, raw_dim)
-        transformed = np.ascontiguousarray(pipeline.transform(raw).astype(np.float32))  # (N, D')
+        cpu_index = self._to_cpu_index()
+        raw = np.stack([cpu_index.reconstruct(i) for i in range(n)])  # (N, raw_dim)
+        transformed = np.ascontiguousarray(
+            pipeline.transform(raw).astype(np.float32)
+        )  # (N, D')
 
         new_dim = transformed.shape[1]
-        if self._index_type == "flat_ip":
-            self.index = faiss.IndexFlatIP(new_dim)
-        else:
-            self.index = faiss.IndexFlatL2(new_dim)
+        self.index = self._build_index(new_dim)
         self.index.add(transformed)
         self._raw_dim = raw.shape[1]
         self.dim = new_dim
@@ -187,8 +235,9 @@ class VectorDatabase(Dataset):
         return self.index.ntotal
 
     def __getitem__(self, idx: int) -> tuple[Tensor, Tensor]:
-        vec = self.index.reconstruct(idx).copy()  # copy avoids dangling view
-        embedding = torch.from_numpy(vec)          # (dim,) float32
+        cpu_index = self._to_cpu_index()
+        vec = cpu_index.reconstruct(idx).copy()  # copy avoids dangling view
+        embedding = torch.from_numpy(vec)         # (dim,) float32
         label = torch.tensor(self._labels[idx], dtype=torch.long)
         return embedding, label
 
@@ -211,10 +260,11 @@ class VectorDatabase(Dataset):
             Tuples of ``(B, dim)`` float32 and ``(B,)`` long tensors.
         """
         n = len(self)
+        cpu_index = self._to_cpu_index()
         indices = np.random.permutation(n) if shuffle else np.arange(n)
         for start in range(0, n, batch_size):
             batch_idx = indices[start : start + batch_size]
-            embs = np.stack([self.index.reconstruct(int(i)) for i in batch_idx])
+            embs = np.stack([cpu_index.reconstruct(int(i)) for i in batch_idx])
             lbls = self._labels[batch_idx]
             yield torch.from_numpy(embs.copy()), torch.from_numpy(lbls.copy())
 
@@ -225,6 +275,9 @@ class VectorDatabase(Dataset):
     def save(self, path_stem: str) -> None:
         """Write FAISS index, labels, and (if fitted) pipeline to disk.
 
+        The index is always serialised as a CPU index so the file is portable
+        across machines regardless of whether it was built on GPU.
+
         Args:
             path_stem: file path without extension.  Files written:
                 ``<stem>.index``, ``<stem>.labels.npy``, and optionally
@@ -232,13 +285,13 @@ class VectorDatabase(Dataset):
         """
         import joblib
 
-        faiss.write_index(self.index, path_stem + self._INDEX_SUFFIX)
+        faiss.write_index(self._to_cpu_index(), path_stem + self._INDEX_SUFFIX)
         np.save(path_stem + self._LABELS_SUFFIX, self._labels)
         if self.pipeline is not None:
             joblib.dump(self.pipeline, path_stem + self._PIPELINE_SUFFIX)
 
     @classmethod
-    def load(cls, path_stem: str) -> "VectorDatabase":
+    def load(cls, path_stem: str, device: str = "cpu") -> "VectorDatabase":
         """Load a :class:`VectorDatabase` from disk.
 
         Loads the FAISS index, labels, and the preprocessing pipeline if one
@@ -247,27 +300,40 @@ class VectorDatabase(Dataset):
 
         Args:
             path_stem: file path without extension (same stem used in :meth:`save`).
+            device: device to place the index on after loading — ``"cpu"``
+                (default), ``"cuda"``, or ``"cuda:N"``.
 
         Returns:
             A fully populated :class:`VectorDatabase` instance.
         """
         import joblib
 
-        index = faiss.read_index(path_stem + cls._INDEX_SUFFIX)
+        cpu_index = faiss.read_index(path_stem + cls._INDEX_SUFFIX)
         labels = np.load(path_stem + cls._LABELS_SUFFIX)
 
         pipeline_path = path_stem + cls._PIPELINE_SUFFIX
         pipeline = joblib.load(pipeline_path) if os.path.exists(pipeline_path) else None
 
         obj = cls.__new__(cls)
-        obj.dim = index.d
         obj._index_type = "flat_l2"  # not persisted; default on load
-        obj.index = index
         obj._labels = labels
         obj.pipeline = pipeline
+        obj._device = device
+        obj._gpu_device_id = cls._parse_gpu_device(device)
+        obj._gpu_res = None
+
+        if obj._gpu_device_id is not None:
+            obj._gpu_res = faiss.StandardGpuResources()
+            obj.index = faiss.index_cpu_to_gpu(
+                obj._gpu_res, obj._gpu_device_id, cpu_index
+            )
+        else:
+            obj.index = cpu_index
+
+        obj.dim = cpu_index.d
         # Recover original encoder dim from the fitted scaler when available
         if pipeline is not None:
             obj._raw_dim = pipeline.named_steps["scaler"].n_features_in_
         else:
-            obj._raw_dim = index.d
+            obj._raw_dim = cpu_index.d
         return obj

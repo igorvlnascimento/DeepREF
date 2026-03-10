@@ -38,6 +38,7 @@ class EmbeddingGenerator:
         dataset: Dataset,
         batch_size: int = 64,
         device: str = "cpu",
+        faiss_device: str = "cpu",
         index_type: str = "flat_l2",
         collate_fn: Callable[..., Any] | None = None,
     ) -> None:
@@ -45,6 +46,7 @@ class EmbeddingGenerator:
         self.dataset = dataset
         self.batch_size = batch_size
         self.device = device
+        self.faiss_device = faiss_device
         self.index_type = index_type
         self.collate_fn = collate_fn
         self.embedding_dim: int = encoder.model.config.hidden_size
@@ -82,6 +84,6 @@ class EmbeddingGenerator:
             if was_training:
                 self.encoder.train()
 
-        vdb = VectorDatabase(self.embedding_dim, self.index_type)
+        vdb = VectorDatabase(self.embedding_dim, self.index_type, device=self.faiss_device)
         vdb.add(torch.cat(all_embeddings), torch.cat(all_labels))
         return vdb
