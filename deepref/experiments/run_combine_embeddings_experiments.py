@@ -494,7 +494,7 @@ def main(cfg: DictConfig) -> None:
             if use_vector_db:
                 # ── VectorDB path: load from disk or generate then save ──────
                 fit_pipeline: bool = cfg.vector_db.get("fit_pipeline", False)
-                vdb_batch_size = cfg.vector_db.get("batch_size", cfg.training.batch_size)
+                vdb_batch_size = cfg.vector_db.get("batch_size", None) or cfg.training.batch_size
                 vdb_save_dir   = cfg.vector_db.get("save_dir", None)
 
                 enc1_tag = cfg.encoder1.type + ("_cls" if cfg.encoder1.get("has_cls_embedding", False) else "")
