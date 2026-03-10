@@ -113,7 +113,11 @@ def main(cfg: DictConfig) -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
 
     # File-name stem shared by both splits: <dataset>_<enc1>_<enc2>
-    stem = f"{cfg.dataset.name}_{cfg.encoder1.type}_{cfg.encoder2.type}"
+    # Include _cls suffix when has_cls_embedding is active so runs with and
+    # without CLS don't collide (mirrors run_combine_embeddings_experiments.py).
+    enc1_tag = cfg.encoder1.type + ("_cls" if cfg.encoder1.get("has_cls_embedding", False) else "")
+    enc2_tag = cfg.encoder2.type + ("_cls" if cfg.encoder2.get("has_cls_embedding", False) else "")
+    stem = f"{cfg.dataset.name}_{enc1_tag}_{enc2_tag}"
     train_stem = str(output_dir / f"{stem}_train")
     test_stem  = str(output_dir / f"{stem}_test")
 
@@ -161,15 +165,18 @@ def main(cfg: DictConfig) -> None:
         combine = build_combined_encoder(encoder1, encoder2)
 
         # ── Embedding generation ─────────────────────────────────────────────
+        faiss_device: str = cfg.get("faiss_device", None) or device
+
         logger.info(
-            "Generating train embeddings (batch_size=%d, dim=%d) …",
-            cfg.batch_size, combine.model.config.hidden_size,
+            "Generating train embeddings (batch_size=%d, dim=%d, faiss_device=%s) …",
+            cfg.batch_size, combine.model.config.hidden_size, faiss_device,
         )
         train_vdb = EmbeddingGenerator(
             combine,
             train_ds,
             batch_size=cfg.batch_size,
             device=device,
+            faiss_device=faiss_device,
             collate_fn=combine_collate_fn,
         ).generate()
         logger.info("Train VDB ready: %d samples, dim=%d", len(train_vdb), train_vdb.dim)
@@ -180,6 +187,7 @@ def main(cfg: DictConfig) -> None:
             test_ds,
             batch_size=cfg.batch_size,
             device=device,
+            faiss_device=faiss_device,
             collate_fn=combine_collate_fn,
         ).generate()
         logger.info("Test VDB ready: %d samples, dim=%d", len(test_vdb), test_vdb.dim)

@@ -14,6 +14,9 @@ batch_size: 64
 
 device: cpu
 
+# FAISS index device. null → inherit `device`; or set explicitly to "cpu"/"cuda"/"cuda:N".
+faiss_device: null
+
 # When true, fit StandardScaler → PCA(0.95) → L2 Norm on the train VDB and
 # apply the fitted pipeline to the test VDB before saving.
 fit_pipeline: false
