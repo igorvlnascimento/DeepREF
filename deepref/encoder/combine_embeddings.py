@@ -119,12 +119,66 @@ class CombineEmbeddings(nn.Module):
 
         raise ValueError(f"Unsupported encoder type: {type(encoder)}")
 
+    @staticmethod
+    def _encode_batch(encoder: nn.Module, items: list[dict]) -> torch.Tensor:
+        """Encode a full batch in a single forward pass and return ``(B, H)``.
+
+        Tokenises all items, stacks the resulting tensors, and runs the
+        encoder once — amortising the GPU kernel-launch overhead that would
+        otherwise accumulate when calling :meth:`_encode_single` per item.
+
+        .. note::
+            :class:`RelationEncoder` and :class:`VerbalizedSDPEncoder` are
+            checked *before* their parent classes for the same reason as in
+            :meth:`_encode_single`.
+        """
+        if isinstance(encoder, RelationEncoder):
+            tokenizations = [encoder.tokenize(item) for item in items]
+            tokens    = torch.cat([t[0] for t in tokenizations], dim=0)
+            att_masks = torch.cat([t[1] for t in tokenizations], dim=0)
+            pos_e1    = torch.cat([t[2] for t in tokenizations], dim=0)
+            pos_e2    = torch.cat([t[3] for t in tokenizations], dim=0)
+            pos_mask  = torch.cat([t[4] for t in tokenizations], dim=0)
+            return encoder.forward(tokens, att_masks, pos_e1, pos_e2, pos_mask).float()  # (B, 3H)
+
+        if isinstance(encoder, BertEntityEncoder):
+            tokenizations = [encoder.tokenize(item) for item in items]
+            tokens    = torch.cat([t[0] for t in tokenizations], dim=0)
+            att_masks = torch.cat([t[1] for t in tokenizations], dim=0)
+            pos_e1    = torch.cat([t[2] for t in tokenizations], dim=0)
+            pos_e2    = torch.cat([t[3] for t in tokenizations], dim=0)
+            return encoder.forward(tokens, att_masks, pos_e1, pos_e2).float()  # (B, 2H)
+
+        if isinstance(encoder, VerbalizedSDPEncoder):
+            # NLP parsing (spaCy/Stanza) is sequential; run model on the full
+            # batch to at least amortise transformer overhead.
+            tokenizations = [encoder.tokenize(item) for item in items]
+            tokens    = torch.cat([t[0] for t in tokenizations], dim=0)
+            att_masks = torch.cat([t[1] for t in tokenizations], dim=0)
+            return LLMEncoder.forward(encoder, tokens, att_masks).float()  # (B, H)
+
+        if isinstance(encoder, BoWSDPEncoder):
+            # No transformer; stacking multi-hot vectors is negligible cost.
+            return torch.stack([encoder.forward(item) for item in items], dim=0).float()  # (B, V)
+
+        if isinstance(encoder, LLMEncoder):
+            tokenizations = [encoder.tokenize(item) for item in items]
+            tokens    = torch.cat([t[0] for t in tokenizations], dim=0)
+            att_masks = torch.cat([t[1] for t in tokenizations], dim=0)
+            return encoder.forward(tokens, att_masks).float()  # (B, H)
+
+        raise ValueError(f"Unsupported encoder type: {type(encoder)}")
+
     # ------------------------------------------------------------------
     # Forward — called as combine_emb(items=batch_list) by SoftmaxMLP
     # ------------------------------------------------------------------
 
     def forward(self, items: list[dict]) -> torch.Tensor:
         """Encode a batch of items and return concatenated embeddings.
+
+        Each encoder is called **once** for the entire batch rather than
+        once per item, so GPU utilisation scales with ``batch_size`` instead
+        of being fixed at 1.
 
         Args:
             items: list of item dicts with ``'token'``, ``'h'``, and ``'t'``
@@ -133,9 +187,6 @@ class CombineEmbeddings(nn.Module):
         Returns:
             Float32 tensor of shape ``(B, H1 + H2)``.
         """
-        batch_embs: list[torch.Tensor] = []
-        for item in items:
-            emb1 = self._encode_single(self.encoder1, item)
-            emb2 = self._encode_single(self.encoder2, item).to(emb1.device)
-            batch_embs.append(torch.cat([emb1, emb2], dim=0))
-        return torch.stack(batch_embs, dim=0)  # (B, H1+H2)
+        embs1 = self._encode_batch(self.encoder1, items)                   # (B, H1)
+        embs2 = self._encode_batch(self.encoder2, items).to(embs1.device)  # (B, H2)
+        return torch.cat([embs1, embs2], dim=1)                            # (B, H1+H2)
