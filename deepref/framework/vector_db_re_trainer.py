@@ -3,8 +3,10 @@
 # ---------------------------------------------------------------------------
 
 import logging
+import os
 from typing import Any
 
+import mlflow
 from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
 from torch import nn, optim
 import torch
@@ -13,6 +15,7 @@ from tqdm import tqdm
 
 from deepref.embedding.vector_database import VectorDatabase
 from deepref.framework.combine_re_trainer import CombineRETrainer
+from deepref.framework.early_stopping import EarlyStopping
 from deepref.framework.utils import AverageMeter
 from deepref.model.softmax_mlp import SoftmaxMLP
 
@@ -167,3 +170,54 @@ class VectorDBRETrainer(CombineRETrainer):
         }
         logger.info("Eval result: %s", result)
         return result, pred_result, all_labels
+
+    def train_model(self, warmup: bool = True, metric: str = "macro_f1") -> float:
+        """Train the MLP head on pre-computed embeddings with early stopping.
+
+        Args:
+            warmup: ignored (no warmup scheduler in VDB mode); kept for API
+                compatibility with :class:`CombineRETrainer`.
+            metric: validation metric used to select the best checkpoint and
+                drive early stopping.
+
+        Returns:
+            Best value of *metric* achieved on the validation split.
+        """
+        best_metric = 0.0
+        patience = self.training_parameters.get("patience", 0)
+        early_stopper = EarlyStopping(patience=patience)
+
+        for epoch in range(self.max_epoch):
+            logger.info("=== Epoch %d / %d — train ===", epoch + 1, self.max_epoch)
+            self.train()
+            self.iterate_loader(self.train_loader, training=True)
+
+            logger.info("=== Epoch %d / %d — val ===", epoch + 1, self.max_epoch)
+            result, _, _ = self.eval_model(self.val_loader)
+            logger.info(
+                "Metric %s: current=%.4f  best=%.4f",
+                metric, result[metric], best_metric,
+            )
+            mlflow.log_metrics(
+                {f"val_{k}": v for k, v in result.items() if isinstance(v, float)},
+                step=epoch,
+            )
+
+            improved = result[metric] > best_metric
+            if improved:
+                logger.info("Best checkpoint — saving to %s", self.ckpt)
+                folder = os.path.dirname(self.ckpt)
+                if folder:
+                    os.makedirs(folder, exist_ok=True)
+                torch.save({"state_dict": self.model.state_dict()}, self.ckpt)
+                best_metric = result[metric]
+
+            if early_stopper.step(improved):
+                logger.info(
+                    "Early stopping triggered after epoch %d (no improvement for %d epochs)",
+                    epoch + 1, patience,
+                )
+                break
+
+        logger.info("Best %s on validation set: %.4f", metric, best_metric)
+        return best_metric
