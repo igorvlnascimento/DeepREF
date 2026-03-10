@@ -52,7 +52,7 @@ class VectorDatabase(Dataset):
         self,
         dim: int,
         index_type: Literal["flat_l2", "flat_ip"] = "flat_l2",
-        device: str = "cpu",
+        device: str | None = "cpu",
     ) -> None:
         self.dim = dim          # current stored dim; updated after fit_pipeline
         self._raw_dim = dim     # original encoder output dim; stable across pipeline fit
@@ -69,9 +69,9 @@ class VectorDatabase(Dataset):
     # ------------------------------------------------------------------
 
     @staticmethod
-    def _parse_gpu_device(device: str) -> int | None:
+    def _parse_gpu_device(device: str | None) -> int | None:
         """Return the integer GPU device id, or ``None`` for CPU."""
-        if device == "cpu":
+        if not device or device == "cpu":
             return None
         if device == "cuda":
             return 0

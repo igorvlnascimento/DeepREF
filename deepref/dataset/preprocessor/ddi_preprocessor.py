@@ -1,4 +1,5 @@
 import argparse
+import os
 from pyexpat import ExpatError
 from xml.dom import minidom
 from pathlib import Path
@@ -55,7 +56,7 @@ if __name__ == "__main__":
     parser.add_argument("--path", required=True, help="Path to directory containing DDI XML files")
     args = parser.parse_args()
 
-    tool = SpacyNLPTool("en_core_web_trf")
+    tool = SpacyNLPTool(os.environ.get("NLP_MODEL", "en_core_web_sm"))
     preprocessor = DDIPreprocessor()
 
     base = Path(args.path)

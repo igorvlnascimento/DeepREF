@@ -1,15 +1,14 @@
 import spacy
-import subprocess
-import sys
+from spacy.cli import download as spacy_download
 
 from deepref.nlp.nlp_tool import NLPTool, ParsedToken
 
 class SpacyNLPTool(NLPTool):
     def __init__(self, model:str = None):
         super().__init__(model)
-        self.model = model if model is not None else 'en_core_web_trf'
+        self.model = model if model is not None else 'en_core_web_sm'
         if self.model not in spacy.util.get_installed_models():
-            subprocess.check_call([sys.executable, "-m", "spacy", "download", self.model])
+            spacy_download(self.model)
         self.nlp = spacy.load(self.model)
     
     def parse(self, tagged_sentence):

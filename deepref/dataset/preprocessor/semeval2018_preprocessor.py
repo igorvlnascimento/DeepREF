@@ -1,5 +1,6 @@
 import argparse
 import json
+import os
 from tqdm import tqdm
 from pyexpat import ExpatError
 import xml.etree.ElementTree as ET
@@ -207,7 +208,7 @@ if __name__ == "__main__":
         raise ValueError("Invalid path: must contain 'semeval20181-1' or 'semeval20181-2'")
 
     preprocessor = SemEval2018Preprocessor()
-    tool = SpacyNLPTool("en_core_web_trf")
+    tool = SpacyNLPTool(os.environ.get("NLP_MODEL", "en_core_web_sm"))
 
     base = Path(args.path)
     train_path = next((p for p in base.rglob("Train") if p.is_dir()), None)

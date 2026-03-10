@@ -1,4 +1,5 @@
 import argparse
+import os
 import re
 
 import pandas as pd
@@ -53,6 +54,6 @@ if __name__ == "__main__":
     preprocessor = SemEval2010Preprocessor()
     train_sentences = list(preprocessor.get_sentences(os.path.join(args.path, "TRAIN_FILE.TXT")))
     test_sentences = list(preprocessor.get_sentences(os.path.join(args.path, "TEST_FILE_FULL.TXT")))
-    tool = SpacyNLPTool("en_core_web_trf")
+    tool = SpacyNLPTool(os.environ.get("NLP_MODEL", "en_core_web_sm"))
 
     preprocessor.write_split_csvs("semeval2010", train_sentences, test_sentences, tool)
