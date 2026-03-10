@@ -12,14 +12,18 @@ Supported classifiers (``training.model_type``):
   lightgbm      — LightGBM multi-class classifier (sklearn API)
 
 Dual-encoder combinations (driven by Hydra multirun):
-  encoder1=relation  encoder2=bow_sdp
-  encoder1=relation  encoder2=verbalized_sdp
-  encoder1=llm       encoder2=bow_sdp
-  encoder1=llm       encoder2=verbalized_sdp
+  encoder1=relation         encoder2=bow_sdp
+  encoder1=relation         encoder2=verbalized_sdp
+  encoder1=llm              encoder2=bow_sdp
+  encoder1=llm              encoder2=verbalized_sdp
+  encoder1=bert_entity_cls  encoder2=bow_sdp
+  encoder1=bert_entity_cls  encoder2=verbalized_sdp
 
 Single-encoder mode (set encoder2=none):
-  encoder1=relation  encoder2=none
-  encoder1=llm       encoder2=none
+  encoder1=relation         encoder2=none
+  encoder1=llm              encoder2=none
+  encoder1=bert_entity      encoder2=none   (CLS disabled: [E1]+[E2] → 2H)
+  encoder1=bert_entity_cls  encoder2=none   (CLS enabled:  [CLS]+[E1]+[E2] → 3H)
 
 Usage
 -----
@@ -419,6 +423,7 @@ def main(cfg: DictConfig) -> None:
             "encoder1_type": cfg.encoder1.type,
             "encoder1_model": cfg.encoder1.get("model_name", "n/a"),
             "encoder1_trainable": cfg.encoder1.get("trainable", False),
+            "encoder1_has_cls": cfg.encoder1.get("has_cls_embedding", False),
             "encoder1_lr": enc1_lr,
             "encoder1_weight_decay": enc1_wd,
             "encoder1_warmup_step": enc1_warmup,
@@ -426,6 +431,7 @@ def main(cfg: DictConfig) -> None:
             "encoder2_model": cfg.encoder2.get("model_name", "n/a"),
             "encoder2_nlp_tool": cfg.encoder2.get("nlp_tool", "n/a"),
             "encoder2_trainable": cfg.encoder2.get("trainable", False),
+            "encoder2_has_cls": cfg.encoder2.get("has_cls_embedding", False) if cfg.encoder2.type != "none" else "n/a",
             "encoder2_lr": enc2_lr if cfg.encoder2.type != "none" else "n/a",
             "encoder2_weight_decay": enc2_wd if cfg.encoder2.type != "none" else "n/a",
             "encoder2_warmup_step": enc2_warmup if cfg.encoder2.type != "none" else "n/a",

@@ -44,8 +44,8 @@ class BertEntityEncoder(SentenceEncoder):
         )
         self.blank_padding = blank_padding
         self.has_cls_embedding = has_cls_embedding
-        # Output: concatenation of e1 and e2 hidden states
-        self.hidden_size = self.registry.get_model_hidden_size(model_name) * 2
+        # Output: [CLS]+e1+e2 when has_cls_embedding else e1+e2
+        self.hidden_size = self.registry.get_model_hidden_size(model_name) * (3 if has_cls_embedding else 2)
 
     # ------------------------------------------------------------------
     # Shared tokenisation helpers
@@ -239,5 +239,5 @@ class BertEntityEncoder(SentenceEncoder):
         e1_hidden, e2_hidden = self._extract_entity_embeddings(hidden, pos_e1, pos_e2)
         if self.has_cls_embedding:
             cls_hidden = self._extract_cls_embedding(hidden)
-            return torch.cat([cls_hidden, e1_hidden, e2_hidden], dim=1) # (B, 2H)
+            return torch.cat([cls_hidden, e1_hidden, e2_hidden], dim=1)  # (B, 3H)
         return torch.cat([e1_hidden, e2_hidden], dim=1)  # (B, 2H)

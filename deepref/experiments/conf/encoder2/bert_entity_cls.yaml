@@ -2,7 +2,7 @@ type: bert_entity
 model_name: bert-base-uncased
 max_length: 128
 trainable: false
-has_cls_embedding: false
+has_cls_embedding: true
 attn_implementation: eager
 training:
   lr: 2.0e-5
