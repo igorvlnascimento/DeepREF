@@ -60,6 +60,7 @@ class VectorDatabase(Dataset):
         self._device = device
         self._gpu_device_id: int | None = self._parse_gpu_device(device)
         self._gpu_res: Any = None
+        self._cpu_index_cache: Any = None   # lazily filled by _to_cpu_index(); invalidated on write
         self.pipeline: Pipeline | None = None
         self.index = self._build_index(dim)
         self._labels: np.ndarray = np.empty(0, dtype=np.int64)
@@ -96,10 +97,19 @@ class VectorDatabase(Dataset):
         return faiss.index_cpu_to_gpu(self._gpu_res, self._gpu_device_id, cpu_index)
 
     def _to_cpu_index(self) -> faiss.Index:
-        """Return a CPU copy of the current index (no-op when already on CPU)."""
-        if self._gpu_device_id is not None:
-            return faiss.index_gpu_to_cpu(self.index)
-        return self.index
+        """Return a CPU copy of the index, caching the result.
+
+        ``faiss.index_gpu_to_cpu`` copies the full index from GPU memory, so
+        calling it on every ``__getitem__`` (as a PyTorch DataLoader does)
+        causes O(N) full index copies per epoch.  The cached copy is
+        invalidated by any write operation (:meth:`add`, :meth:`fit_pipeline`,
+        :meth:`apply_pipeline`).
+        """
+        if self._gpu_device_id is None:
+            return self.index
+        if self._cpu_index_cache is None:
+            self._cpu_index_cache = faiss.index_gpu_to_cpu(self.index)
+        return self._cpu_index_cache
 
     # ------------------------------------------------------------------
     # Mutation
@@ -145,6 +155,7 @@ class VectorDatabase(Dataset):
 
         self.index.add(np.ascontiguousarray(np_emb))
         self._labels = np.concatenate([self._labels, np_lbl])
+        self._cpu_index_cache = None  # invalidate cached CPU copy
 
     # ------------------------------------------------------------------
     # Preprocessing pipeline
@@ -190,6 +201,7 @@ class VectorDatabase(Dataset):
         self.index = self._build_index(new_dim)
         self.index.add(transformed)
         self.dim = new_dim
+        self._cpu_index_cache = None  # invalidate cached CPU copy
 
     def apply_pipeline(self, pipeline: "Pipeline") -> None:
         """Transform stored embeddings using an already-fitted *pipeline*.
@@ -226,6 +238,7 @@ class VectorDatabase(Dataset):
         self._raw_dim = raw.shape[1]
         self.dim = new_dim
         self.pipeline = pipeline
+        self._cpu_index_cache = None  # invalidate cached CPU copy
 
     # ------------------------------------------------------------------
     # Dataset interface
@@ -321,12 +334,15 @@ class VectorDatabase(Dataset):
         obj._device = device
         obj._gpu_device_id = cls._parse_gpu_device(device)
         obj._gpu_res = None
+        obj._cpu_index_cache = None
 
         if obj._gpu_device_id is not None:
             obj._gpu_res = faiss.StandardGpuResources()
             obj.index = faiss.index_cpu_to_gpu(
                 obj._gpu_res, obj._gpu_device_id, cpu_index
             )
+            # Reuse the already-loaded CPU index rather than copying back later
+            obj._cpu_index_cache = cpu_index
         else:
             obj.index = cpu_index
 
