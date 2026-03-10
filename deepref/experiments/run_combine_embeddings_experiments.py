@@ -497,7 +497,9 @@ def main(cfg: DictConfig) -> None:
                 vdb_batch_size = cfg.vector_db.get("batch_size", cfg.training.batch_size)
                 vdb_save_dir   = cfg.vector_db.get("save_dir", None)
 
-                vdb_stem = f"{cfg.dataset.name}_{cfg.encoder1.type}_{cfg.encoder2.type}"
+                enc1_tag = cfg.encoder1.type + ("_cls" if cfg.encoder1.get("has_cls_embedding", False) else "")
+                enc2_tag = cfg.encoder2.type + ("_cls" if cfg.encoder2.get("has_cls_embedding", False) else "")
+                vdb_stem = f"{cfg.dataset.name}_{enc1_tag}_{enc2_tag}"
                 enc1_model_name = cfg.encoder1.get("model_name", cfg.encoder1.type)
 
                 save_dir = None
