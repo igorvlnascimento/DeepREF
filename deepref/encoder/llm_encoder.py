@@ -78,20 +78,11 @@ class LLMEncoder(SentenceEncoder):
         embedding = last_hidden_states_masked.sum(dim=1) / attention_mask.sum(dim=1)[..., None]
         return F.normalize(embedding, dim=-1)
 
-    def tokenize(self, item):
-        """Tokenize a string or list of strings.
-
-        Args:
-            item: a single string or list of strings.
-
-        Returns:
-            dict with ``'input_ids'`` and ``'attention_mask'`` tensors.
-        """
+    def _build_prompt(self, item: dict) -> str:
+        """Build the prompt string for one item without tokenizing."""
         token = item["token"]
-        h1 = item["h"]["pos"][0]
-        h2 = item["h"]["pos"][1]
-        t1 = item["t"]["pos"][0]
-        t2 = item["t"]["pos"][1]
+        h1, h2 = item["h"]["pos"][0], item["h"]["pos"][1]
+        t1, t2 = item["t"]["pos"][0], item["t"]["pos"][1]
 
         if h1 < t1:
             token = token[:t1] + ["[E2]"] + token[t1:t2] + ["[/E2]"] + token[t2:]
@@ -99,13 +90,44 @@ class LLMEncoder(SentenceEncoder):
         else:
             token = token[:h1] + ["[E1]"] + token[h1:h2] + ["[/E1]"] + token[h2:]
             token = token[:t1] + ["[E2]"] + token[t1:t2] + ["[/E2]"] + token[t2:]
-        prompt = f"""Instruct: Classify the semantic relation between the two marked entities.
-                    \nQuery: {" ".join(token)}"""
+        return (
+            f"Instruct: Classify the semantic relation between the two marked entities."
+            f"\nQuery: {' '.join(token)}"
+        )
+
+    def tokenize(self, item):
+        """Tokenize a single item dict.
+
+        Returns:
+            Tuple of ``(input_ids, attention_mask)`` tensors of shape ``(1, max_length)``.
+        """
+        prompt = self._build_prompt(item)
         token_dict = self.registry.tokenize(
             self.model_name,
             prompt,
             max_length=self.max_length,
             padding="max_length",
+        )
+        return token_dict["input_ids"], token_dict["attention_mask"]
+
+    def tokenize_batch(self, items: list[dict]):
+        """Tokenize a list of items in a single tokenizer call.
+
+        Pads to the longest sequence in the batch rather than to ``max_length``,
+        which avoids computing attention over thousands of padding tokens when
+        sentences are short relative to the configured ``max_length``.
+
+        Returns:
+            Tuple of ``(input_ids, attention_mask)`` tensors of shape ``(B, L)``
+            where ``L`` is the length of the longest sequence in the batch.
+        """
+        prompts = [self._build_prompt(item) for item in items]
+        token_dict = self.registry.tokenize(
+            self.model_name,
+            prompts,
+            max_length=self.max_length,
+            padding=True,
+            truncation=True,
         )
         return token_dict["input_ids"], token_dict["attention_mask"]
     

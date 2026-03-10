@@ -150,21 +150,35 @@ class CombineEmbeddings(nn.Module):
             return encoder.forward(tokens, att_masks, pos_e1, pos_e2).float()  # (B, 2H)
 
         if isinstance(encoder, VerbalizedSDPEncoder):
-            # NLP parsing (spaCy/Stanza) is sequential; run model on the full
-            # batch to at least amortise transformer overhead.
-            tokenizations = [encoder.tokenize(item) for item in items]
-            tokens    = torch.cat([t[0] for t in tokenizations], dim=0)
-            att_masks = torch.cat([t[1] for t in tokenizations], dim=0)
-            return LLMEncoder.forward(encoder, tokens, att_masks).float()  # (B, H)
+            # NLP parsing (spaCy/Stanza) is inherently sequential.  Build the
+            # verbalized strings one by one, then batch-tokenize and run the
+            # transformer once for the whole batch.
+            verbalized = [
+                encoder.verbalize(
+                    ' '.join(item['token']),
+                    item['h']['name'],
+                    item['t']['name'],
+                    encoder.build_dep_chain(encoder.extract_sdp(item)),
+                )
+                for item in items
+            ]
+            token_dict = encoder.registry.tokenize(
+                encoder.model_name, verbalized,
+                max_length=encoder.max_length, padding=True, truncation=True,
+            )
+            return LLMEncoder.forward(
+                encoder, token_dict["input_ids"], token_dict["attention_mask"]
+            ).float()  # (B, H)
 
         if isinstance(encoder, BoWSDPEncoder):
             # No transformer; stacking multi-hot vectors is negligible cost.
             return torch.stack([encoder.forward(item) for item in items], dim=0).float()  # (B, V)
 
         if isinstance(encoder, LLMEncoder):
-            tokenizations = [encoder.tokenize(item) for item in items]
-            tokens    = torch.cat([t[0] for t in tokenizations], dim=0)
-            att_masks = torch.cat([t[1] for t in tokenizations], dim=0)
+            # tokenize_batch pads to the batch's actual max length, not to
+            # encoder.max_length — crucial when max_length is large (e.g. 8192)
+            # and sentences are short (e.g. 100–300 tokens).
+            tokens, att_masks = encoder.tokenize_batch(items)
             return encoder.forward(tokens, att_masks).float()  # (B, H)
 
         raise ValueError(f"Unsupported encoder type: {type(encoder)}")
