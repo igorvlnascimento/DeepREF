@@ -265,17 +265,21 @@ def build_combined_encoder(
 
 def build_model(
     cfg: DictConfig,
-    sentence_encoder: nn.Module,
+    sentence_encoder: nn.Module | None,
     num_class: int,
     rel2id: dict,
+    hidden_size: int | None = None,
 ) -> nn.Module:
     """Instantiate the classifier from ``cfg.training.model_type``.
 
     Args:
         cfg: full Hydra config.
-        sentence_encoder: combined encoder to embed sentences.
+        sentence_encoder: combined encoder to embed sentences.  May be
+            ``None`` when training on pre-computed VDB embeddings.
         num_class: number of relation classes.
         rel2id: relation-name → class-index mapping.
+        hidden_size: embedding dimension used when ``sentence_encoder`` is
+            ``None`` (VDB mode without encoder loading).
 
     Returns:
         A :class:`~deepref.model.softmax_mlp.SoftmaxMLP` for
@@ -291,6 +295,7 @@ def build_model(
             rel2id=rel2id,
             dropout=cfg.training.dropout,
             num_layers=cfg.training.num_mlp_layers,
+            hidden_size=hidden_size,
         )
 
     if model_type in ("xgboost", "lightgbm"):
@@ -454,15 +459,6 @@ def main(cfg: DictConfig) -> None:
             train_dataset, test_dataset = load_split_datasets(cfg.dataset, cwd)
             num_class = len(train_dataset.rel2id)
 
-            # ── Encoders ────────────────────────────────────────────────────
-            logger.info("Building encoder1 (%s) …", cfg.encoder1.type)
-            encoder1 = build_encoder1(cfg, device)
-
-            logger.info("Building encoder2 (%s) …", cfg.encoder2.type)
-            encoder2 = build_encoder2(cfg, device)
-
-            combine = build_combined_encoder(encoder1, encoder2)
-
             # ── Trainer ─────────────────────────────────────────────────────
             enc1_model_name = cfg.encoder1.get("model_name", cfg.encoder1.type)
             ckpt_dir = os.path.join(
@@ -526,6 +522,20 @@ def main(cfg: DictConfig) -> None:
 
                 faiss_device: str = cfg.vector_db.get("faiss_device", device)
 
+                # Encoders are only needed when VDBs must be generated.
+                vdb_cached = (pca_train_exists or train_exists) and (pca_test_exists or test_exists)
+                combine = None
+                if not vdb_cached:
+                    logger.info("Building encoder1 (%s) …", cfg.encoder1.type)
+                    encoder1 = build_encoder1(cfg, device)
+                    logger.info("Building encoder2 (%s) …", cfg.encoder2.type)
+                    encoder2 = build_encoder2(cfg, device)
+                    combine = build_combined_encoder(encoder1, encoder2)
+                else:
+                    logger.info(
+                        "VDB found on disk — skipping encoder loading."
+                    )
+
                 # ── Load or generate train VDB ───────────────────────────────
                 if pca_train_exists:
                     logger.info("Loading PCA train VDB from %s.*", pca_train_stem)
@@ -586,16 +596,14 @@ def main(cfg: DictConfig) -> None:
                             pca_train_stem, pca_test_stem,
                         )
 
-                # When PCA is active, update hidden_size so the MLP is built
-                # with the correct (reduced) input dimensionality.
-                if fit_pipeline:
-                    combine.model.config.hidden_size = train_vdb.dim
-                    logger.info(
-                        "Encoder hidden_size updated to PCA-reduced dim: %d", train_vdb.dim
-                    )
-
                 # ── Model ────────────────────────────────────────────────────
-                model = build_model(cfg, combine, num_class, train_dataset.rel2id)
+                # Use VDB dim directly — no need for the encoder's config.
+                vdb_dim = train_vdb.dim
+                logger.info("VDB embedding dim: %d", vdb_dim)
+                model = build_model(
+                    cfg, combine, num_class, train_dataset.rel2id,
+                    hidden_size=vdb_dim,
+                )
                 logger.info("Classifier: %s", model_type)
 
                 trainer = VectorDBRETrainer(
@@ -607,6 +615,14 @@ def main(cfg: DictConfig) -> None:
                 )
             else:
                 # ── Traditional path: embed on the fly during each training step ──
+                logger.info("Building encoder1 (%s) …", cfg.encoder1.type)
+                encoder1 = build_encoder1(cfg, device)
+
+                logger.info("Building encoder2 (%s) …", cfg.encoder2.type)
+                encoder2 = build_encoder2(cfg, device)
+
+                combine = build_combined_encoder(encoder1, encoder2)
+
                 model = build_model(cfg, combine, num_class, train_dataset.rel2id)
                 logger.info("Classifier: %s", model_type)
 

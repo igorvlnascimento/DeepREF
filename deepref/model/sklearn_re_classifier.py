@@ -32,7 +32,7 @@ class SklearnREClassifier(nn.Module):
 
     def __init__(
         self,
-        sentence_encoder: nn.Module,
+        sentence_encoder: nn.Module | None,
         num_class: int,
         rel2id: dict,
         model_type: str = "xgboost",

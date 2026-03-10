@@ -2,20 +2,16 @@ import torch.nn as nn
 
 class MLP(nn.Module):
 
-    def __init__(self, 
-                 sentence_encoder,
+    def __init__(self,
+                 hidden_size: int,
                  dropout=0,
                  num_layers=3,
                  activation_function=nn.ReLU()):
         """
         Args:
-            input_size: dimention of input embedding
-            kernel_size: kernel_size for CNN
-            padding: padding for CNN
-            hidden_size: hidden size
+            hidden_size: input embedding dimension
         """
         super().__init__()
-        hidden_size = sentence_encoder.model.config.hidden_size
         self.num_layers = num_layers
 
         layers = []

@@ -76,24 +76,26 @@ class VectorDBRETrainer(CombineRETrainer):
         self.val_loader   = DataLoader(val_split,   batch_size=batch_size, shuffle=False)
         self.test_loader  = DataLoader(test_vdb,    batch_size=batch_size, shuffle=False)
 
-        opt = training_parameters["opt"]
-        weight_decay = training_parameters.get("weight_decay", 0.0)
-        if opt == "sgd":
-            self.optimizer = optim.SGD(
-                model.parameters(), self.lr, weight_decay=weight_decay
-            )
-        elif opt in ("adam", "adamw"):
-            from torch.optim import AdamW
-            Opt = AdamW if opt == "adamw" else optim.Adam
-            self.optimizer = Opt(
-                model.parameters(), lr=self.lr, weight_decay=weight_decay
-            )
-        else:
-            raise ValueError(f"Invalid optimizer: {opt!r}. Choose sgd, adam, or adamw.")
-
+        self.optimizer = None
         self.scheduler = None
 
-        if torch.cuda.is_available():
+        if not self._is_sklearn:
+            opt = training_parameters["opt"]
+            weight_decay = training_parameters.get("weight_decay", 0.0)
+            if opt == "sgd":
+                self.optimizer = optim.SGD(
+                    model.parameters(), self.lr, weight_decay=weight_decay
+                )
+            elif opt in ("adam", "adamw"):
+                from torch.optim import AdamW
+                Opt = AdamW if opt == "adamw" else optim.Adam
+                self.optimizer = Opt(
+                    model.parameters(), lr=self.lr, weight_decay=weight_decay
+                )
+            else:
+                raise ValueError(f"Invalid optimizer: {opt!r}. Choose sgd, adam, or adamw.")
+
+        if torch.cuda.is_available() and not self._is_sklearn:
             self.cuda()
 
         self.ckpt = ckpt
@@ -111,7 +113,7 @@ class VectorDBRETrainer(CombineRETrainer):
         The encoder is not invoked.  Embeddings are forwarded directly through
         ``model.model`` (MLP layers) and ``model.fc`` (classifier head).
         """
-        device = next(self.model.parameters()).device
+        device = next(self.model.parameters()).device if not self._is_sklearn else torch.device("cpu")
         avg_loss = AverageMeter()
         avg_acc  = AverageMeter()
 
@@ -139,25 +141,48 @@ class VectorDBRETrainer(CombineRETrainer):
 
         return avg_loss.avg if training else None
 
+    def _collect_embeddings(
+        self,
+        loader: DataLoader,
+    ) -> "tuple[np.ndarray, np.ndarray]":  # type: ignore[name-defined]
+        """Collect pre-computed (emb, label) tensor pairs from a VDB loader."""
+        import numpy as np
+
+        all_embeddings: list = []
+        all_labels: list = []
+        for emb, labels in tqdm(loader, desc="Collecting embeddings"):
+            all_embeddings.append(emb.cpu().numpy())
+            all_labels.append(labels.numpy())
+        return (
+            np.concatenate(all_embeddings, axis=0),
+            np.concatenate(all_labels, axis=0),
+        )
+
     def eval_model(
         self,
         eval_loader: DataLoader,
     ) -> tuple[dict[str, float], list[int], list[int]]:
         """Evaluate on *eval_loader* using pre-computed embeddings."""
-        self.eval()
         pred_result: list[int] = []
         all_labels:  list[int] = []
-        device = next(self.model.parameters()).device
 
-        with torch.no_grad():
+        if self._is_sklearn:
             for emb, labels in tqdm(eval_loader):
-                emb    = emb.to(device)
-                labels = labels.to(device)
-                rep    = self.model.model(emb)
-                logits = self.model.fc(rep)
-                _, pred = logits.max(-1)
-                pred_result.extend(pred.tolist())
+                preds = self.model._clf.predict(emb.cpu().numpy())
+                pred_result.extend(preds.tolist())
                 all_labels.extend(labels.tolist())
+        else:
+            self.eval()
+            device = next(self.model.parameters()).device
+            with torch.no_grad():
+                for emb, labels in tqdm(eval_loader):
+                    emb    = emb.to(device)
+                    labels = labels.to(device)
+                    rep    = self.model.model(emb)
+                    logits = self.model.fc(rep)
+                    _, pred = logits.max(-1)
+                    pred_result.extend(pred.tolist())
+                    all_labels.extend(labels.tolist())
 
         result = {
             "acc":     accuracy_score(all_labels, pred_result),
@@ -183,6 +208,9 @@ class VectorDBRETrainer(CombineRETrainer):
         Returns:
             Best value of *metric* achieved on the validation split.
         """
+        if self._is_sklearn:
+            return self._train_sklearn(metric)
+
         best_metric = 0.0
         patience = self.training_parameters.get("patience", 0)
         early_stopper = EarlyStopping(patience=patience)

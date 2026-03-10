@@ -9,27 +9,31 @@ class SoftmaxMLP(SentenceRE):
     Softmax MLP classifier for sentence-level relation extraction.
     """
 
-    def __init__(self, 
-                 sentence_encoder, 
-                 num_class, 
-                 rel2id, 
-                 dropout=0, 
-                 num_layers=3, 
-                 activation_function=nn.ReLU()):
+    def __init__(self,
+                 sentence_encoder,
+                 num_class,
+                 rel2id,
+                 dropout=0,
+                 num_layers=3,
+                 activation_function=nn.ReLU(),
+                 hidden_size: int | None = None):
         """
         Args:
-            sentence_encoder: encoder for sentences
+            sentence_encoder: encoder for sentences (may be None when hidden_size is given)
             num_class: number of classes
-            id2rel: dictionary of id -> relation name mapping
+            rel2id: dictionary of relation name -> id mapping
+            hidden_size: input embedding dimension; inferred from sentence_encoder when None
         """
         super().__init__()
         self.sentence_encoder = sentence_encoder
         self.num_class = num_class
-        self.model = MLP(self.sentence_encoder, 
-                         dropout=dropout, 
-                         num_layers=num_layers, 
+        if hidden_size is None:
+            hidden_size = sentence_encoder.model.config.hidden_size
+        self.model = MLP(hidden_size,
+                         dropout=dropout,
+                         num_layers=num_layers,
                          activation_function=activation_function)
-        input_dim = self.sentence_encoder.model.config.hidden_size // 2**num_layers
+        input_dim = hidden_size // 2**num_layers
         self.fc = nn.Linear(input_dim, num_class)
         self.softmax = nn.Softmax(-1)
         self.rel2id = rel2id

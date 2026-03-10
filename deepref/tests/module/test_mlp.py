@@ -31,11 +31,12 @@ def build_text():
 @pytest.mark.parametrize("model_name", MODEL_NAMES)
 def test_mlp(model_name):
     sentence_encoder = SentenceEncoder(model_name)
-    mlp = MLP(sentence_encoder)
-    
+    hidden_size = sentence_encoder.model.config.hidden_size
+    mlp = MLP(hidden_size)
+
     input_texts = build_text()
 
     embeddings = sentence_encoder(input_texts)
     x = mlp(embeddings)
 
-    assert x.shape == (len(input_texts), sentence_encoder.model.config.hidden_size//2**mlp.num_layers)
+    assert x.shape == (len(input_texts), hidden_size // 2**mlp.num_layers)
