@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, Any, Iterator, Literal
 
 import faiss
 import numpy as np
+import pacmap
 import torch
 from torch import Tensor
 from torch.utils.data import Dataset
@@ -161,7 +162,13 @@ class VectorDatabase(Dataset):
     # Preprocessing pipeline
     # ------------------------------------------------------------------
 
-    def fit_pipeline(self) -> None:
+    def fit_pipeline(self,
+                     target_dims: int = 64,
+                     pca_intermediate_dims: float = 0.99,
+                     n_neighbors: int = 10,
+                     mn_ratio: float = 0.5,
+                     fp_ratio: float = 2.0,
+                     random_state: int = 42) -> None:
         """Fit StandardScaler → PCA(0.95) → L2 Normalizer on stored embeddings.
 
         All embeddings currently in the FAISS index are read, the pipeline is
@@ -190,7 +197,16 @@ class VectorDatabase(Dataset):
 
         self.pipeline = Pipeline([
             ("scaler", StandardScaler()),
-            ("pca", PCA(n_components=0.95)),
+            ("pca", PCA(n_components=pca_intermediate_dims, random_state=random_state)),
+            ("pacmap", pacmap.PaCMAP(
+                n_components=target_dims,
+                n_neighbors=n_neighbors,
+                MN_ratio=mn_ratio,
+                FP_ratio=fp_ratio,
+                apply_pca=True,           # PacMap's own internal PCA initialisation
+                verbose=True,
+                random_state=random_state,
+            )),
             ("normalizer", Normalizer(norm="l2")),
         ])
         transformed = np.ascontiguousarray(
