@@ -2,7 +2,7 @@
 
 Reads all finished runs from the configured MLflow experiment and writes a
 tidy CSV with configuration columns and test metrics, sorted by
-``test_micro_f1`` (descending).
+``test_macro_f1`` (descending).
 
 Usage
 -----
@@ -144,7 +144,7 @@ def main() -> None:
         experiment_ids=[experiment.experiment_id],
         filter_string=run_filter or "",
         max_results=5000,
-        order_by=["metrics.test_micro_f1 DESC"],
+        order_by=["metrics.test_macro_f1 DESC"],
     )
 
     if not runs:
@@ -197,9 +197,9 @@ def main() -> None:
     )
     df = df[ordered_cols]
 
-    # Sort by test_micro_f1 descending (NaN last)
-    if "test_micro_f1" in df.columns:
-        df = df.sort_values("test_micro_f1", ascending=False, na_position="last")
+    # Sort by test_macro_f1 descending (NaN last)
+    if "test_macro_f1" in df.columns:
+        df = df.sort_values("test_macro_f1", ascending=False, na_position="last")
 
     # Write CSV
     out_path = Path(args.output)
@@ -207,8 +207,14 @@ def main() -> None:
     df.to_csv(out_path, index=False, float_format="%.6f")
 
     print(f"Exported {len(df)} run(s) → {out_path}")
-    print(f"\nTop-5 by test_micro_f1:")
-    display_cols = ["run_name", "test_micro_f1", "test_macro_f1", "encoder1_type", "encoder2_type", "dataset"]
+    print(f"\nTop-5 by test_macro_f1:")
+    display_cols = [
+        "run_name", "test_macro_f1", "test_micro_f1",
+        "encoder1_type", "encoder1_model", "encoder1_has_cls",
+        "encoder2_type",
+        "model_type", "fit_pipeline",
+        "dataset",
+    ]
     display_cols = [c for c in display_cols if c in df.columns]
     print(df[display_cols].head(5).to_string(index=False))
 
