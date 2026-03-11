@@ -93,6 +93,8 @@ class VectorDatabase(Dataset):
 
         # Move to GPU — keep resources alive as an instance attribute so the
         # GPU index is not invalidated by garbage collection.
+        if not hasattr(faiss, "StandardGpuResources"):
+            return cpu_index
         if self._gpu_res is None:
             self._gpu_res = faiss.StandardGpuResources()
         return faiss.index_cpu_to_gpu(self._gpu_res, self._gpu_device_id, cpu_index)
@@ -352,7 +354,7 @@ class VectorDatabase(Dataset):
         obj._gpu_res = None
         obj._cpu_index_cache = None
 
-        if obj._gpu_device_id is not None:
+        if obj._gpu_device_id is not None and hasattr(faiss, "StandardGpuResources"):
             obj._gpu_res = faiss.StandardGpuResources()
             obj.index = faiss.index_cpu_to_gpu(
                 obj._gpu_res, obj._gpu_device_id, cpu_index
