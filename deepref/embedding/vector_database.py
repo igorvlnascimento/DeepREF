@@ -108,7 +108,7 @@ class VectorDatabase(Dataset):
         invalidated by any write operation (:meth:`add`, :meth:`fit_pipeline`,
         :meth:`apply_pipeline`).
         """
-        if self._gpu_device_id is None:
+        if self._gpu_device_id is None or not hasattr(faiss, "index_gpu_to_cpu"):
             return self.index
         if self._cpu_index_cache is None:
             self._cpu_index_cache = faiss.index_gpu_to_cpu(self.index)
