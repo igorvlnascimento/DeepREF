@@ -206,6 +206,7 @@ class VectorDatabase(Dataset):
                 MN_ratio=mn_ratio,
                 FP_ratio=fp_ratio,
                 apply_pca=True,           # PacMap's own internal PCA initialisation
+                save_tree=True,           # cache NNDescent tree so transform() works without original data
                 verbose=True,
                 random_state=random_state,
             )),
