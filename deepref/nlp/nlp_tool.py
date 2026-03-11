@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from typing import List, Tuple
 
 
 @dataclass
@@ -21,6 +22,34 @@ class ParsedToken:
     char_start: int
     char_end: int
 
+@dataclass
+class Token:
+    """Lightweight token mimicking spaCy's Token interface."""
+    i: int            # index in sentence
+    text: str
+    dep_: str         # dependency label
+    head_i: int       # index of syntactic head
+    pos_: str = "NOUN"
+
+    def __repr__(self):
+        return f"Token({self.i}, '{self.text}', dep='{self.dep_}', head={self.head_i})"
+
+
+@dataclass
+class Sentence:
+    """Container for a parsed sentence + entity spans."""
+    tokens: List[Token]
+    subj_span: Tuple[int, int]   # (start, end) inclusive token indices
+    obj_span:  Tuple[int, int]
+    relation:  str = "unknown"
+
+    @property
+    def text(self):
+        return " ".join(t.text for t in self.tokens)
+
+    def span_text(self, span):
+        return " ".join(self.tokens[i].text for i in range(span[0], span[1]+1))
+
 
 class NLPTool():
     def __init__(self, model: str):
@@ -36,6 +65,16 @@ class NLPTool():
         The returned list covers every token in *sentence* in order.
         Each element carries the dependency label and head index needed by
         the Shortest Dependency Path (SDP) extraction algorithm.
+        """
+        pass
+
+    def parse_to_sentence(self,
+                         text: str,
+                         subj_text: str,
+                         obj_text: str,
+                         relation: str = "unknown") -> Sentence:
+        """
+        Parse a raw sentence and return a Sentence object.
         """
         pass
 

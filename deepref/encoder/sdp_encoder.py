@@ -29,13 +29,16 @@ from __future__ import annotations
 
 from abc import ABC
 from collections import defaultdict, deque
-from typing import Optional
+import collections
+from typing import Dict, List, Optional, Set, Tuple
 
 import torch
 
+import networkx as nx
+
 from deepref.encoder.sentence_encoder import SentenceEncoder
 from deepref.encoder.llm_encoder import LLMEncoder
-from deepref.nlp.nlp_tool import NLPTool, ParsedToken
+from deepref.nlp.nlp_tool import NLPTool, ParsedToken, Sentence
 
 
 # ===========================================================================
@@ -144,79 +147,344 @@ class SDPEncoder(ABC):
         """
         return self.DEP_FULL_NAMES.get(dep, dep)
 
+    # def extract_sdp(
+    #     self,
+    #     item: dict,
+    # ) -> list[tuple[str, str | None, str | None]]:
+    #     """Extract the Shortest Dependency Path between the two marked entities.
+
+    #     Args:
+    #         item: dict with keys:
+    #               ``'token'`` (list[str]), ``'h'`` and ``'t'`` each
+    #               ``{'name': str, 'pos': [start, end)}``.
+    #               ``pos`` indices are into the ``token`` list (exclusive end).
+
+    #     Returns:
+    #         List of ``(token_text, dep_full_name, direction)`` tuples.
+
+    #         * The dep_full_name and direction of element ``i`` describe the
+    #           edge **from node i to node i+1**.
+    #         * The **last** element always has ``dep_full_name=None,
+    #           direction=None``.
+    #         * *direction* is ``'UP'`` (child → head) or ``'DOWN'``
+    #           (head → child).
+
+    #     Raises:
+    #         ValueError: if the entity tokens cannot be found in the parsed
+    #             sentence, or if no dependency path exists between the entities.
+    #     """
+    #     tokens = item['token']
+    #     e1_pos = item['h']['pos']
+    #     e2_pos = item['t']['pos']
+
+    #     sentence = ' '.join(tokens)
+    #     parsed_tokens = self.nlp_tool.parse_for_sdp(sentence)
+
+    #     char_offsets = self._compute_char_offsets(tokens)
+
+    #     e1_char_start = char_offsets[e1_pos[0]][0]
+    #     e1_char_end   = char_offsets[e1_pos[1] - 1][1]
+    #     e2_char_start = char_offsets[e2_pos[0]][0]
+    #     e2_char_end   = char_offsets[e2_pos[1] - 1][1]
+
+    #     e1_indices = self._find_token_indices(parsed_tokens, e1_char_start, e1_char_end)
+    #     e2_indices = self._find_token_indices(parsed_tokens, e2_char_start, e2_char_end)
+
+    #     if not e1_indices or not e2_indices:
+    #         import logging
+    #         logging.warning(
+    #             "Could not locate entity tokens in the parsed sentence. "
+    #             "e1=%r, e2=%r — returning empty SDP.",
+    #             item['h']['name'], item['t']['name'],
+    #         )
+    #         return []
+
+    #     e1_head = self._get_entity_head(parsed_tokens, e1_indices)
+    #     e2_head = self._get_entity_head(parsed_tokens, e2_indices)
+
+    #     path_indices = self._bfs_sdp(parsed_tokens, [e1_head], [e2_head])
+
+    #     if path_indices is None:
+    #         import logging
+    #         logging.warning(
+    #             "No dependency path between %r and %r — returning empty SDP.",
+    #             item['h']['name'], item['t']['name'],
+    #         )
+    #         return []
+
+    #     return [
+    #         (
+    #             parsed_tokens[idx].text,
+    #             self.dep_to_full_name(dep) if dep is not None else None,
+    #             direction,
+    #         )
+    #         for idx, dep, direction in path_indices
+    #     ]
+
+    def make_example_sentence(self, item: dict) -> Sentence:
+        text = " ".join(item["token"])
+        subj_text = item["h"]["name"]
+        obj_text = item["t"]["name"]
+        relation = item["relation"]
+        text = " ".join(item["token"])
+        sentence = self.nlp_tool.parse_to_sentence(text, subj_text, obj_text, relation)
+        return sentence
+
     def extract_sdp(
         self,
         item: dict,
+        k_values: list[int] = [1]
     ) -> list[tuple[str, str | None, str | None]]:
-        """Extract the Shortest Dependency Path between the two marked entities.
+        sentence = self.make_example_sentence(item)
+        G = self.build_dep_graph(sentence)
+        sh = self.find_entity_head(sentence, sentence.subj_span)
+        oh = self.find_entity_head(sentence, sentence.obj_span)
+        lca = self.find_lca(sentence, sh, oh)
+        lca_nodes = self.get_lca_subtree(sentence, lca)
+        sdp = self.find_shortest_dep_path(G, sh, oh)
 
-        Args:
-            item: dict with keys:
-                  ``'token'`` (list[str]), ``'h'`` and ``'t'`` each
-                  ``{'name': str, 'pos': [start, end)}``.
-                  ``pos`` indices are into the ``token`` list (exclusive end).
+        sdp_set = set(sdp)
+        lca_subgraph = G.subgraph(lca_nodes)
+        dist_to_path: Dict[int, int] = {}
+        for node in lca_nodes:
+            min_d = float("inf")
+            for sp in sdp_set:
+                if sp in lca_subgraph and node in lca_subgraph:
+                    try:
+                        d = nx.shortest_path_length(lca_subgraph, node, sp)
+                        min_d = min(min_d, d)
+                    except nx.NetworkXNoPath:
+                        pass
+            dist_to_path[node] = int(min_d) if min_d != float("inf") else 999
 
-        Returns:
-            List of ``(token_text, dep_full_name, direction)`` tuples.
+        for K in k_values:
+            kept = {i for i in lca_nodes if dist_to_path[i] <= K}
+            pruned = set(sentence.tokens[t].text for t in range(len(sentence.tokens))
+                        if t not in kept)
+            print(f"\n  K = {K}:")
+            print(f"    Kept   ({len(kept):>2} tokens) : "
+                f"[{', '.join(sentence.tokens[i].text for i in sorted(kept))}]")
+            if pruned:
+                print(f"    Pruned ({len(sentence.tokens)-len(kept):>2} tokens) : "
+                    f"[{', '.join(pruned)}]")
+            adj = self.build_pruned_adjacency(sentence, kept)
+            print(f"    Adjacency list (pruned tree):")
+            for node_i in sorted(adj["adj_list"]):
+                nbrs = adj["adj_list"][node_i]
+                if nbrs:
+                    nbr_texts = [sentence.tokens[n].text for n in set(nbrs)]
+                    print(f"      '{sentence.tokens[node_i].text}' ↔ {nbr_texts}")
 
-            * The dep_full_name and direction of element ``i`` describe the
-              edge **from node i to node i+1**.
-            * The **last** element always has ``dep_full_name=None,
-              direction=None``.
-            * *direction* is ``'UP'`` (child → head) or ``'DOWN'``
-              (head → child).
+        if not sdp:
+            return []
 
-        Raises:
-            ValueError: if the entity tokens cannot be found in the parsed
-                sentence, or if no dependency path exists between the entities.
+        result = []
+        for i in range(len(sdp) - 1):
+            node_i = sdp[i]
+            node_j = sdp[i + 1]
+            tok_i = sentence.tokens[node_i]
+            tok_j = sentence.tokens[node_j]
+            if tok_i.head_i == node_j:   # child → head
+                dep, direction = tok_i.dep_, 'UP'
+            else:                         # head → child
+                dep, direction = tok_j.dep_, 'DOWN'
+            result.append((tok_i.text, self.dep_to_full_name(dep), direction))
+        result.append((sentence.tokens[sdp[-1]].text, None, None))
+        return result
+    
+    # ─────────────────────────────────────────────────────────────
+    # 2.  BUILD DEPENDENCY GRAPH
+    # ─────────────────────────────────────────────────────────────
+
+    def build_dep_graph(self, sentence: Sentence) -> nx.Graph:
         """
-        tokens = item['token']
-        e1_pos = item['h']['pos']
-        e2_pos = item['t']['pos']
+        Build an **undirected** NetworkX graph from the dependency tree.
+        Nodes are token indices; edges carry the dependency label.
+        (The paper treats the graph as undirected for GCN convolution.)
+        """
+        G = nx.Graph()
+        for tok in sentence.tokens:
+            G.add_node(tok.i, text=tok.text, dep=tok.dep_, pos=tok.pos_)
+        for tok in sentence.tokens:
+            if tok.i != tok.head_i:          # skip root self-loop
+                G.add_edge(tok.i, tok.head_i, dep=tok.dep_)
+        return G
 
-        sentence = ' '.join(tokens)
-        parsed_tokens = self.nlp_tool.parse_for_sdp(sentence)
 
-        char_offsets = self._compute_char_offsets(tokens)
+    # ─────────────────────────────────────────────────────────────
+    # 3.  FIND ENTITY HEAD TOKEN
+    # ─────────────────────────────────────────────────────────────
 
-        e1_char_start = char_offsets[e1_pos[0]][0]
-        e1_char_end   = char_offsets[e1_pos[1] - 1][1]
-        e2_char_start = char_offsets[e2_pos[0]][0]
-        e2_char_end   = char_offsets[e2_pos[1] - 1][1]
+    def find_entity_head(self, sentence: Sentence, span: Tuple[int, int]) -> int:
+        """
+        The head of an entity span is the token whose syntactic governor
+        lies OUTSIDE the span (i.e., the token that 'hangs' the span
+        into the rest of the tree).
+        """
+        span_indices = set(range(span[0], span[1] + 1))
+        for i in span_indices:
+            tok = sentence.tokens[i]
+            if tok.head_i not in span_indices:
+                return i
+        # fallback: return the first token
+        return span[0]
 
-        e1_indices = self._find_token_indices(parsed_tokens, e1_char_start, e1_char_end)
-        e2_indices = self._find_token_indices(parsed_tokens, e2_char_start, e2_char_end)
 
-        if not e1_indices or not e2_indices:
-            import logging
-            logging.warning(
-                "Could not locate entity tokens in the parsed sentence. "
-                "e1=%r, e2=%r — returning empty SDP.",
-                item['h']['name'], item['t']['name'],
-            )
-            return []
+    # ─────────────────────────────────────────────────────────────
+    # 4.  FIND LOWEST COMMON ANCESTOR (LCA)
+    # ─────────────────────────────────────────────────────────────
 
-        e1_head = self._get_entity_head(parsed_tokens, e1_indices)
-        e2_head = self._get_entity_head(parsed_tokens, e2_indices)
+    def get_ancestors(self, sentence: Sentence, token_i: int) -> List[int]:
+        """Climb from token_i to root, collecting ancestor indices."""
+        path = []
+        seen = set()
+        current = token_i
+        while True:
+            if current in seen:
+                break
+            seen.add(current)
+            path.append(current)
+            tok = sentence.tokens[current]
+            if tok.head_i == current:   # root
+                break
+            current = tok.head_i
+        return path
 
-        path_indices = self._bfs_sdp(parsed_tokens, [e1_head], [e2_head])
 
-        if path_indices is None:
-            import logging
-            logging.warning(
-                "No dependency path between %r and %r — returning empty SDP.",
-                item['h']['name'], item['t']['name'],
-            )
-            return []
+    def find_lca(self, sentence: Sentence, subj_head: int, obj_head: int) -> int:
+        """Find the LCA of two nodes in the dependency tree."""
+        subj_ancestors = self.get_ancestors(sentence, subj_head)
+        obj_ancestors  = self.get_ancestors(sentence, obj_head)
+        obj_ancestor_set = set(obj_ancestors)
+        for anc in subj_ancestors:
+            if anc in obj_ancestor_set:
+                return anc
+        return sentence.tokens[0].head_i   # fallback: root
 
-        return [
-            (
-                parsed_tokens[idx].text,
-                self.dep_to_full_name(dep) if dep is not None else None,
-                direction,
-            )
-            for idx, dep, direction in path_indices
-        ]
+
+    # ─────────────────────────────────────────────────────────────
+    # 5.  COLLECT LCA SUBTREE
+    # ─────────────────────────────────────────────────────────────
+
+    def get_lca_subtree(self, sentence: Sentence, lca: int) -> Set[int]:
+        """
+        Collect all token indices in the subtree rooted at `lca`
+        using BFS on the directed (head→child) tree.
+        """
+        children: Dict[int, List[int]] = collections.defaultdict(list)
+        for tok in sentence.tokens:
+            if tok.i != tok.head_i:
+                children[tok.head_i].append(tok.i)
+
+        subtree = set()
+        queue = collections.deque([lca])
+        while queue:
+            node = queue.popleft()
+            subtree.add(node)
+            for child in children[node]:
+                if child not in subtree:
+                    queue.append(child)
+        return subtree
+
+
+    # ─────────────────────────────────────────────────────────────
+    # 6.  SHORTEST DEPENDENCY PATH (SDP)
+    # ─────────────────────────────────────────────────────────────
+
+    def find_shortest_dep_path(self, G: nx.Graph,
+                            subj_head: int,
+                            obj_head: int) -> List[int]:
+        """Return the ordered list of token indices on the SDP."""
+        try:
+            return nx.shortest_path(G, subj_head, obj_head)
+        except nx.NetworkXNoPath:
+            return [subj_head, obj_head]
+
+
+    # ─────────────────────────────────────────────────────────────
+    # 7.  PATH-CENTRIC PRUNING  ← core contribution of the paper
+    # ─────────────────────────────────────────────────────────────
+
+    def path_centric_prune(self, sentence: Sentence,
+                        K: int) -> Tuple[Set[int], List[int], int]:
+        """
+        Prune the dependency tree keeping only tokens that are
+        at most K edges away from the shortest dependency path
+        inside the LCA subtree.
+
+        Parameters
+        ----------
+        sentence : Sentence
+        K        : int — pruning distance (0, 1, 2, … or large int for ∞)
+
+        Returns
+        -------
+        kept_nodes : set of token indices to keep
+        sdp        : list of token indices on the shortest dep path
+        lca        : index of the lowest common ancestor token
+        """
+        G = self.build_dep_graph(sentence)
+
+        subj_head = self.find_entity_head(sentence, sentence.subj_span)
+        obj_head  = self.find_entity_head(sentence, sentence.obj_span)
+
+        lca       = self.find_lca(sentence, subj_head, obj_head)
+        lca_nodes = self.get_lca_subtree(sentence, lca)
+        sdp       = self.find_shortest_dep_path(G, subj_head, obj_head)
+        sdp_set   = set(sdp)
+
+        # Restrict graph to LCA subtree for distance computation
+        lca_subgraph = G.subgraph(lca_nodes)
+
+        kept_nodes = set()
+        for node in lca_nodes:
+            # Distance = min hops from this node to any node on the SDP
+            min_dist = float("inf")
+            for sdp_node in sdp_set:
+                if sdp_node in lca_subgraph and node in lca_subgraph:
+                    try:
+                        d = nx.shortest_path_length(lca_subgraph, node, sdp_node)
+                        min_dist = min(min_dist, d)
+                    except nx.NetworkXNoPath:
+                        pass
+            if min_dist <= K:
+                kept_nodes.add(node)
+
+        return kept_nodes, sdp, lca
+
+
+    def build_pruned_adjacency(self,
+                                sentence: Sentence,
+                                kept_nodes: Set[int]) -> Dict:
+        """
+        Build adjacency list (and matrix) for the kept nodes.
+        Returns a dict with 'adj_list' and 'adj_matrix'.
+        """
+        n = len(sentence.tokens)
+        kept_sorted = sorted(kept_nodes)
+        idx_map = {orig: new for new, orig in enumerate(kept_sorted)}
+
+        adj_matrix = [[0] * len(kept_sorted) for _ in range(len(kept_sorted))]
+        adj_list: Dict[int, List[int]] = {i: [] for i in kept_sorted}
+
+        for tok in sentence.tokens:
+            if tok.i in kept_nodes and tok.head_i in kept_nodes and tok.i != tok.head_i:
+                i, j = idx_map[tok.i], idx_map[tok.head_i]
+                adj_matrix[i][j] = 1
+                adj_matrix[j][i] = 1
+                adj_list[tok.i].append(tok.head_i)
+                adj_list[tok.head_i].append(tok.i)
+
+        # Add self-loops (Ã = A + I as in the paper)
+        for i in range(len(kept_sorted)):
+            adj_matrix[i][i] = 1
+
+        return {
+            "adj_list":   adj_list,
+            "adj_matrix": adj_matrix,
+            "token_order": kept_sorted,
+            "idx_map":    idx_map,
+        }
 
     def build_dep_chain(
         self,
@@ -297,9 +565,11 @@ class SDPEncoder(ABC):
         indices: list[int],
     ) -> int:
         """Return the index of the syntactic head token of a multi-token entity."""
-        idx_set = set(indices)
-        for i in indices:
-            if parsed_tokens[i].head_idx not in idx_set:
+        #idx_set = set(indices)
+        span_indices = set(range(indices[0], indices[1] + 1))
+        for i in span_indices:
+            tok = parsed_tokens[i]
+            if parsed_tokens[i].head_idx not in span_indices:
                 return i
         return indices[0]  # fallback
 
