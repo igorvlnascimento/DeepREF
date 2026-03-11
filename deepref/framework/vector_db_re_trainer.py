@@ -10,6 +10,7 @@ import mlflow
 from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
 from torch import nn, optim
 import torch
+import torch.nn.functional as F
 from torch.utils.data import DataLoader, random_split
 from tqdm import tqdm
 
@@ -128,7 +129,7 @@ class VectorDBRETrainer(CombineRETrainer):
 
         t = tqdm(loader)
         for emb, labels in t:
-            emb    = emb.to(device)
+            emb    = F.normalize(emb.to(device), dim=-1)
             labels = labels.to(device)
 
             rep    = self.model.model(emb)   # MLP layers  → (B, H')
@@ -185,7 +186,7 @@ class VectorDBRETrainer(CombineRETrainer):
             device = next(self.model.parameters()).device
             with torch.no_grad():
                 for emb, labels in tqdm(eval_loader):
-                    emb    = emb.to(device)
+                    emb    = F.normalize(emb.to(device), dim=-1)
                     labels = labels.to(device)
                     rep    = self.model.model(emb)
                     logits = self.model.fc(rep)
