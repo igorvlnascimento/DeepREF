@@ -71,27 +71,41 @@ class CombineRETrainer(SentenceRETrainer):
         # When True, the gradient-based optimizer and scheduler are skipped.
         self._is_sklearn: bool = getattr(model, "IS_SKLEARN", False)
 
-        # Split train_dataset: 90 % train / 10 % validation (minimum 1 val sample).
-        val_size = max(1, round(len(train_dataset) * 0.1))
-        train_size = len(train_dataset) - val_size
-        train_split, val_split = random_split(train_dataset, [train_size, val_size])
-        logger.info(
-            "Dataset split — train: %d  val: %d  test: %d",
-            train_size, val_size, len(test_dataset),
-        )
+        if self._is_sklearn:
+            # Sklearn models fit on all training data at once — no val split needed.
+            self.train_loader = DataLoader(
+                train_dataset,
+                batch_size=batch_size,
+                shuffle=False,
+                collate_fn=combine_collate_fn,
+            )
+            self.val_loader = None
+            logger.info(
+                "Sklearn model — no val split. train: %d  test: %d",
+                len(train_dataset), len(test_dataset),
+            )
+        else:
+            # Split train_dataset: 90 % train / 10 % validation (minimum 1 val sample).
+            val_size = max(1, round(len(train_dataset) * 0.1))
+            train_size = len(train_dataset) - val_size
+            train_split, val_split = random_split(train_dataset, [train_size, val_size])
+            logger.info(
+                "Dataset split — train: %d  val: %d  test: %d",
+                train_size, val_size, len(test_dataset),
+            )
+            self.train_loader = DataLoader(
+                train_split,
+                batch_size=batch_size,
+                shuffle=True,
+                collate_fn=combine_collate_fn,
+            )
+            self.val_loader = DataLoader(
+                val_split,
+                batch_size=batch_size,
+                shuffle=False,
+                collate_fn=combine_collate_fn,
+            )
 
-        self.train_loader = DataLoader(
-            train_split,
-            batch_size=batch_size,
-            shuffle=True,
-            collate_fn=combine_collate_fn,
-        )
-        self.val_loader = DataLoader(
-            val_split,
-            batch_size=batch_size,
-            shuffle=False,
-            collate_fn=combine_collate_fn,
-        )
         self.test_loader = DataLoader(
             test_dataset,
             batch_size=batch_size,
@@ -350,9 +364,10 @@ class CombineRETrainer(SentenceRETrainer):
         joblib.dump(self.model._clf, ckpt_sklearn)
         logger.info("Sklearn model saved to %s", ckpt_sklearn)
 
-        # Validation metrics (single "epoch" for MLflow compatibility)
-        logger.info("=== Val evaluation ===")
-        result, _, _ = self.eval_model(self.val_loader)
+        # Evaluation metrics (single "epoch" for MLflow compatibility).
+        # Sklearn models have no val split; evaluate on the test set instead.
+        logger.info("=== Test evaluation (sklearn, no val split) ===")
+        result, _, _ = self.eval_model(self.test_loader)
         mlflow.log_metrics(
             {f"val_{k}": v for k, v in result.items() if isinstance(v, float)},
             step=0,

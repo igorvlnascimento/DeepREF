@@ -64,16 +64,25 @@ class VectorDBRETrainer(CombineRETrainer):
         self.lr = training_parameters["lr"]
         batch_size = training_parameters["batch_size"]
 
-        val_size = max(1, round(len(train_vdb) * 0.1))
-        train_size = len(train_vdb) - val_size
-        train_split, val_split = random_split(train_vdb, [train_size, val_size])
-        logger.info(
-            "VectorDB split — train: %d  val: %d  test: %d",
-            train_size, val_size, len(test_vdb),
-        )
+        if self._is_sklearn:
+            # Sklearn models fit on all training data at once — no val split needed.
+            self.train_loader = DataLoader(train_vdb, batch_size=batch_size, shuffle=False)
+            self.val_loader   = None
+            logger.info(
+                "Sklearn model — no VDB val split. train: %d  test: %d",
+                len(train_vdb), len(test_vdb),
+            )
+        else:
+            val_size = max(1, round(len(train_vdb) * 0.1))
+            train_size = len(train_vdb) - val_size
+            train_split, val_split = random_split(train_vdb, [train_size, val_size])
+            logger.info(
+                "VectorDB split — train: %d  val: %d  test: %d",
+                train_size, val_size, len(test_vdb),
+            )
+            self.train_loader = DataLoader(train_split, batch_size=batch_size, shuffle=True)
+            self.val_loader   = DataLoader(val_split,   batch_size=batch_size, shuffle=False)
 
-        self.train_loader = DataLoader(train_split, batch_size=batch_size, shuffle=True)
-        self.val_loader   = DataLoader(val_split,   batch_size=batch_size, shuffle=False)
         self.test_loader  = DataLoader(test_vdb,    batch_size=batch_size, shuffle=False)
 
         self.optimizer = None
