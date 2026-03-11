@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Any, Callable
 
 import torch
@@ -10,6 +11,8 @@ from torch.utils.data import DataLoader, Dataset
 from tqdm import tqdm
 
 from deepref.embedding.vector_database import VectorDatabase
+
+logger = logging.getLogger(__name__)
 
 
 class EmbeddingGenerator:
@@ -76,6 +79,24 @@ class EmbeddingGenerator:
         n_batches = len(loader)
         try:
             with torch.no_grad():
+                # Warm up CUDA before the tracked loop to avoid a long silent
+                # pause on the first real batch.  Large models (e.g. 8B+) with
+                # Flash Attention / Triton kernels trigger JIT compilation on
+                # the very first forward pass; running a tiny batch here moves
+                # that cost outside the progress bar so the bar starts promptly.
+                if self.device != "cpu" and torch.cuda.is_available() and len(self.dataset) > 0:
+                    logger.info("Warming up CUDA kernels (first forward pass may take a while) …")
+                    warmup_loader = DataLoader(
+                        self.dataset,
+                        batch_size=min(2, len(self.dataset)),
+                        shuffle=False,
+                        collate_fn=self.collate_fn,
+                    )
+                    warmup_batch = next(iter(warmup_loader))
+                    self.encoder(items=warmup_batch["items"])
+                    torch.cuda.synchronize()
+                    logger.info("CUDA warmup complete.")
+
                 for batch in tqdm(loader, total=n_batches, desc="Generating embeddings", unit="batch"):
                     embeddings = self.encoder(items=batch["items"])  # (B, H)
                     all_embeddings.append(embeddings.cpu().float())
