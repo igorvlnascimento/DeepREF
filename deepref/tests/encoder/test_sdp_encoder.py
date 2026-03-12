@@ -1224,3 +1224,195 @@ class TestBuildPrunedAdjacency:
         matrix = encoder.build_pruned_adjacency(sentence_fixture, kept)['adj_matrix']
         assert len(matrix) == len(kept)
         assert all(len(row) == len(kept) for row in matrix)
+
+
+# ===========================================================================
+# 20. VerbalizedSDPEncoder.verbalize — full pipeline, semeval2010 examples
+# ===========================================================================
+#
+# Items derived from benchmark/semeval2010_test.csv (first rows):
+#
+#  ITEM_AUDITS_WASTE  — "The most common audits were about waste and recycling ."
+#                        Message-Topic(e1,e2)
+#  ITEM_COMPANY_CHAIRS — "The company fabricates plastic chairs ."
+#                         Product-Producer(e2,e1)
+#  ITEM_MASTER_STICK   — "The school master teaches the lesson with a stick ."
+#                         Instrument-Agency(e2,e1)
+#  ITEM_BODY_RESERVOIR — "The suspect dumped the dead body into a local reservoir ."
+#                         Entity-Destination(e1,e2)
+#
+# mark_sentence(item) inserts [E1]/[/E1] and [E2]/[/E2] around the entity spans,
+# then VerbalizedSDPEncoder.verbalize(marked_sentence) runs the full
+# parse → SDP → prune → verbalize pipeline and returns:
+#
+#   Instruct: Given a syntactic dependency path between two named entities,
+#             identify the semantic relation they hold.
+#   Query: <structured dep path>
+
+ITEM_AUDITS_WASTE = {
+    'token': ['The', 'most', 'common', 'audits', 'were', 'about', 'waste', 'and', 'recycling', '.'],
+    'h': {'name': 'audits', 'pos': [3, 4]},
+    't': {'name': 'waste',  'pos': [6, 7]},
+}
+
+ITEM_COMPANY_CHAIRS = {
+    'token': ['The', 'company', 'fabricates', 'plastic', 'chairs', '.'],
+    'h': {'name': 'company', 'pos': [1, 2]},
+    't': {'name': 'chairs',  'pos': [4, 5]},
+}
+
+ITEM_MASTER_STICK = {
+    'token': ['The', 'school', 'master', 'teaches', 'the', 'lesson', 'with', 'a', 'stick', '.'],
+    'h': {'name': 'master', 'pos': [2, 3]},
+    't': {'name': 'stick',  'pos': [8, 9]},
+}
+
+ITEM_BODY_RESERVOIR = {
+    'token': ['The', 'suspect', 'dumped', 'the', 'dead', 'body', 'into', 'a', 'local', 'reservoir', '.'],
+    'h': {'name': 'body',       'pos': [5, 6]},
+    't': {'name': 'reservoir',  'pos': [9, 10]},
+}
+
+
+class TestVerbalizedSDPEncoderVerbalize:
+    """Tests for VerbalizedSDPEncoder.verbalize(marked_sentence).
+
+    Uses mark_sentence to build the marked sentence from items derived
+    from benchmark/semeval2010_test.csv, then passes it to verbalize
+    which runs the full parse → SDP → prune → verbalize pipeline.
+    """
+
+    # ------------------------------------------------------------------
+    # mark_sentence — sanity checks before calling verbalize
+    # ------------------------------------------------------------------
+
+    def test_mark_sentence_audits_waste_contains_e1_markers(self, encoder_verbalized):
+        marked = encoder_verbalized.mark_sentence(ITEM_AUDITS_WASTE)
+        assert '[E1]' in marked and '[/E1]' in marked
+
+    def test_mark_sentence_audits_waste_contains_e2_markers(self, encoder_verbalized):
+        marked = encoder_verbalized.mark_sentence(ITEM_AUDITS_WASTE)
+        assert '[E2]' in marked and '[/E2]' in marked
+
+    def test_mark_sentence_audits_waste_e1_wraps_audits(self, encoder_verbalized):
+        marked = encoder_verbalized.mark_sentence(ITEM_AUDITS_WASTE)
+        assert '[E1] audits [/E1]' in marked
+
+    def test_mark_sentence_audits_waste_e2_wraps_waste(self, encoder_verbalized):
+        marked = encoder_verbalized.mark_sentence(ITEM_AUDITS_WASTE)
+        assert '[E2] waste [/E2]' in marked
+
+    def test_mark_sentence_company_chairs_e1_wraps_company(self, encoder_verbalized):
+        marked = encoder_verbalized.mark_sentence(ITEM_COMPANY_CHAIRS)
+        assert '[E1] company [/E1]' in marked
+
+    def test_mark_sentence_company_chairs_e2_wraps_chairs(self, encoder_verbalized):
+        marked = encoder_verbalized.mark_sentence(ITEM_COMPANY_CHAIRS)
+        assert '[E2] chairs [/E2]' in marked
+
+    def test_mark_sentence_master_stick_e1_before_e2(self, encoder_verbalized):
+        marked = encoder_verbalized.mark_sentence(ITEM_MASTER_STICK)
+        assert marked.index('[E1]') < marked.index('[E2]')
+
+    def test_mark_sentence_body_reservoir_e1_wraps_body(self, encoder_verbalized):
+        marked = encoder_verbalized.mark_sentence(ITEM_BODY_RESERVOIR)
+        assert '[E1] body [/E1]' in marked
+
+    # ------------------------------------------------------------------
+    # verbalize — output structure
+    # ------------------------------------------------------------------
+
+    def test_verbalize_returns_string_audits_waste(self, encoder_verbalized):
+        marked = encoder_verbalized.mark_sentence(ITEM_AUDITS_WASTE)
+        result = encoder_verbalized.verbalize(marked)
+        assert isinstance(result, str)
+
+    def test_verbalize_contains_instruct_prefix_audits_waste(self, encoder_verbalized):
+        marked = encoder_verbalized.mark_sentence(ITEM_AUDITS_WASTE)
+        result = encoder_verbalized.verbalize(marked)
+        assert result.startswith('Instruct:')
+
+    def test_verbalize_contains_query_prefix_audits_waste(self, encoder_verbalized):
+        marked = encoder_verbalized.mark_sentence(ITEM_AUDITS_WASTE)
+        result = encoder_verbalized.verbalize(marked)
+        assert 'Query:' in result
+
+    def test_verbalize_instruct_before_query_audits_waste(self, encoder_verbalized):
+        marked = encoder_verbalized.mark_sentence(ITEM_AUDITS_WASTE)
+        result = encoder_verbalized.verbalize(marked)
+        assert result.index('Instruct:') < result.index('Query:')
+
+    def test_verbalize_entity_1_name_in_output_audits_waste(self, encoder_verbalized):
+        marked = encoder_verbalized.mark_sentence(ITEM_AUDITS_WASTE)
+        result = encoder_verbalized.verbalize(marked)
+        assert 'audits' in result
+
+    def test_verbalize_entity_2_name_in_output_audits_waste(self, encoder_verbalized):
+        marked = encoder_verbalized.mark_sentence(ITEM_AUDITS_WASTE)
+        result = encoder_verbalized.verbalize(marked)
+        assert 'waste' in result
+
+    def test_verbalize_returns_string_company_chairs(self, encoder_verbalized):
+        marked = encoder_verbalized.mark_sentence(ITEM_COMPANY_CHAIRS)
+        result = encoder_verbalized.verbalize(marked)
+        assert isinstance(result, str)
+
+    def test_verbalize_contains_instruct_prefix_company_chairs(self, encoder_verbalized):
+        marked = encoder_verbalized.mark_sentence(ITEM_COMPANY_CHAIRS)
+        result = encoder_verbalized.verbalize(marked)
+        assert result.startswith('Instruct:')
+
+    def test_verbalize_entity_1_name_in_output_company_chairs(self, encoder_verbalized):
+        marked = encoder_verbalized.mark_sentence(ITEM_COMPANY_CHAIRS)
+        result = encoder_verbalized.verbalize(marked)
+        assert 'company' in result
+
+    def test_verbalize_entity_2_name_in_output_company_chairs(self, encoder_verbalized):
+        marked = encoder_verbalized.mark_sentence(ITEM_COMPANY_CHAIRS)
+        result = encoder_verbalized.verbalize(marked)
+        assert 'chairs' in result
+
+    def test_verbalize_returns_string_master_stick(self, encoder_verbalized):
+        marked = encoder_verbalized.mark_sentence(ITEM_MASTER_STICK)
+        result = encoder_verbalized.verbalize(marked)
+        assert isinstance(result, str)
+
+    def test_verbalize_entity_1_name_in_output_master_stick(self, encoder_verbalized):
+        marked = encoder_verbalized.mark_sentence(ITEM_MASTER_STICK)
+        result = encoder_verbalized.verbalize(marked)
+        assert 'master' in result
+
+    def test_verbalize_entity_2_name_in_output_master_stick(self, encoder_verbalized):
+        marked = encoder_verbalized.mark_sentence(ITEM_MASTER_STICK)
+        result = encoder_verbalized.verbalize(marked)
+        assert 'stick' in result
+
+    def test_verbalize_returns_string_body_reservoir(self, encoder_verbalized):
+        marked = encoder_verbalized.mark_sentence(ITEM_BODY_RESERVOIR)
+        result = encoder_verbalized.verbalize(marked)
+        assert isinstance(result, str)
+
+    def test_verbalize_entity_1_name_in_output_body_reservoir(self, encoder_verbalized):
+        marked = encoder_verbalized.mark_sentence(ITEM_BODY_RESERVOIR)
+        result = encoder_verbalized.verbalize(marked)
+        assert 'body' in result
+
+    def test_verbalize_entity_2_name_in_output_body_reservoir(self, encoder_verbalized):
+        marked = encoder_verbalized.mark_sentence(ITEM_BODY_RESERVOIR)
+        result = encoder_verbalized.verbalize(marked)
+        assert 'reservoir' in result
+
+    def test_verbalize_contains_entity_label_tags_audits_waste(self, encoder_verbalized):
+        marked = encoder_verbalized.mark_sentence(ITEM_AUDITS_WASTE)
+        result = encoder_verbalized.verbalize(marked)
+        assert 'ENTITY_1:' in result and 'ENTITY_2:' in result
+
+    def test_verbalize_entity_1_label_before_entity_2_label_audits_waste(self, encoder_verbalized):
+        marked = encoder_verbalized.mark_sentence(ITEM_AUDITS_WASTE)
+        result = encoder_verbalized.verbalize(marked)
+        assert result.index('ENTITY_1:') < result.index('ENTITY_2:')
+
+    def test_verbalize_contains_entity_label_tags_body_reservoir(self, encoder_verbalized):
+        marked = encoder_verbalized.mark_sentence(ITEM_BODY_RESERVOIR)
+        result = encoder_verbalized.verbalize(marked)
+        assert 'ENTITY_1:' in result and 'ENTITY_2:' in result

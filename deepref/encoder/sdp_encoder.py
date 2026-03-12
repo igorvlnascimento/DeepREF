@@ -1119,7 +1119,7 @@ class VerbalizedSDPEncoder(SDPEncoder, LLMEncoder):
     def verbalize(
             self,
             marked_sentence: str,
-            K: int = 0,
+            K: int = 1,
             task_instruction: Optional[str] = None
     ) -> str:
         """
