@@ -158,11 +158,10 @@ class CombineEmbeddings(nn.Module):
                 try:
                     verbalized_item = encoder.verbalize(encoder.mark_sentence(item))
                 except RuntimeError as e:
-                    verbalized.append(None)
                     print("Error verbalizing sentence:", item)
                     print(e)
                     continue
-                verbalized.append(verbalized_item)
+                verbalized.append(verbalized_item if verbalized_item is not None else " ")
 
             # verbalized = [
             #     encoder.verbalize(encoder.mark_sentence(item), K=1)
