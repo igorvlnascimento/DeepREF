@@ -101,8 +101,8 @@ class EmbeddingGenerator:
                     embeddings = self.encoder(items=batch["items"])  # (B, H)
                     all_embeddings.append(embeddings.cpu().float())
                     all_labels.append(batch["labels"].cpu())
-                all_embeddings = [x for x, _ in zip(all_embeddings, all_labels) if x is not None]
-                all_labels = [y for x, y in zip(all_embeddings, all_labels) if x is not None]
+                all_embeddings = [x for x, _ in zip(all_embeddings, all_labels) if x]
+                all_labels = [y for x, y in zip(all_embeddings, all_labels) if x]
         finally:
             if was_training:
                 self.encoder.train()
