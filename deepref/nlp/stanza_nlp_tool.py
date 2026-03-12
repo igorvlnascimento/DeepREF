@@ -96,3 +96,6 @@ class StanzaNLPTool(NLPTool):
     
     def get_deprel(self, word: stanza.models.common.doc.Word) -> str:
         return word.deprel
+    
+    def get_pos(self, word: stanza.models.common.doc.Word) -> str:
+        return word.upos

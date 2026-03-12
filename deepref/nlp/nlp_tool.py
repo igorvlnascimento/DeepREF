@@ -112,3 +112,9 @@ class NLPTool():
         Return dependency relation label.
         """
         pass
+
+    def get_pos(self, word) -> str:
+        """
+        Return part-of-speech tag.
+        """
+        pass

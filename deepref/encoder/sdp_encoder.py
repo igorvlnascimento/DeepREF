@@ -41,8 +41,6 @@ import networkx as nx
 from deepref.encoder.sentence_encoder import SentenceEncoder
 from deepref.encoder.llm_encoder import LLMEncoder
 from deepref.nlp.nlp_tool import NLPTool, ParsedToken, Sentence
-from deepref.nlp.spacy_nlp_tool import SpacyNLPTool
-from deepref.nlp.stanza_nlp_tool import StanzaNLPTool
 
 @dataclass
 class Arc:
@@ -60,7 +58,7 @@ class SDPNode:
     """A node on the (possibly pruned) SDP."""
     token_idx: int
     text: str               # surface form
-    upos: str               # Universal POS tag (from Stanza)
+    upos: str               # POS tag
     is_entity: bool = False
     entity_role: str = ""   # "ENTITY_1" | "ENTITY_2"
     entity_span: str = ""   # full surface span of the entity
@@ -711,7 +709,7 @@ class SDPEncoder(ABC):
         entity_text: str
     ) -> List[int]:
         """
-        Locate the token indices in Stanza's word list that correspond to entity_text.
+        Locate the token indices in word list that correspond to entity_text.
 
         Strategy:
             1. Exact left-to-right n-gram match (case-insensitive).
@@ -752,7 +750,7 @@ class SDPEncoder(ABC):
 
         The head is the token whose parent (head) is OUTSIDE the span,
         i.e. the token that links the whole span to the rest of the tree.
-        Stanza uses 1-indexed heads; head == 0 means the token is the ROOT.
+        NLPTool uses 1-indexed heads; head == 0 means the token is the ROOT.
         """
         span_set = set(token_indices)
         for idx in token_indices:
@@ -771,7 +769,7 @@ class SDPEncoder(ABC):
     def build_graph(self, words: list) -> Tuple[Dict[int, List[int]], Dict[Tuple[int, int], Arc]]:
         """
         Build an undirected adjacency list and a directed arc dictionary from
-        Stanza's word list.
+        word list.
 
         adjacency : { node_idx : [neighbor_idx, ...] }
         arcs      : { (from_idx, to_idx) : Arc }
@@ -916,10 +914,7 @@ class SDPEncoder(ABC):
                 off_path = off_path[:3]          # cap at 3 for readability
 
             # --- classify as entity or intermediate token ---
-            if isinstance(self.nlp_tool, StanzaNLPTool):
-                    upos = words[node_idx].upos
-            elif isinstance(self.nlp_tool, SpacyNLPTool):
-                upos = words[node_idx].pos_
+            upos = self.nlp_tool.get_pos(words[node_idx])
             if node_idx in e1_set or node_idx == e1_head:
                 node = SDPNode(
                     token_idx=node_idx,
@@ -1109,7 +1104,7 @@ class VerbalizedSDPEncoder(SDPEncoder, LLMEncoder):
             batch["input_ids"],
             batch["attention_mask"],
         )
-        return self.average_pool(model_outputs.last_hidden_state, batch['attention_mask'])
+        return self.last_token_pool(model_outputs.last_hidden_state, batch['attention_mask'])
 
     def encode_dense(self, item: dict) -> torch.Tensor:
         """Encode the sentence as a dense vector via SDP verbalization.

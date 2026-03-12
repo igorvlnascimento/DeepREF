@@ -98,3 +98,6 @@ class SpacyNLPTool(NLPTool):
     
     def get_deprel(self, word: spacy.tokens.token.Token) -> str:
         return word.dep_
+    
+    def get_pos(self, word: spacy.tokens.token.Token) -> str:
+        return word.pos_
