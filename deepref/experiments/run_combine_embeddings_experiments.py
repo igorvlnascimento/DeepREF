@@ -195,6 +195,10 @@ def build_encoder1(cfg: DictConfig, device: str) -> nn.Module:
             trainable=enc.trainable,
             attn_implementation=enc.attn_implementation,
         )
+    if enc.type == "verbalized_sdp":
+        nlp_tool_name = enc.get("nlp_tool", "spacy")
+        nlp_tool = build_nlp_tool(nlp_tool_name)
+        return VerbalizedSDPEncoder(nlp_tool=nlp_tool, model_name=enc.model_name, device=device)
     raise ValueError(f"Unknown encoder1 type: {enc.type!r}")
 
 

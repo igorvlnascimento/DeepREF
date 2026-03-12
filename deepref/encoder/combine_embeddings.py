@@ -154,12 +154,7 @@ class CombineEmbeddings(nn.Module):
             # verbalized strings one by one, then batch-tokenize and run the
             # transformer once for the whole batch.
             verbalized = [
-                encoder.verbalize(
-                    ' '.join(item['token']),
-                    item['h']['name'],
-                    item['t']['name'],
-                    encoder.build_dep_chain(encoder.extract_sdp(item)),
-                )
+                encoder.verbalize(encoder.mark_sentence(item), K=1)
                 for item in items
             ]
             token_dict = encoder.registry.tokenize(

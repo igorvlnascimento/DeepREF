@@ -40,8 +40,4 @@ class SingleEncoderWrapper(nn.Module):
 
     def forward(self, items: list[dict]) -> torch.Tensor:
         """Encode a batch and return a ``(B, H)`` float32 tensor."""
-        batch_embs = [
-            CombineEmbeddings._encode_single(self.encoder, item)
-            for item in items
-        ]
-        return torch.stack(batch_embs, dim=0)
+        return CombineEmbeddings._encode_batch(self.encoder, items)

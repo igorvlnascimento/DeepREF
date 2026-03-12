@@ -1,0 +1,7 @@
+type: verbalized_sdp
+model_name: Qwen/Qwen3-Embedding-8B
+nlp_tool: spacy
+training:
+  lr: 2.0e-5
+  weight_decay: 1e-5
+  warmup_step: 0
