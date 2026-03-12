@@ -94,7 +94,9 @@ class SpacyNLPTool(NLPTool):
         return [token for token in doc]
     
     def get_entity_head(self, word: spacy.tokens.token.Token) -> int:
-        return word.head.i
+        if word.head.i == word.i:   # ROOT: token is its own head in spaCy
+            return 0
+        return word.head.i + 1      # convert spaCy 0-indexed to 1-indexed
     
     def get_deprel(self, word: spacy.tokens.token.Token) -> str:
         return word.dep_

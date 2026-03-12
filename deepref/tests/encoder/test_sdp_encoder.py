@@ -1273,6 +1273,12 @@ ITEM_BODY_RESERVOIR = {
     't': {'name': 'reservoir',  'pos': [9, 10]},
 }
 
+ITEM_SILVER_RING = {
+    'token': ['Kelvin', 'bought', 'a', 'silver', 'ring', 'which', 'he', 'was', 'so', 'happy', 'with', 'and', 'he', 'keeps', 'wearing', 'it', 'now', 'even', 'though', 'its', 'abit', 'too', 'big', 'haha', '.'], 
+    'h': {'name': 'silver', 'pos': [3, 4]}, 
+    't': {'name': 'ring', 'pos': [4, 5]}
+}
+
 
 class TestVerbalizedSDPEncoderVerbalize:
     """Tests for VerbalizedSDPEncoder.verbalize(marked_sentence).
@@ -1317,6 +1323,10 @@ class TestVerbalizedSDPEncoderVerbalize:
     def test_mark_sentence_body_reservoir_e1_wraps_body(self, encoder_verbalized):
         marked = encoder_verbalized.mark_sentence(ITEM_BODY_RESERVOIR)
         assert '[E1] body [/E1]' in marked
+
+    def test_mark_sentence_silver_ring_e1_wraps_silver(self, encoder_verbalized):
+        marked = encoder_verbalized.mark_sentence(ITEM_SILVER_RING)
+        assert '[E1] silver [/E1]' in marked
 
     # ------------------------------------------------------------------
     # verbalize — output structure
@@ -1414,5 +1424,10 @@ class TestVerbalizedSDPEncoderVerbalize:
 
     def test_verbalize_contains_entity_label_tags_body_reservoir(self, encoder_verbalized):
         marked = encoder_verbalized.mark_sentence(ITEM_BODY_RESERVOIR)
+        result = encoder_verbalized.verbalize(marked)
+        assert 'ENTITY_1:' in result and 'ENTITY_2:' in result
+
+    def test_verbalize_contains_entity_label_tags_silver_ring(self, encoder_verbalized):
+        marked = encoder_verbalized.mark_sentence(ITEM_SILVER_RING)
         result = encoder_verbalized.verbalize(marked)
         assert 'ENTITY_1:' in result and 'ENTITY_2:' in result
