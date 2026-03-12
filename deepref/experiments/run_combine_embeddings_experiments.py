@@ -7,9 +7,10 @@ concatenated via :class:`CombineEmbeddings`; when only one encoder is used a
 :class:`SingleEncoderWrapper` feeds it directly into the classifier.
 
 Supported classifiers (``training.model_type``):
-  softmax_mlp   — MLP with softmax head (gradient-based, default)
-  xgboost       — XGBoost multi-class classifier (sklearn API)
-  lightgbm      — LightGBM multi-class classifier (sklearn API)
+  softmax_mlp          — MLP with softmax head (gradient-based, default)
+  combine_re_classifier — dual-branch MLP (BERT branch 2034→1152, Qwen branch 4096→128, merged 1280→N)
+  xgboost              — XGBoost multi-class classifier (sklearn API)
+  lightgbm             — LightGBM multi-class classifier (sklearn API)
 
 Dual-encoder combinations (driven by Hydra multirun):
   encoder1=relation         encoder2=bow_sdp
@@ -96,6 +97,7 @@ from deepref.encoder.sdp_encoder import BoWSDPEncoder, VerbalizedSDPEncoder
 from deepref.encoder.single_encoder_wrapper import SingleEncoderWrapper
 from deepref.framework.combine_re_trainer import CombineRETrainer
 from deepref.framework.vector_db_re_trainer import VectorDBRETrainer
+from deepref.model.combine_re_classifier import CombineREClassifier
 from deepref.model.sklearn_re_classifier import SklearnREClassifier
 from deepref.model.softmax_mlp import SoftmaxMLP
 from deepref.nlp.nlp_tool import NLPTool
@@ -302,6 +304,13 @@ def build_model(
             hidden_size=hidden_size,
         )
 
+    if model_type == "combine_re_classifier":
+        return CombineREClassifier(
+            sentence_encoder=sentence_encoder,
+            num_class=num_class,
+            rel2id=rel2id,
+        )
+
     if model_type in ("xgboost", "lightgbm"):
         return SklearnREClassifier(
             sentence_encoder=sentence_encoder,
@@ -312,7 +321,7 @@ def build_model(
 
     raise ValueError(
         f"Unknown model_type: {model_type!r}. "
-        "Choose 'softmax_mlp', 'xgboost', or 'lightgbm'."
+        "Choose 'softmax_mlp', 'combine_re_classifier', 'xgboost', or 'lightgbm'."
     )
 
 
