@@ -176,9 +176,10 @@ class CombineRETrainer(SentenceRETrainer):
             if warmup_step > 0:
                 from transformers import get_linear_schedule_with_warmup
                 training_steps = train_size // batch_size * self.max_epoch
+                warmup_steps = int(warmup_step * training_steps)
                 self.scheduler = get_linear_schedule_with_warmup(
                     self.optimizer,
-                    num_warmup_steps=warmup_step,
+                    num_warmup_steps=warmup_steps,
                     num_training_steps=training_steps,
                 )
             else:
