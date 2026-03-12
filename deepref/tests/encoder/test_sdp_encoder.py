@@ -666,7 +666,7 @@ class TestEncodeDenseReal:
 
     def test_output_is_normalized(self, encoder_real):
         result = encoder_real.encode_dense(ITEM_SIMPLE)
-        norm = torch.linalg.norm(result, dim=-1).item()
+        norm = torch.linalg.norm(result, dim=1).item()
         assert abs(norm - 1.0) < 1e-3, f"Expected unit norm, got {norm}"
 
     def test_deterministic_output(self, encoder_real):

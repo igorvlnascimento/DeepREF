@@ -153,10 +153,19 @@ class CombineEmbeddings(nn.Module):
             # NLP parsing (spaCy/Stanza) is inherently sequential.  Build the
             # verbalized strings one by one, then batch-tokenize and run the
             # transformer once for the whole batch.
-            verbalized = [
-                encoder.verbalize(encoder.mark_sentence(item), K=1)
-                for item in items
-            ]
+            verbalized = []
+            for item in items:
+                try:
+                    verbalized_item = encoder.verbalize(encoder.mark_sentence(item))
+                except RuntimeError:
+                    print("Error verbalizing sentence:", item)
+                    continue
+                verbalized.append(verbalized_item)
+
+            # verbalized = [
+            #     encoder.verbalize(encoder.mark_sentence(item), K=1)
+            #     for item in items
+            # ]
             token_dict = encoder.registry.tokenize(
                 encoder.model_name, verbalized,
                 max_length=encoder.max_length, padding=True, truncation=True,
