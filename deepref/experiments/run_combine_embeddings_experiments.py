@@ -86,7 +86,6 @@ import torch.nn as nn
 from omegaconf import DictConfig, OmegaConf
 
 from deepref.dataset.combine_re_dataset import CombineREDataset
-from deepref.dataset.re_dataset import REDataset
 from deepref.embedding.embedding_generator import EmbeddingGenerator
 from deepref.embedding.vector_database import VectorDatabase
 from deepref.encoder.bert_entity_encoder import BertEntityEncoder
@@ -100,6 +99,7 @@ from deepref.framework.vector_db_re_trainer import VectorDBRETrainer
 from deepref.model.sklearn_re_classifier import SklearnREClassifier
 from deepref.model.softmax_mlp import SoftmaxMLP
 from deepref.nlp.nlp_tool import NLPTool
+from deepref.utils.focal_loss import FocalLossLabelSmoothing
 from deepref.utils.model_registry import ModelRegistry
 
 logging.basicConfig(
@@ -477,7 +477,7 @@ def main(cfg: DictConfig) -> None:
 
             training_parameters = {
                 "max_epoch": cfg.training.max_epoch,
-                "criterion": nn.CrossEntropyLoss(),
+                "criterion": FocalLossLabelSmoothing(),
                 "lr": cfg.training.lr,
                 "batch_size": cfg.training.batch_size,
                 "opt": cfg.training.opt,
