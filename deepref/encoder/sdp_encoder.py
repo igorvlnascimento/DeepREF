@@ -756,15 +756,11 @@ class SDPEncoder(ABC):
         """
         span_set = set(token_indices)
         for idx in token_indices:
-            if isinstance(self.nlp_tool, StanzaNLPTool):
-                parent_id = words[idx].head - 1   # convert to 0-indexed
+            head = self.nlp_tool.get_entity_head(words[idx])
+            parent_id = head - 1   # convert to 0-indexed
             # token is root  OR  its parent is outside the span
-                if words[idx].head == 0 or parent_id not in span_set:
-                    return idx
-            elif isinstance(self.nlp_tool, SpacyNLPTool):
-                parent_id = words[idx].head.i - 1   # convert to 0-indexed
-                if words[idx].head.i == 0 or parent_id not in span_set:
-                    return idx
+            if head == 0 or parent_id not in span_set:
+                return idx
         return token_indices[0]              # safe fallback
 
 
@@ -787,27 +783,21 @@ class SDPEncoder(ABC):
         arcs: Dict[Tuple[int, int], Arc] = {}
 
         for i, word in enumerate(words):
-            if word.head == 0:
+            head = self.nlp_tool.get_entity_head(word)
+            if head == 0:
                 continue
-            if isinstance(self.nlp_tool, StanzaNLPTool):                      # root token, no incoming arc
-                parent = word.head - 1
-            elif isinstance(self.nlp_tool, SpacyNLPTool):
-                parent = word.head.i - 1
+            parent = head - 1
             child = i
 
             adjacency[child].append(parent)
             adjacency[parent].append(child)
 
-            if isinstance(self.nlp_tool, StanzaNLPTool):
-                # child → parent : going UP toward root
-                arcs[(child, parent)] = Arc(deprel=word.deprel, direction='UP')
-                # parent → child : going DOWN away from root
-                arcs[(parent, child)] = Arc(deprel=word.deprel, direction='DOWN')
-            elif isinstance(self.nlp_tool, SpacyNLPTool):
-                # child → parent : going UP toward root
-                arcs[(child, parent)] = Arc(deprel=word.dep_, direction='UP')
-                # parent → child : going DOWN away from root
-                arcs[(parent, child)] = Arc(deprel=word.dep_, direction='DOWN')
+            deprel = self.nlp_tool.get_deprel(word)
+
+            # child → parent : going UP toward root
+            arcs[(child, parent)] = Arc(deprel=deprel, direction='UP')
+            # parent → child : going DOWN away from root
+            arcs[(parent, child)] = Arc(deprel=deprel, direction='DOWN')
         return adjacency, arcs
 
 

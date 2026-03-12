@@ -6,7 +6,7 @@ from deepref.nlp.nlp_tool import NLPTool, ParsedToken, Sentence, Token
 class SpacyNLPTool(NLPTool):
     def __init__(self, model:str = None):
         super().__init__(model)
-        self.model = model if model is not None else 'en_core_web_sm'
+        self.model = model if model is not None else 'en_core_web_trf'
         if self.model not in spacy.util.get_installed_models():
             spacy_download(self.model)
         self.nlp = spacy.load(self.model)
@@ -88,3 +88,13 @@ class SpacyNLPTool(NLPTool):
                 "Install it with:  python -m spacy download en_core_web_sm\n"
                 "Falling back to manually defined example sentences."
             )
+
+    def get_words(self, sentence: str):
+        doc = self.nlp(sentence)
+        return [token for token in doc]
+    
+    def get_entity_head(self, word: spacy.tokens.token.Token) -> int:
+        return word.head.i
+    
+    def get_deprel(self, word: spacy.tokens.token.Token) -> str:
+        return word.dep_

@@ -94,3 +94,21 @@ class NLPTool():
                 tokens_copy.remove(tag)
 
         return " ".join(tokens_copy)
+    
+    def get_words(self, sentence: str):
+        """
+        Return a list of words in the sentence.
+        """
+        pass
+
+    def get_entity_head(self, word) -> int:
+        """
+        Return entity head index.
+        """
+        pass
+
+    def get_deprel(self, word) -> str:
+        """
+        Return dependency relation label.
+        """
+        pass

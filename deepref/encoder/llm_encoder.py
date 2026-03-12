@@ -109,6 +109,15 @@ class LLMEncoder(SentenceEncoder):
             padding="max_length",
         )
         return token_dict["input_ids"], token_dict["attention_mask"]
+    
+    def tokenize_prompt(self, prompt: str):
+        token_dict = self.registry.tokenize(
+            self.model_name,
+            prompt,
+            max_length=self.max_length,
+            padding="max_length",
+        )
+        return token_dict
 
     def tokenize_batch(self, items: list[dict]):
         """Tokenize a list of items in a single tokenizer call.

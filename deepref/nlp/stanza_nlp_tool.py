@@ -85,3 +85,14 @@ class StanzaNLPTool(NLPTool):
             )
             for i, w in enumerate(words)
         ]
+    
+    def get_words(self, sentence: str):
+        doc = self.nlp(sentence)
+        sentence = doc.sentences[0]
+        return sentence.words
+    
+    def get_entity_head(self, word: stanza.models.common.doc.Word) -> int:
+        return word.head
+    
+    def get_deprel(self, word: stanza.models.common.doc.Word) -> str:
+        return word.deprel
