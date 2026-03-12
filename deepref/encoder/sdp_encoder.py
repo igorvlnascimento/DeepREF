@@ -30,6 +30,8 @@ from __future__ import annotations
 from abc import ABC
 from collections import defaultdict, deque
 import collections
+from dataclasses import dataclass, field
+import re
 from typing import Dict, List, Optional, Set, Tuple
 
 import torch
@@ -39,6 +41,40 @@ import networkx as nx
 from deepref.encoder.sentence_encoder import SentenceEncoder
 from deepref.encoder.llm_encoder import LLMEncoder
 from deepref.nlp.nlp_tool import NLPTool, ParsedToken, Sentence
+from deepref.nlp.spacy_nlp_tool import SpacyNLPTool
+from deepref.nlp.stanza_nlp_tool import StanzaNLPTool
+
+@dataclass
+class Arc:
+    """A directed arc on the SDP traversal."""
+    deprel: str
+    direction: str          # 'UP'  (child → head, toward root)
+                            # 'DOWN'(head → child, away from root)
+
+    def __str__(self) -> str:
+        return f"--{self.deprel}({self.direction})-->"
+
+
+@dataclass
+class SDPNode:
+    """A node on the (possibly pruned) SDP."""
+    token_idx: int
+    text: str               # surface form
+    upos: str               # Universal POS tag (from Stanza)
+    is_entity: bool = False
+    entity_role: str = ""   # "ENTITY_1" | "ENTITY_2"
+    entity_span: str = ""   # full surface span of the entity
+    off_path_tokens: List[str] = field(default_factory=list)  # K-neighbors
+
+    def verbalize(self) -> str:
+        """Return the string representation of this node for the Query."""
+        if self.is_entity:
+            return f"[{self.entity_role}: {self.entity_span}]"
+        base = f"{self.text}/{self.upos}"
+        if self.off_path_tokens:
+            neighbors = "+".join(self.off_path_tokens)
+            base = f"{self.text}[+{neighbors}]/{self.upos}"
+        return base
 
 
 # ===========================================================================
@@ -225,9 +261,9 @@ class SDPEncoder(ABC):
         text = " ".join(item["token"])
         subj_text = item["h"]["name"]
         obj_text = item["t"]["name"]
-        relation = item["relation"]
+        
         text = " ".join(item["token"])
-        sentence = self.nlp_tool.parse_to_sentence(text, subj_text, obj_text, relation)
+        sentence = self.nlp_tool.parse_to_sentence(text, subj_text, obj_text)
         return sentence
 
     def extract_sdp(
@@ -513,9 +549,6 @@ class SDPEncoder(ABC):
 
     def verbalize(
         self,
-        sentence: str,
-        e1: str,
-        e2: str,
         dep_chain: str,
     ) -> str:
         """Build the verbalized SDP sentence.
@@ -526,10 +559,8 @@ class SDPEncoder(ABC):
             Dependency path: {dep_chain}
         """
         return (
-            f"Sentence {sentence} | "
-            f"Entity-1: [{e1}] | "
-            f"Entity-2: [{e2}] | "
-            f"Dependency path: {dep_chain}"
+            f"Instruct: Given a syntactic dependency path between two named entities, identify the semantic relation they hold.\n"
+            f"Query: {dep_chain}"
         )
 
     # ------------------------------------------------------------------
@@ -642,6 +673,318 @@ class SDPEncoder(ABC):
                 best_path = path
 
         return best_path
+    
+    # ──────────────────────────────────────────────────────────────────────────────
+    # Entity extraction helpers
+    # ──────────────────────────────────────────────────────────────────────────────
+
+    def extract_entities_and_clean(self, marked_sentence: str) -> Tuple[str, str, str]:
+        """
+        Strip [E1]...[/E1] and [E2]...[/E2] markers.
+
+        Returns
+        -------
+        clean_sentence : str   — sentence without any markers
+        e1_text        : str   — surface span of entity 1
+        e2_text        : str   — surface span of entity 2
+        """
+        e1_match = re.search(r'\[E1\](.*?)\[/E1\]', marked_sentence, re.DOTALL)
+        e2_match = re.search(r'\[E2\](.*?)\[/E2\]', marked_sentence, re.DOTALL)
+
+        if not e1_match or not e2_match:
+            raise ValueError(
+                "Sentence must contain both [E1]...[/E1] and [E2]...[/E2] markers."
+            )
+
+        e1_text = re.sub(r'\s+', ' ', e1_match.group(1)).strip()
+        e2_text = re.sub(r'\s+', ' ', e2_match.group(1)).strip()
+
+        clean = re.sub(r'\[/?E[12]\]', '', marked_sentence)
+        clean = re.sub(r'\s+', ' ', clean).strip()
+
+        return clean, e1_text, e2_text
+
+
+    def find_entity_token_indices(
+        self,
+        words: list,
+        entity_text: str
+    ) -> List[int]:
+        """
+        Locate the token indices in Stanza's word list that correspond to entity_text.
+
+        Strategy:
+            1. Exact left-to-right n-gram match (case-insensitive).
+            2. Fallback: single-token substring match.
+        """
+        entity_tokens = entity_text.split()
+        n_words = len(words)
+        n_ent = len(entity_tokens)
+
+        # --- exact n-gram match ---
+        for start in range(n_words - n_ent + 1):
+            match = all(
+                words[start + j].text.lower() == entity_tokens[j].lower()
+                for j in range(n_ent)
+            )
+            if match:
+                return list(range(start, start + n_ent))
+
+        # --- fallback: partial match on first token ---
+        for i, w in enumerate(words):
+            if w.text.lower() == entity_tokens[0].lower():
+                return [i]
+
+        # --- last resort: substring ---
+        for i, w in enumerate(words):
+            if entity_tokens[0].lower() in w.text.lower():
+                return [i]
+
+        raise ValueError(
+            f"Entity '{entity_text}' not found in sentence tokens: "
+            f"{[w.text for w in words]}"
+        )
+
+
+    def get_entity_head(self, words: list, token_indices: List[int]) -> int:
+        """
+        Return the index of the syntactic head of the entity span.
+
+        The head is the token whose parent (head) is OUTSIDE the span,
+        i.e. the token that links the whole span to the rest of the tree.
+        Stanza uses 1-indexed heads; head == 0 means the token is the ROOT.
+        """
+        span_set = set(token_indices)
+        for idx in token_indices:
+            if isinstance(self.nlp_tool, StanzaNLPTool):
+                parent_id = words[idx].head - 1   # convert to 0-indexed
+            # token is root  OR  its parent is outside the span
+                if words[idx].head == 0 or parent_id not in span_set:
+                    return idx
+            elif isinstance(self.nlp_tool, SpacyNLPTool):
+                parent_id = words[idx].head.i - 1   # convert to 0-indexed
+                if words[idx].head.i == 0 or parent_id not in span_set:
+                    return idx
+        return token_indices[0]              # safe fallback
+
+
+    # ──────────────────────────────────────────────────────────────────────────────
+    # Dependency tree helpers
+    # ──────────────────────────────────────────────────────────────────────────────
+
+    def build_graph(self, words: list) -> Tuple[Dict[int, List[int]], Dict[Tuple[int, int], Arc]]:
+        """
+        Build an undirected adjacency list and a directed arc dictionary from
+        Stanza's word list.
+
+        adjacency : { node_idx : [neighbor_idx, ...] }
+        arcs      : { (from_idx, to_idx) : Arc }
+                    — arc goes from_idx → to_idx
+                    — UP   means traversal toward root   (child → parent)
+                    — DOWN means traversal away from root (parent → child)
+        """
+        adjacency: Dict[int, List[int]] = defaultdict(list)
+        arcs: Dict[Tuple[int, int], Arc] = {}
+
+        for i, word in enumerate(words):
+            if word.head == 0:
+                continue
+            if isinstance(self.nlp_tool, StanzaNLPTool):                      # root token, no incoming arc
+                parent = word.head - 1
+            elif isinstance(self.nlp_tool, SpacyNLPTool):
+                parent = word.head.i - 1
+            child = i
+
+            adjacency[child].append(parent)
+            adjacency[parent].append(child)
+
+            if isinstance(self.nlp_tool, StanzaNLPTool):
+                # child → parent : going UP toward root
+                arcs[(child, parent)] = Arc(deprel=word.deprel, direction='UP')
+                # parent → child : going DOWN away from root
+                arcs[(parent, child)] = Arc(deprel=word.deprel, direction='DOWN')
+            elif isinstance(self.nlp_tool, SpacyNLPTool):
+                # child → parent : going UP toward root
+                arcs[(child, parent)] = Arc(deprel=word.dep_, direction='UP')
+                # parent → child : going DOWN away from root
+                arcs[(parent, child)] = Arc(deprel=word.dep_, direction='DOWN')
+        return adjacency, arcs
+
+
+    def find_sdp(
+        self,
+        adjacency: Dict[int, List[int]],
+        src: int,
+        tgt: int
+    ) -> Optional[List[int]]:
+        """
+        BFS on the undirected dependency graph to find the Shortest Dependency Path.
+
+        Returns the ordered list of node indices from src to tgt,
+        or None if no path exists.
+        """
+        if src == tgt:
+            return [src]
+
+        visited: Set[int] = {src}
+        queue: deque = deque([(src, [src])])
+
+        while queue:
+            node, path = queue.popleft()
+            for neighbor in adjacency[node]:
+                if neighbor == tgt:
+                    return path + [neighbor]
+                if neighbor not in visited:
+                    visited.add(neighbor)
+                    queue.append((neighbor, path + [neighbor]))
+
+        return None
+
+
+    def path_centric_pruning(
+        self,
+        adjacency: Dict[int, List[int]],
+        sdp_nodes: List[int],
+        K: int
+    ) -> Set[int]:
+        """
+        Zhang et al. (2018) path-centric pruning.
+
+        Keep all tokens within K hops of any node on the SDP:
+            K = 0  →  SDP only (pure shortest-path model)
+            K = 1  →  SDP + direct neighbors  (best F1 in paper)
+            K = 2  →  SDP + 2-hop neighborhood
+            K = ∞  →  full LCA subtree
+
+        Returns the set of retained token indices.
+        """
+        if K == 0:
+            return set(sdp_nodes)
+
+        retained: Set[int] = set(sdp_nodes)
+
+        for sdp_node in sdp_nodes:
+            frontier: Set[int] = {sdp_node}
+            visited: Set[int] = {sdp_node}
+            for _ in range(K):
+                next_frontier: Set[int] = set()
+                for node in frontier:
+                    for neighbor in adjacency[node]:
+                        if neighbor not in visited:
+                            visited.add(neighbor)
+                            next_frontier.add(neighbor)
+                            retained.add(neighbor)
+                frontier = next_frontier
+
+        return retained
+
+
+    # ──────────────────────────────────────────────────────────────────────────────
+    # Core verbalization logic
+    # ──────────────────────────────────────────────────────────────────────────────
+
+    def build_sdp_nodes(
+        self,
+        words: list,
+        sdp_path: List[int],
+        arcs: Dict[Tuple[int, int], Arc],
+        adjacency: Dict[int, List[int]],
+        e1_indices: List[int],
+        e1_head: int,
+        e1_text: str,
+        e2_indices: List[int],
+        e2_head: int,
+        e2_text: str,
+        pruned_nodes: Set[int],
+        K: int
+    ) -> List[Tuple[SDPNode, Optional[Arc]]]:
+        """
+        Build the sequence of (SDPNode, Arc_to_next) pairs that will be verbalized.
+
+        Off-path neighbors (K > 0) are listed inside the node label as
+        token[+neighbor1+neighbor2]/POS, capped at 3 neighbors for readability.
+        """
+        e1_set = set(e1_indices)
+        e2_set = set(e2_indices)
+        sdp_set = set(sdp_path)
+
+        result: List[Tuple[SDPNode, Optional[Arc]]] = []
+
+        for step, node_idx in enumerate(sdp_path):
+
+            # --- determine off-path K-neighbors for this node ---
+            off_path: List[str] = []
+            if K > 0:
+                for neighbor in adjacency[node_idx]:
+                    if (
+                        neighbor not in sdp_set
+                        and neighbor in pruned_nodes
+                        and neighbor not in e1_set
+                        and neighbor not in e2_set
+                    ):
+                        off_path.append(words[neighbor].text)
+                off_path = off_path[:3]          # cap at 3 for readability
+
+            # --- classify as entity or intermediate token ---
+            if isinstance(self.nlp_tool, StanzaNLPTool):
+                    upos = words[node_idx].upos
+            elif isinstance(self.nlp_tool, SpacyNLPTool):
+                upos = words[node_idx].pos_
+            if node_idx in e1_set or node_idx == e1_head:
+                node = SDPNode(
+                    token_idx=node_idx,
+                    text=words[node_idx].text,
+                    upos=upos,
+                    is_entity=True,
+                    entity_role="ENTITY_1",
+                    entity_span=e1_text,
+                    off_path_tokens=[],       # no off-path inside entity brackets
+                )
+            elif node_idx in e2_set or node_idx == e2_head:
+                node = SDPNode(
+                    token_idx=node_idx,
+                    text=words[node_idx].text,
+                    upos=upos,
+                    is_entity=True,
+                    entity_role="ENTITY_2",
+                    entity_span=e2_text,
+                    off_path_tokens=[],
+                )
+            else:
+                node = SDPNode(
+                    token_idx=node_idx,
+                    text=words[node_idx].text,
+                    upos=upos,
+                    is_entity=False,
+                    off_path_tokens=off_path,
+                )
+
+            # --- arc to next node on path (None for last node) ---
+            arc: Optional[Arc] = None
+            if step < len(sdp_path) - 1:
+                next_idx = sdp_path[step + 1]
+                arc = arcs.get(
+                    (node_idx, next_idx),
+                    Arc(deprel="dep", direction="DOWN")   # safe fallback
+                )
+
+            result.append((node, arc))
+
+        return result
+    
+    def mark_sentence(self, item: dict) -> str:
+        token = item["token"]
+        h1, h2 = item["h"]["pos"][0], item["h"]["pos"][1]
+        t1, t2 = item["t"]["pos"][0], item["t"]["pos"][1]
+
+        if h1 < t1:
+            token = token[:t1] + ["[E2]"] + token[t1:t2] + ["[/E2]"] + token[t2:]
+            token = token[:h1] + ["[E1]"] + token[h1:h2] + ["[/E1]"] + token[h2:]
+        else:
+            token = token[:h1] + ["[E1]"] + token[h1:h2] + ["[/E1]"] + token[h2:]
+            token = token[:t1] + ["[E2]"] + token[t1:t2] + ["[/E2]"] + token[t2:]
+
+        return " ".join(token)
 
 
 # ===========================================================================
@@ -748,16 +1091,15 @@ class VerbalizedSDPEncoder(SDPEncoder, LLMEncoder):
             dict with ``'input_ids'`` and ``'attention_mask'`` tensors of
             shape ``(1, max_length)``.
         """
-        tokens  = item['token']
-        e1_name = item['h']['name']
-        e2_name = item['t']['name']
+        # e1_name = item['h']['name']
+        # e2_name = item['t']['name']
 
-        sentence   = ' '.join(tokens)
-        path       = self.extract_sdp(item)
-        dep_chain  = self.build_dep_chain(path)
-        verbalized = self.verbalize(sentence, e1_name, e2_name, dep_chain)
+        sentence = self.mark_sentence(item)
+        # path       = self.extract_sdp(item)
+        # dep_chain  = self.build_dep_chain(path)
+        verbalized = self.verbalize(sentence, K=1)
 
-        return LLMEncoder.tokenize(self, verbalized)
+        return LLMEncoder.tokenize_prompt(self, verbalized)
 
     def forward(self, item: dict) -> torch.Tensor:
         """Encode the SDP verbalization for one sample.
@@ -771,10 +1113,11 @@ class VerbalizedSDPEncoder(SDPEncoder, LLMEncoder):
             Float32 tensor of shape ``(1, hidden_dim)``, L2-normalised.
         """
         batch = self.tokenize(item)
+        #print("batch:", batch)
         model_outputs = self.registry.run_from_input_ids(
             self.model_name,
-            batch['input_ids'],
-            batch['attention_mask'],
+            batch["input_ids"],
+            batch["attention_mask"],
         )
         return self.average_pool(model_outputs.last_hidden_state, batch['attention_mask'])
 
@@ -787,3 +1130,80 @@ class VerbalizedSDPEncoder(SDPEncoder, LLMEncoder):
             Tensor of shape ``(1, hidden_dim)``, L2-normalised.
         """
         return self(item)
+
+    def verbalize(
+            self,
+            marked_sentence: str,
+            K: int = 0,
+            task_instruction: Optional[str] = None
+    ) -> str:
+        """
+        Full pipeline: parse → SDP → prune → verbalize.
+
+        Parameters
+        ----------
+        marked_sentence   : sentence with [E1]...[/E1] and [E2]...[/E2] tags
+        nlp               : initialized pipeline (tokenize, pos, depparse)
+        K                 : path-centric pruning distance (Zhang et al. 2018)
+                            0 = SDP only, 1 = best trade-off, 2 = wider context
+        task_instruction  : override the default Qwen3 instruction prefix
+
+        Returns
+        -------
+        verbalization     : complete canonical string ready for Qwen3-embedding-8B
+        """
+
+        # ── 1. strip entity markers, remember surface spans ──────────────────────
+        clean_sentence, e1_text, e2_text = self.extract_entities_and_clean(marked_sentence)
+
+        # ── 2. parse with NLPTool ─────────────────────────────────────────────────
+        words = self.nlp_tool.get_words(clean_sentence)
+
+        # ── 3. locate entity token indices & heads ───────────────────────────────
+        e1_indices = self.find_entity_token_indices(words, e1_text)
+        e2_indices = self.find_entity_token_indices(words, e2_text)
+        e1_head = self.get_entity_head(words, e1_indices)
+        e2_head = self.get_entity_head(words, e2_indices)
+
+        # ── 4. build dependency graph ─────────────────────────────────────────────
+        adjacency, arcs = self.build_graph(words)
+
+        # ── 5. find SDP between entity heads ─────────────────────────────────────
+        sdp_path = self.find_sdp(adjacency, e1_head, e2_head)
+        if sdp_path is None:
+            raise RuntimeError(
+                f"No dependency path found between '{e1_text}' and '{e2_text}'."
+            )
+
+        # ── 6. path-centric pruning (Zhang et al. 2018) ───────────────────────────
+        pruned_nodes = self.path_centric_pruning(adjacency, sdp_path, K)
+
+        # ── 7. build structured SDP node sequence ────────────────────────────────
+        node_arc_pairs = self.build_sdp_nodes(
+            words, sdp_path, arcs, adjacency,
+            e1_indices, e1_head, e1_text,
+            e2_indices, e2_head, e2_text,
+            pruned_nodes, K
+        )
+
+        # ── 8. assemble Query string ──────────────────────────────────────────────
+        query_parts: List[str] = []
+        for node, arc in node_arc_pairs:
+            query_parts.append(node.verbalize())
+            if arc is not None:
+                query_parts.append(str(arc))
+
+        query_str = " ".join(query_parts)
+
+        # ── 9. prepend Qwen3 instruction prefix ───────────────────────────────────
+        instruction = task_instruction or (
+            "Given a syntactic dependency path between two named entities, "
+            "identify the semantic relation they hold."
+        )
+
+        verbalization = (
+            f"Instruct: {instruction}\n"
+            f"Query: {query_str}"
+        )
+
+        return verbalization

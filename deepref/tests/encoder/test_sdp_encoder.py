@@ -32,6 +32,8 @@ import torch
 from unittest import mock
 from unittest.mock import MagicMock
 
+from deepref.encoder.llm_encoder import LLMEncoder
+
 # ---------------------------------------------------------------------------
 # Constants shared across all tests
 # ---------------------------------------------------------------------------
@@ -422,56 +424,52 @@ class TestBuildDepChain:
 
 class TestVerbalize:
 
-    _SENTENCE = 'The audits were about waste .'
-    _E1 = 'audits'
-    _E2 = 'waste'
+    _SENTENCE = ("[E1] ALBA [/E1] – the Bolivarian Alternative for the Americas – "
+                 "was founded by Venezuelan President Hugo Chavez and Cuban leader "
+                 "[E2] Fidel Castro [/E2] in 2004 and also includes Bolivia , "
+                 "Nicaragua and the Caribbean island of Dominica .")
+    _E1 = 'ALBA'
+    _E2 = 'Fidel Castro'
     _CHAIN = (
-        'audits --nominal subject--> were '
-        '--prepositional modifier--> about '
-        '--object of preposition--> waste'
+        f'[ENTITY_1: {_E1}] --nsubj:pass(UP)--> founded/VERB '
+        f'--obl(DOWN)--> Castro/PROPN --flat(DOWN)--> [ENTITY_2: {_E2}]'
     )
 
     def test_returns_string(self, encoder):
-        result = encoder.verbalize(self._SENTENCE, self._E1, self._E2, self._CHAIN)
+        result = encoder.verbalize(self._CHAIN)
         assert isinstance(result, str)
 
     def test_exact_format(self, encoder):
-        result = encoder.verbalize(self._SENTENCE, self._E1, self._E2, self._CHAIN)
+        result = encoder.verbalize(self._CHAIN)
         expected = (
-            f"Sentence {self._SENTENCE} | "
-            f"Entity-1: [{self._E1}] | "
-            f"Entity-2: [{self._E2}] | "
-            f"Dependency path: {self._CHAIN}"
+            f"Instruct: Given a syntactic dependency path between two named entities, identify the semantic relation they hold.\n"
+            f"Query: {self._CHAIN}"
         )
         assert result == expected
 
-    def test_sentence_keyword_present(self, encoder):
-        result = encoder.verbalize(self._SENTENCE, self._E1, self._E2, self._CHAIN)
-        assert result.startswith('Sentence ')
-
     def test_entity_1_in_brackets(self, encoder):
-        result = encoder.verbalize(self._SENTENCE, self._E1, self._E2, self._CHAIN)
-        assert f'[{self._E1}]' in result
+        result = encoder.verbalize(self._CHAIN)
+        assert f'{self._E1}' in result
 
     def test_entity_2_in_brackets(self, encoder):
-        result = encoder.verbalize(self._SENTENCE, self._E1, self._E2, self._CHAIN)
-        assert f'[{self._E2}]' in result
+        result = encoder.verbalize(self._CHAIN)
+        assert f'{self._E2}' in result
 
     def test_dep_chain_present(self, encoder):
-        result = encoder.verbalize(self._SENTENCE, self._E1, self._E2, self._CHAIN)
+        result = encoder.verbalize(self._CHAIN)
         assert self._CHAIN in result
 
-    def test_separator_bars_present(self, encoder):
-        result = encoder.verbalize(self._SENTENCE, self._E1, self._E2, self._CHAIN)
-        assert result.count(' | ') == 3
-
     def test_entity_1_label_before_entity_2_label(self, encoder):
-        result = encoder.verbalize(self._SENTENCE, self._E1, self._E2, self._CHAIN)
-        assert result.index('Entity-1:') < result.index('Entity-2:')
+        result = encoder.verbalize(self._CHAIN)
+        assert result.index('ENTITY_1:') < result.index('ENTITY_2:')
 
-    def test_entity_labels_before_dep_path(self, encoder):
-        result = encoder.verbalize(self._SENTENCE, self._E1, self._E2, self._CHAIN)
-        assert result.index('Entity-2:') < result.index('Dependency path:')
+    def test_entity_labels1_before_entity_names(self, encoder):
+        result = encoder.verbalize(self._CHAIN)
+        assert result.index('ENTITY_1:') < result.index(self._E1)
+
+    def test_entity_labels2_before_entity_names(self, encoder):
+        result = encoder.verbalize(self._CHAIN)
+        assert result.index('ENTITY_2:') < result.index(self._E2)
 
 
 # ===========================================================================
@@ -580,45 +578,39 @@ class TestTokenize:
     }
 
     def test_returns_dict(self, encoder_verbalized):
-        from deepref.encoder.llm_encoder import LLMEncoder
-        with mock.patch.object(LLMEncoder, 'tokenize', return_value=self._FAKE_TOKENS):
+        with mock.patch.object(LLMEncoder, 'tokenize_prompt', return_value=self._FAKE_TOKENS):
             result = encoder_verbalized.tokenize(ITEM_SIMPLE)
         assert isinstance(result, dict)
 
     def test_has_input_ids(self, encoder_verbalized):
-        from deepref.encoder.llm_encoder import LLMEncoder
-        with mock.patch.object(LLMEncoder, 'tokenize', return_value=self._FAKE_TOKENS):
+        with mock.patch.object(LLMEncoder, 'tokenize_prompt', return_value=self._FAKE_TOKENS):
             result = encoder_verbalized.tokenize(ITEM_SIMPLE)
         assert 'input_ids' in result
 
     def test_has_attention_mask(self, encoder_verbalized):
-        from deepref.encoder.llm_encoder import LLMEncoder
-        with mock.patch.object(LLMEncoder, 'tokenize', return_value=self._FAKE_TOKENS):
+        with mock.patch.object(LLMEncoder, 'tokenize_prompt', return_value=self._FAKE_TOKENS):
             result = encoder_verbalized.tokenize(ITEM_SIMPLE)
         assert 'attention_mask' in result
 
     def test_verbalized_string_contains_entity_1(self, encoder_verbalized):
         """tokenize must verbalize using e1's name."""
-        from deepref.encoder.llm_encoder import LLMEncoder
-        with mock.patch.object(LLMEncoder, 'tokenize', return_value=self._FAKE_TOKENS) as mock_tok:
+        with mock.patch.object(LLMEncoder, 'tokenize_prompt', return_value=self._FAKE_TOKENS) as mock_tok:
             encoder_verbalized.tokenize(ITEM_SIMPLE)
         _, verbalized_text = mock_tok.call_args[0]
         assert ITEM_SIMPLE['h']['name'] in verbalized_text
 
     def test_verbalized_string_contains_entity_2(self, encoder_verbalized):
         """tokenize must verbalize using e2's name."""
-        from deepref.encoder.llm_encoder import LLMEncoder
-        with mock.patch.object(LLMEncoder, 'tokenize', return_value=self._FAKE_TOKENS) as mock_tok:
+        with mock.patch.object(LLMEncoder, 'tokenize_prompt', return_value=self._FAKE_TOKENS) as mock_tok:
             encoder_verbalized.tokenize(ITEM_SIMPLE)
         _, verbalized_text = mock_tok.call_args[0]
         assert ITEM_SIMPLE['t']['name'] in verbalized_text
 
-    def test_verbalized_string_contains_dependency_path_keyword(self, encoder_verbalized):
-        from deepref.encoder.llm_encoder import LLMEncoder
-        with mock.patch.object(LLMEncoder, 'tokenize', return_value=self._FAKE_TOKENS) as mock_tok:
+    def test_verbalized_string_contains_query_keyword(self, encoder_verbalized):
+        with mock.patch.object(LLMEncoder, 'tokenize_prompt', return_value=self._FAKE_TOKENS) as mock_tok:
             encoder_verbalized.tokenize(ITEM_SIMPLE)
         _, verbalized_text = mock_tok.call_args[0]
-        assert 'Dependency path:' in verbalized_text
+        assert 'Query:' in verbalized_text
 
 
 # ===========================================================================
@@ -663,6 +655,11 @@ class TestEncodeDenseReal:
     Run with: pytest -m integration
     """
 
+    _FAKE_TOKENS = {
+        'input_ids': torch.zeros(1, MOCK_EMBED_DIM, dtype=torch.long),
+        'attention_mask': torch.ones(1, MOCK_EMBED_DIM, dtype=torch.long),
+    }
+
     def test_output_shape_matches_model_embed_dim(self, encoder_real):
         result = encoder_real.encode_dense(ITEM_SIMPLE)
         assert result.shape == (1, MOCK_EMBED_DIM)
@@ -685,3 +682,545 @@ class TestEncodeDenseReal:
     def test_multiword_entities(self, encoder_real):
         result = encoder_real.encode_dense(ITEM_MULTIWORD)
         assert result.shape == (1, MOCK_EMBED_DIM)
+
+
+# ===========================================================================
+# 8. Arc.__str__
+# ===========================================================================
+
+class TestArc:
+
+    def test_str_up_direction(self):
+        from deepref.encoder.sdp_encoder import Arc
+        arc = Arc(deprel='nsubj', direction='UP')
+        assert str(arc) == '--nsubj(UP)-->'
+
+    def test_str_down_direction(self):
+        from deepref.encoder.sdp_encoder import Arc
+        arc = Arc(deprel='prep', direction='DOWN')
+        assert str(arc) == '--prep(DOWN)-->'
+
+    def test_str_with_colon_in_deprel(self):
+        from deepref.encoder.sdp_encoder import Arc
+        arc = Arc(deprel='nsubj:pass', direction='UP')
+        assert str(arc) == '--nsubj:pass(UP)-->'
+
+    def test_str_contains_deprel(self):
+        from deepref.encoder.sdp_encoder import Arc
+        arc = Arc(deprel='pobj', direction='DOWN')
+        assert 'pobj' in str(arc)
+
+    def test_str_contains_direction(self):
+        from deepref.encoder.sdp_encoder import Arc
+        arc = Arc(deprel='pobj', direction='DOWN')
+        assert 'DOWN' in str(arc)
+
+
+# ===========================================================================
+# 9. SDPNode.verbalize
+# ===========================================================================
+
+class TestSDPNodeVerbalize:
+
+    def test_entity_1_node(self):
+        from deepref.encoder.sdp_encoder import SDPNode
+        node = SDPNode(
+            token_idx=0, text='ALBA', upos='PROPN',
+            is_entity=True, entity_role='ENTITY_1', entity_span='ALBA',
+        )
+        assert node.verbalize() == '[ENTITY_1: ALBA]'
+
+    def test_entity_2_node_multiword(self):
+        from deepref.encoder.sdp_encoder import SDPNode
+        node = SDPNode(
+            token_idx=5, text='Castro', upos='PROPN',
+            is_entity=True, entity_role='ENTITY_2', entity_span='Fidel Castro',
+        )
+        assert node.verbalize() == '[ENTITY_2: Fidel Castro]'
+
+    def test_intermediate_node_no_off_path(self):
+        from deepref.encoder.sdp_encoder import SDPNode
+        node = SDPNode(
+            token_idx=2, text='founded', upos='VERB',
+            is_entity=False,
+        )
+        assert node.verbalize() == 'founded/VERB'
+
+    def test_intermediate_node_single_off_path_token(self):
+        from deepref.encoder.sdp_encoder import SDPNode
+        node = SDPNode(
+            token_idx=4, text='Castro', upos='PROPN',
+            is_entity=False, off_path_tokens=['Fidel'],
+        )
+        assert node.verbalize() == 'Castro[+Fidel]/PROPN'
+
+    def test_intermediate_node_multiple_off_path_tokens(self):
+        from deepref.encoder.sdp_encoder import SDPNode
+        node = SDPNode(
+            token_idx=4, text='built', upos='VERB',
+            is_entity=False, off_path_tokens=['was', 'recently'],
+        )
+        assert node.verbalize() == 'built[+was+recently]/VERB'
+
+    def test_entity_node_ignores_off_path_tokens(self):
+        from deepref.encoder.sdp_encoder import SDPNode
+        node = SDPNode(
+            token_idx=0, text='ALBA', upos='PROPN',
+            is_entity=True, entity_role='ENTITY_1', entity_span='ALBA',
+            off_path_tokens=['some', 'neighbor'],
+        )
+        # off_path_tokens are ignored for entity nodes
+        assert node.verbalize() == '[ENTITY_1: ALBA]'
+
+
+# ===========================================================================
+# 10. extract_entities_and_clean
+# ===========================================================================
+
+class TestExtractEntitiesAndClean:
+
+    _MARKED = '[E1] ALBA [/E1] was founded by [E2] Fidel Castro [/E2] in 2004 .'
+
+    def test_returns_three_element_tuple(self, encoder):
+        result = encoder.extract_entities_and_clean(self._MARKED)
+        assert isinstance(result, tuple) and len(result) == 3
+
+    def test_e1_text_extracted(self, encoder):
+        _, e1, _ = encoder.extract_entities_and_clean(self._MARKED)
+        assert e1 == 'ALBA'
+
+    def test_e2_text_extracted(self, encoder):
+        _, _, e2 = encoder.extract_entities_and_clean(self._MARKED)
+        assert e2 == 'Fidel Castro'
+
+    def test_clean_sentence_has_no_e1_markers(self, encoder):
+        clean, _, _ = encoder.extract_entities_and_clean(self._MARKED)
+        assert '[E1]' not in clean and '[/E1]' not in clean
+
+    def test_clean_sentence_has_no_e2_markers(self, encoder):
+        clean, _, _ = encoder.extract_entities_and_clean(self._MARKED)
+        assert '[E2]' not in clean and '[/E2]' not in clean
+
+    def test_clean_sentence_preserves_entity_text(self, encoder):
+        clean, _, _ = encoder.extract_entities_and_clean(self._MARKED)
+        assert 'ALBA' in clean
+        assert 'Fidel Castro' in clean
+
+    def test_clean_sentence_preserves_context_words(self, encoder):
+        clean, _, _ = encoder.extract_entities_and_clean(self._MARKED)
+        assert 'founded' in clean
+
+    def test_missing_both_markers_raises_value_error(self, encoder):
+        with pytest.raises(ValueError):
+            encoder.extract_entities_and_clean('no entity markers here')
+
+    def test_missing_e2_marker_raises_value_error(self, encoder):
+        with pytest.raises(ValueError):
+            encoder.extract_entities_and_clean('[E1] ALBA [/E1] no e2 marker')
+
+    def test_extra_whitespace_in_span_is_normalized(self, encoder):
+        marked = '[E1]  multi  word  [/E1] verb [E2] other [/E2]'
+        _, e1, _ = encoder.extract_entities_and_clean(marked)
+        assert e1 == 'multi word'
+
+
+# ===========================================================================
+# 11. find_sdp  (BFS on adjacency dict)
+# ===========================================================================
+
+# Linear chain: 0 -- 1 -- 2 -- 3
+_LINEAR_ADJ = {0: [1], 1: [0, 2], 2: [1, 3], 3: [2]}
+
+# Tree: center=0, leaves=1,2; 3 is child of 1
+_TREE_ADJ = {0: [1, 2], 1: [0, 3], 2: [0], 3: [1]}
+
+
+class TestFindSdp:
+
+    def test_src_equals_tgt_returns_singleton(self, encoder):
+        assert encoder.find_sdp(_LINEAR_ADJ, 0, 0) == [0]
+
+    def test_direct_neighbors_path_length_two(self, encoder):
+        result = encoder.find_sdp(_LINEAR_ADJ, 0, 1)
+        assert result == [0, 1]
+
+    def test_linear_chain_full_path(self, encoder):
+        result = encoder.find_sdp(_LINEAR_ADJ, 0, 3)
+        assert result == [0, 1, 2, 3]
+
+    def test_tree_path_through_root(self, encoder):
+        """Path 3→2 must go 3→1→0→2 (only route in the tree)."""
+        result = encoder.find_sdp(_TREE_ADJ, 3, 2)
+        assert result == [3, 1, 0, 2]
+
+    def test_disconnected_graph_returns_none(self, encoder):
+        adj = {0: [1], 1: [0], 2: [3], 3: [2]}   # two components
+        assert encoder.find_sdp(adj, 0, 2) is None
+
+    def test_result_starts_at_src(self, encoder):
+        result = encoder.find_sdp(_LINEAR_ADJ, 2, 0)
+        assert result[0] == 2
+
+    def test_result_ends_at_tgt(self, encoder):
+        result = encoder.find_sdp(_LINEAR_ADJ, 2, 0)
+        assert result[-1] == 0
+
+    def test_reverse_direction_gives_reversed_path(self, encoder):
+        fwd = encoder.find_sdp(_LINEAR_ADJ, 0, 3)
+        rev = encoder.find_sdp(_LINEAR_ADJ, 3, 0)
+        assert fwd == list(reversed(rev))
+
+
+# ===========================================================================
+# 12. path_centric_pruning  (K-hop on adjacency dict)
+# ===========================================================================
+
+# Star: center=0, leaves=1,2,3,4
+_STAR_ADJ = {0: [1, 2, 3, 4], 1: [0], 2: [0], 3: [0], 4: [0]}
+
+
+class TestPathCentricPruning:
+
+    def test_k0_returns_only_sdp_nodes(self, encoder):
+        sdp = [1, 0, 2]
+        result = encoder.path_centric_pruning(_STAR_ADJ, sdp, K=0)
+        assert result == {0, 1, 2}
+
+    def test_k0_does_not_include_off_path_leaves(self, encoder):
+        sdp = [1, 0, 2]
+        result = encoder.path_centric_pruning(_STAR_ADJ, sdp, K=0)
+        assert 3 not in result and 4 not in result
+
+    def test_k1_adds_direct_neighbors_of_sdp(self, encoder):
+        sdp = [1, 0, 2]
+        result = encoder.path_centric_pruning(_STAR_ADJ, sdp, K=1)
+        # Leaves 3 and 4 are 1 hop from center (on SDP)
+        assert {0, 1, 2, 3, 4}.issubset(result)
+
+    def test_large_k_reaches_entire_connected_component(self, encoder):
+        sdp = [0, 1]
+        result = encoder.path_centric_pruning(_LINEAR_ADJ, sdp, K=100)
+        assert result == {0, 1, 2, 3}
+
+    def test_sdp_nodes_always_retained_regardless_of_k(self, encoder):
+        sdp = [0, 1]
+        for k in range(3):
+            result = encoder.path_centric_pruning(_LINEAR_ADJ, sdp, k)
+            assert {0, 1}.issubset(result)
+
+    def test_single_node_sdp_k0(self, encoder):
+        result = encoder.path_centric_pruning(_STAR_ADJ, [0], K=0)
+        assert result == {0}
+
+
+# ===========================================================================
+# Fixture: synthetic Sentence for graph / pruning tests
+# ===========================================================================
+#
+# Dependency tree:
+#          were(0) [ROOT]
+#         /    |    \
+#   audits(2) about(3) .(5)
+#   [nsubj]  [prep]   [punct]
+#      |         |
+#    The(1)   waste(4)
+#    [det]    [pobj]
+#
+# SDP from audits(2) to waste(4):  2 → 0 → 3 → 4
+# Off-path tokens:  The(1), .(5)
+# LCA: were(0)
+
+@pytest.fixture(scope='module')
+def sentence_fixture():
+    from deepref.nlp.nlp_tool import Token, Sentence
+    tokens = [
+        Token(i=0, text='were',   dep_='ROOT',  head_i=0, pos_='VERB'),
+        Token(i=1, text='The',    dep_='det',   head_i=2, pos_='DET'),
+        Token(i=2, text='audits', dep_='nsubj', head_i=0, pos_='NOUN'),
+        Token(i=3, text='about',  dep_='prep',  head_i=0, pos_='ADP'),
+        Token(i=4, text='waste',  dep_='pobj',  head_i=3, pos_='NOUN'),
+        Token(i=5, text='.',      dep_='punct', head_i=0, pos_='PUNCT'),
+    ]
+    return Sentence(tokens=tokens, subj_span=(2, 2), obj_span=(4, 4))
+
+
+# ===========================================================================
+# 13. build_dep_graph
+# ===========================================================================
+
+class TestBuildDepGraph:
+
+    def test_returns_networkx_graph(self, encoder, sentence_fixture):
+        import networkx as nx
+        G = encoder.build_dep_graph(sentence_fixture)
+        assert isinstance(G, nx.Graph)
+
+    def test_node_count_equals_token_count(self, encoder, sentence_fixture):
+        G = encoder.build_dep_graph(sentence_fixture)
+        assert len(G.nodes) == len(sentence_fixture.tokens)
+
+    def test_root_self_loop_not_added_as_edge(self, encoder, sentence_fixture):
+        G = encoder.build_dep_graph(sentence_fixture)
+        assert not G.has_edge(0, 0)
+
+    def test_nsubj_edge_exists(self, encoder, sentence_fixture):
+        G = encoder.build_dep_graph(sentence_fixture)
+        assert G.has_edge(2, 0)   # audits --nsubj--> were
+
+    def test_pobj_edge_exists(self, encoder, sentence_fixture):
+        G = encoder.build_dep_graph(sentence_fixture)
+        assert G.has_edge(4, 3)   # waste --pobj--> about
+
+    def test_det_edge_exists(self, encoder, sentence_fixture):
+        G = encoder.build_dep_graph(sentence_fixture)
+        assert G.has_edge(1, 2)   # The --det--> audits
+
+    def test_edge_carries_dep_label(self, encoder, sentence_fixture):
+        G = encoder.build_dep_graph(sentence_fixture)
+        assert G.edges[2, 0]['dep'] == 'nsubj'
+
+    def test_graph_is_undirected(self, encoder, sentence_fixture):
+        import networkx as nx
+        G = encoder.build_dep_graph(sentence_fixture)
+        assert not isinstance(G, nx.DiGraph)
+
+    def test_edge_count_equals_non_root_tokens(self, encoder, sentence_fixture):
+        """One edge per token except the ROOT (which self-loops and is skipped)."""
+        G = encoder.build_dep_graph(sentence_fixture)
+        non_root = sum(1 for t in sentence_fixture.tokens if t.i != t.head_i)
+        assert len(G.edges) == non_root
+
+
+# ===========================================================================
+# 14. find_entity_head
+# ===========================================================================
+
+class TestFindEntityHead:
+
+    def test_single_token_subj_returns_own_index(self, encoder, sentence_fixture):
+        # audits(2).head_i=0 is outside span (2,2)
+        assert encoder.find_entity_head(sentence_fixture, (2, 2)) == 2
+
+    def test_single_token_obj_returns_own_index(self, encoder, sentence_fixture):
+        # waste(4).head_i=3 is outside span (4,4)
+        assert encoder.find_entity_head(sentence_fixture, (4, 4)) == 4
+
+    def test_multitoken_returns_syntactic_head(self, encoder, sentence_fixture):
+        # Span (1, 2) = [The, audits].
+        # The(1).head_i=2 — inside span → not head.
+        # audits(2).head_i=0 — outside span → this is the head.
+        assert encoder.find_entity_head(sentence_fixture, (1, 2)) == 2
+
+    def test_root_token_span_returns_root(self, encoder, sentence_fixture):
+        # were(0).head_i=0 == own index; fallback returns span[0]
+        assert encoder.find_entity_head(sentence_fixture, (0, 0)) == 0
+
+
+# ===========================================================================
+# 15. get_ancestors
+# ===========================================================================
+
+class TestGetAncestors:
+
+    def test_leaf_to_root_path(self, encoder, sentence_fixture):
+        # waste(4) → about(3) → were(0) [root]
+        result = encoder.get_ancestors(sentence_fixture, 4)
+        assert result == [4, 3, 0]
+
+    def test_root_node_returns_only_root(self, encoder, sentence_fixture):
+        result = encoder.get_ancestors(sentence_fixture, 0)
+        assert result == [0]
+
+    def test_direct_child_of_root(self, encoder, sentence_fixture):
+        # audits(2) → were(0)
+        result = encoder.get_ancestors(sentence_fixture, 2)
+        assert result == [2, 0]
+
+    def test_result_starts_at_given_token(self, encoder, sentence_fixture):
+        result = encoder.get_ancestors(sentence_fixture, 4)
+        assert result[0] == 4
+
+    def test_result_ends_at_root(self, encoder, sentence_fixture):
+        result = encoder.get_ancestors(sentence_fixture, 4)
+        root_idx = next(t.i for t in sentence_fixture.tokens if t.head_i == t.i)
+        assert result[-1] == root_idx
+
+
+# ===========================================================================
+# 16. find_lca
+# ===========================================================================
+
+class TestFindLca:
+
+    def test_lca_of_audits_and_waste_is_were(self, encoder, sentence_fixture):
+        # ancestors of audits(2): [2, 0]; ancestors of waste(4): [4, 3, 0]
+        lca = encoder.find_lca(sentence_fixture, 2, 4)
+        assert lca == 0   # were
+
+    def test_lca_of_sibling_nodes_is_parent(self, encoder, sentence_fixture):
+        # audits(2) and about(3) are both children of were(0)
+        lca = encoder.find_lca(sentence_fixture, 2, 3)
+        assert lca == 0
+
+    def test_lca_of_node_with_itself(self, encoder, sentence_fixture):
+        lca = encoder.find_lca(sentence_fixture, 2, 2)
+        assert lca == 2
+
+    def test_lca_is_ancestor_of_both_inputs(self, encoder, sentence_fixture):
+        lca = encoder.find_lca(sentence_fixture, 1, 4)
+        anc1 = encoder.get_ancestors(sentence_fixture, 1)
+        anc2 = encoder.get_ancestors(sentence_fixture, 4)
+        assert lca in anc1 and lca in anc2
+
+
+# ===========================================================================
+# 17. get_lca_subtree
+# ===========================================================================
+
+class TestGetLcaSubtree:
+
+    def test_subtree_from_root_contains_all_tokens(self, encoder, sentence_fixture):
+        subtree = encoder.get_lca_subtree(sentence_fixture, 0)
+        all_indices = {t.i for t in sentence_fixture.tokens}
+        assert subtree == all_indices
+
+    def test_subtree_from_about_contains_about_and_waste(self, encoder, sentence_fixture):
+        # about(3) has only waste(4) as child
+        subtree = encoder.get_lca_subtree(sentence_fixture, 3)
+        assert subtree == {3, 4}
+
+    def test_subtree_from_leaf_contains_only_leaf(self, encoder, sentence_fixture):
+        subtree = encoder.get_lca_subtree(sentence_fixture, 4)
+        assert subtree == {4}
+
+    def test_subtree_from_audits_contains_audits_and_the(self, encoder, sentence_fixture):
+        # audits(2) has The(1) as child
+        subtree = encoder.get_lca_subtree(sentence_fixture, 2)
+        assert subtree == {2, 1}
+
+    def test_lca_node_is_always_in_subtree(self, encoder, sentence_fixture):
+        for lca in range(len(sentence_fixture.tokens)):
+            subtree = encoder.get_lca_subtree(sentence_fixture, lca)
+            assert lca in subtree
+
+
+# ===========================================================================
+# 18. find_shortest_dep_path
+# ===========================================================================
+
+class TestFindShortestDepPath:
+
+    def test_finds_sdp_from_audits_to_waste(self, encoder, sentence_fixture):
+        G = encoder.build_dep_graph(sentence_fixture)
+        path = encoder.find_shortest_dep_path(G, 2, 4)
+        assert path == [2, 0, 3, 4]
+
+    def test_adjacent_nodes_path_has_length_two(self, encoder, sentence_fixture):
+        G = encoder.build_dep_graph(sentence_fixture)
+        path = encoder.find_shortest_dep_path(G, 2, 0)
+        assert path == [2, 0]
+
+    def test_disconnected_nodes_return_fallback(self, encoder):
+        import networkx as nx
+        G = nx.Graph()
+        G.add_node(0)
+        G.add_node(5)   # no edge between them
+        path = encoder.find_shortest_dep_path(G, 0, 5)
+        assert path == [0, 5]
+
+    def test_path_starts_at_subj_head(self, encoder, sentence_fixture):
+        G = encoder.build_dep_graph(sentence_fixture)
+        path = encoder.find_shortest_dep_path(G, 2, 4)
+        assert path[0] == 2
+
+    def test_path_ends_at_obj_head(self, encoder, sentence_fixture):
+        G = encoder.build_dep_graph(sentence_fixture)
+        path = encoder.find_shortest_dep_path(G, 2, 4)
+        assert path[-1] == 4
+
+
+# ===========================================================================
+# 19. path_centric_prune  (full Sentence-based method)
+# ===========================================================================
+
+class TestPathCentricPrune:
+
+    def test_returns_tuple_of_three(self, encoder, sentence_fixture):
+        result = encoder.path_centric_prune(sentence_fixture, K=0)
+        assert len(result) == 3
+
+    def test_k0_keeps_sdp_nodes_only(self, encoder, sentence_fixture):
+        kept, sdp, _ = encoder.path_centric_prune(sentence_fixture, K=0)
+        # SDP: audits(2) → were(0) → about(3) → waste(4)
+        assert {0, 2, 3, 4}.issubset(kept)
+        assert 1 not in kept   # The — off-path
+        assert 5 not in kept   # .  — off-path
+
+    def test_k1_adds_off_path_direct_neighbors(self, encoder, sentence_fixture):
+        kept, _, _ = encoder.path_centric_prune(sentence_fixture, K=1)
+        # The(1) is 1 hop from audits(2); .(5) is 1 hop from were(0)
+        assert {0, 1, 2, 3, 4, 5}.issubset(kept)
+
+    def test_sdp_returned_connects_entity_heads(self, encoder, sentence_fixture):
+        _, sdp, _ = encoder.path_centric_prune(sentence_fixture, K=0)
+        assert sdp[0] == 2 and sdp[-1] == 4
+
+    def test_lca_is_were(self, encoder, sentence_fixture):
+        _, _, lca = encoder.path_centric_prune(sentence_fixture, K=0)
+        assert lca == 0   # were
+
+    def test_sdp_is_list_of_ints(self, encoder, sentence_fixture):
+        _, sdp, _ = encoder.path_centric_prune(sentence_fixture, K=0)
+        assert isinstance(sdp, list) and all(isinstance(n, int) for n in sdp)
+
+
+# ===========================================================================
+# 20. build_pruned_adjacency
+# ===========================================================================
+
+class TestBuildPrunedAdjacency:
+
+    def test_returns_dict_with_required_keys(self, encoder, sentence_fixture):
+        result = encoder.build_pruned_adjacency(sentence_fixture, {0, 2, 3, 4})
+        assert {'adj_list', 'adj_matrix', 'token_order', 'idx_map'}.issubset(result)
+
+    def test_token_order_is_sorted(self, encoder, sentence_fixture):
+        kept = {4, 0, 2, 3}
+        result = encoder.build_pruned_adjacency(sentence_fixture, kept)
+        assert result['token_order'] == sorted(kept)
+
+    def test_adj_matrix_has_self_loops(self, encoder, sentence_fixture):
+        kept = {0, 2, 3, 4}
+        matrix = encoder.build_pruned_adjacency(sentence_fixture, kept)['adj_matrix']
+        for i in range(len(kept)):
+            assert matrix[i][i] == 1
+
+    def test_adj_matrix_is_symmetric(self, encoder, sentence_fixture):
+        kept = {0, 2, 3, 4}
+        matrix = encoder.build_pruned_adjacency(sentence_fixture, kept)['adj_matrix']
+        n = len(kept)
+        for i in range(n):
+            for j in range(n):
+                assert matrix[i][j] == matrix[j][i]
+
+    def test_adj_list_includes_audits_were_edge(self, encoder, sentence_fixture):
+        result = encoder.build_pruned_adjacency(sentence_fixture, {0, 2, 3, 4})
+        adj = result['adj_list']
+        assert 0 in adj[2] and 2 in adj[0]
+
+    def test_adj_list_includes_pobj_edge(self, encoder, sentence_fixture):
+        result = encoder.build_pruned_adjacency(sentence_fixture, {0, 2, 3, 4})
+        adj = result['adj_list']
+        assert 3 in adj[4] and 4 in adj[3]
+
+    def test_excluded_tokens_absent_from_adj_list(self, encoder, sentence_fixture):
+        kept = {0, 2, 3, 4}   # excludes The(1) and .(5)
+        result = encoder.build_pruned_adjacency(sentence_fixture, kept)
+        assert 1 not in result['adj_list']
+        assert 5 not in result['adj_list']
+
+    def test_adj_matrix_size_equals_kept_count(self, encoder, sentence_fixture):
+        kept = {0, 2, 3, 4}
+        matrix = encoder.build_pruned_adjacency(sentence_fixture, kept)['adj_matrix']
+        assert len(matrix) == len(kept)
+        assert all(len(row) == len(kept) for row in matrix)
