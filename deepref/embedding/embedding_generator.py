@@ -99,10 +99,19 @@ class EmbeddingGenerator:
 
                 for batch in tqdm(loader, total=n_batches, desc="Generating embeddings", unit="batch"):
                     embeddings = self.encoder(items=batch["items"])  # (B, H)
+                    labels = batch["labels"].cpu()
+
+                    valid_mask = getattr(self.encoder, "_last_valid_mask", None)
+                    if valid_mask is not None:
+                        valid_idx = [i for i, v in enumerate(valid_mask) if v]
+                        if not valid_idx:
+                            continue
+                        idx_tensor = torch.tensor(valid_idx, dtype=torch.long)
+                        embeddings = embeddings[idx_tensor]
+                        labels = labels[idx_tensor]
+
                     all_embeddings.append(embeddings.cpu().float())
-                    all_labels.append(batch["labels"].cpu())
-                all_embeddings = [x for x, _ in zip(all_embeddings, all_labels) if x]
-                all_labels = [y for x, y in zip(all_embeddings, all_labels) if x]
+                    all_labels.append(labels)
         finally:
             if was_training:
                 self.encoder.train()

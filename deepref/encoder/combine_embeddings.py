@@ -163,10 +163,8 @@ class CombineEmbeddings(nn.Module):
                     verbalized_item = None
                 verbalized.append(verbalized_item if verbalized_item is not None else "")
 
-            # verbalized = [
-            #     encoder.verbalize(encoder.mark_sentence(item), K=1)
-            #     for item in items
-            # ]
+            encoder._last_valid_mask = [v != "" for v in verbalized]
+
             token_dict = encoder.registry.tokenize(
                 encoder.model_name, verbalized,
                 max_length=encoder.max_length, padding=True, truncation=True,
@@ -208,4 +206,17 @@ class CombineEmbeddings(nn.Module):
         """
         embs1 = self._encode_batch(self.encoder1, items)                   # (B, H1)
         embs2 = self._encode_batch(self.encoder2, items).to(embs1.device)  # (B, H2)
+
+        # Merge valid masks from both encoders (item valid only if both succeed).
+        mask1 = getattr(self.encoder1, "_last_valid_mask", None)
+        mask2 = getattr(self.encoder2, "_last_valid_mask", None)
+        if mask1 is not None and mask2 is not None:
+            self._last_valid_mask = [a and b for a, b in zip(mask1, mask2)]
+        elif mask1 is not None:
+            self._last_valid_mask = mask1
+        elif mask2 is not None:
+            self._last_valid_mask = mask2
+        else:
+            self._last_valid_mask = None
+
         return torch.cat([embs1, embs2], dim=1)                            # (B, H1+H2)
