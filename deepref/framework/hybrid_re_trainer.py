@@ -74,22 +74,34 @@ class HybridRETrainer(nn.Module):
         self.lr = training_parameters["lr"]
         batch_size = training_parameters["batch_size"]
 
-        val_size = max(1, round(len(train_dataset) * 0.1))
-        train_size = len(train_dataset) - val_size
-        train_split, val_split = random_split(train_dataset, [train_size, val_size])
-        logger.info(
-            "Hybrid split — train: %d  val: %d  test: %d",
-            train_size, val_size, len(test_dataset),
-        )
+        no_validation: bool = training_parameters.get("no_validation", False)
 
-        self.train_loader = DataLoader(
-            train_split, batch_size=batch_size, shuffle=True,
-            collate_fn=hybrid_collate_fn,
-        )
-        self.val_loader = DataLoader(
-            val_split, batch_size=batch_size, shuffle=False,
-            collate_fn=hybrid_collate_fn,
-        )
+        if no_validation:
+            self.train_loader = DataLoader(
+                train_dataset, batch_size=batch_size, shuffle=True,
+                collate_fn=hybrid_collate_fn,
+            )
+            self.val_loader = None
+            logger.info(
+                "No-validation mode — using 100%% of train data. train: %d  test: %d",
+                len(train_dataset), len(test_dataset),
+            )
+        else:
+            val_size = max(1, round(len(train_dataset) * 0.1))
+            train_size = len(train_dataset) - val_size
+            train_split, val_split = random_split(train_dataset, [train_size, val_size])
+            logger.info(
+                "Hybrid split — train: %d  val: %d  test: %d",
+                train_size, val_size, len(test_dataset),
+            )
+            self.train_loader = DataLoader(
+                train_split, batch_size=batch_size, shuffle=True,
+                collate_fn=hybrid_collate_fn,
+            )
+            self.val_loader = DataLoader(
+                val_split, batch_size=batch_size, shuffle=False,
+                collate_fn=hybrid_collate_fn,
+            )
         self.test_loader = DataLoader(
             test_dataset, batch_size=batch_size, shuffle=False,
             collate_fn=hybrid_collate_fn,
@@ -334,13 +346,29 @@ class HybridRETrainer(nn.Module):
         return result.get(metric, 0.0)
 
     def train_model(self, warmup: bool = True, metric: str = "macro_f1") -> float:
-        """Epoch loop with validation and early stopping.
+        """Epoch loop with optional validation and early stopping.
 
         Returns:
-            Best value of *metric* achieved on the validation split.
+            Best value of *metric* achieved on the validation split, or 0.0
+            in no-validation mode.
         """
         if self._is_sklearn:
             return self._train_sklearn(metric)
+
+        no_validation: bool = self.training_parameters.get("no_validation", False)
+
+        if no_validation:
+            for epoch in range(self.max_epoch):
+                logger.info("=== Epoch %d / %d — train ===", epoch + 1, self.max_epoch)
+                self.train()
+                self.iterate_loader(self.train_loader, warmup=warmup, training=True)
+
+            logger.info("No-validation mode — saving final checkpoint to %s", self.ckpt)
+            folder = os.path.dirname(self.ckpt)
+            if folder:
+                os.makedirs(folder, exist_ok=True)
+            torch.save({"state_dict": self.model.state_dict()}, self.ckpt)
+            return 0.0
 
         best_metric = 0.0
         patience = self.training_parameters.get("patience", 0)
