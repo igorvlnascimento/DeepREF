@@ -398,6 +398,62 @@ def _log_confusion_matrix(
     logger.info("Confusion matrix logged to MLflow artifacts (figures/)")
 
 
+def _log_per_class_f1(
+    y_true: list[int],
+    y_pred: list[int],
+    rel2id: dict[str, int],
+    macro_f1: float,
+    run_name: str,
+) -> None:
+    """Plot a per-class F1 bar chart and log it as an MLflow PNG artifact.
+
+    Args:
+        y_true:    ground-truth class indices.
+        y_pred:    predicted class indices.
+        rel2id:    relation-name → class-index mapping.
+        macro_f1:  overall macro-F1 drawn as a dashed reference line.
+        run_name:  used as the figure title.
+    """
+    import tempfile
+
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    from sklearn.metrics import f1_score
+
+    id2rel = {v: k for k, v in rel2id.items()}
+    labels = sorted(id2rel.keys())
+    class_names = [id2rel[i] for i in labels]
+
+    per_class_f1 = f1_score(y_true, y_pred, average=None, labels=labels, zero_division=0)
+
+    n = len(labels)
+    fig_width = max(10, n * 0.5)
+    fig, ax = plt.subplots(figsize=(fig_width, 5))
+
+    ax.bar(class_names, per_class_f1, color="steelblue", edgecolor="white")
+    ax.axhline(
+        macro_f1, linestyle="--", color="crimson", linewidth=1.5,
+        label=f"Macro-F1 = {macro_f1:.4f}",
+    )
+    ax.set_ylim(0, 1.05)
+    ax.set_xlabel("Relation class", fontsize=12)
+    ax.set_ylabel("F1 score", fontsize=12)
+    ax.set_title(f"Per-class F1 — {run_name}", fontsize=13, pad=12)
+    plt.xticks(rotation=45, ha="right", fontsize=max(6, 10 - n // 5))
+    ax.legend(fontsize=11)
+    plt.tight_layout()
+
+    with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as f:
+        fig_path = f.name
+    fig.savefig(fig_path, dpi=150)
+    plt.close(fig)
+
+    mlflow.log_artifact(fig_path, artifact_path="figures")
+    os.remove(fig_path)
+    logger.info("Per-class F1 chart logged to MLflow artifacts (figures/)")
+
+
 # ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------
@@ -793,6 +849,7 @@ def main(cfg: DictConfig) -> None:
             )
 
             _log_confusion_matrix(test_labels, test_preds, train_dataset.rel2id, run_name)
+            _log_per_class_f1(test_labels, test_preds, train_dataset.rel2id, test_result["macro_f1"], run_name)
 
             mlflow.set_tag("status", "success")
 
