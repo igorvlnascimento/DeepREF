@@ -132,8 +132,7 @@ class VectorDBRETrainer(CombineRETrainer):
             emb    = F.normalize(emb.to(device), dim=-1)
             labels = labels.to(device)
 
-            rep    = self.model.model(emb)   # MLP layers  → (B, H')
-            logits = self.model.fc(rep)      # classifier  → (B, N)
+            logits = self.model.forward_from_emb(emb)  # (B, N)
             _, pred = logits.max(-1)
 
             acc = float((pred == labels).long().sum()) / labels.size(0)
@@ -188,8 +187,7 @@ class VectorDBRETrainer(CombineRETrainer):
                 for emb, labels in tqdm(eval_loader):
                     emb    = F.normalize(emb.to(device), dim=-1)
                     labels = labels.to(device)
-                    rep    = self.model.model(emb)
-                    logits = self.model.fc(rep)
+                    logits = self.model.forward_from_emb(emb)
                     _, pred = logits.max(-1)
                     pred_result.extend(pred.tolist())
                     all_labels.extend(labels.tolist())
