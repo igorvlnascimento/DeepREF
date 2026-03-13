@@ -24,21 +24,21 @@ class CombineREClassifier(SentenceRE):
         """
         super().__init__()
         self.sentence_encoder = sentence_encoder
-        h1 = sentence_encoder.h1
-        h2 = sentence_encoder.h2
+        self.h1 = sentence_encoder.h1
+        self.h2 = sentence_encoder.h2
         self.num_class = num_class
         self.act = activation_function
         self.softmax = nn.Softmax(-1)
         self.model_bert = nn.Sequential(
-            nn.LayerNorm(h1, elementwise_affine=True),
-            nn.Linear(h1, 1152),
+            nn.LayerNorm(self.h1, elementwise_affine=True),
+            nn.Linear(self.h1, 1152),
             self.act,
             nn.Dropout(0.2),
         )
 
         self.model_qwen = nn.Sequential(
-            nn.LayerNorm(h2, elementwise_affine=False),
-            nn.Linear(h2, 128),
+            nn.LayerNorm(self.h2, elementwise_affine=False),
+            nn.Linear(self.h2, 128),
             self.act,
             nn.Dropout(0.4),
         )
@@ -73,8 +73,10 @@ class CombineREClassifier(SentenceRE):
             logits, (B, N)
         """
         rep = self.sentence_encoder(**args) # (B, H)
-        hidden1 = self.model_bert(rep) # (B, H)
-        hidden2 = self.model_qwen(rep) # (B, H)
+        rep1 = rep[..., :self.h1]
+        rep2 = rep[..., self.h1:]
+        hidden1 = self.model_bert(rep1) # (B, H)
+        hidden2 = self.model_qwen(rep2) # (B, H)
         hidden = torch.cat([hidden1, hidden2], dim=1)
         logits = self.model_final(hidden) # (B, N)
         return logits
