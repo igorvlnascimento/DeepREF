@@ -186,8 +186,7 @@ class HybridRETrainer(nn.Module):
             enc1_embs = CombineEmbeddings._encode_batch(self.encoder1, items).to(device)
             emb = torch.cat([enc1_embs, enc2_embs], dim=-1)   # (B, H1+H2)
 
-            rep    = self.model.model(emb)   # MLP layers  → (B, H')
-            logits = self.model.fc(rep)      # classifier  → (B, N)
+            logits = self.model.forward_from_emb(emb)          # (B, N)
             _, pred = logits.max(-1)
 
             acc = float((pred == labels).long().sum()) / labels.size(0)
@@ -241,8 +240,7 @@ class HybridRETrainer(nn.Module):
                 enc1_embs = CombineEmbeddings._encode_batch(self.encoder1, items).to(device)
                 emb = torch.cat([enc1_embs, enc2_embs], dim=-1)
 
-                rep    = self.model.model(emb)
-                logits = self.model.fc(rep)
+                logits = self.model.forward_from_emb(emb)
                 _, pred = logits.max(-1)
                 pred_result.extend(pred.tolist())
                 all_labels.extend(labels.tolist())

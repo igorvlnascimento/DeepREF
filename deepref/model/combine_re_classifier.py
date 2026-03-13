@@ -14,18 +14,21 @@ class CombineREClassifier(SentenceRE):
                  sentence_encoder,
                  num_class,
                  rel2id,
-                 activation_function=nn.GELU()):
+                 activation_function=nn.GELU(),
+                 h1: int | None = None,
+                 h2: int | None = None):
         """
         Args:
-            sentence_encoder: encoder for sentences (may be None when hidden_size is given)
+            sentence_encoder: encoder for sentences; may be None when h1/h2 are given
             num_class: number of classes
             rel2id: dictionary of relation name -> id mapping
-            hidden_size: input embedding dimension; inferred from sentence_encoder when None
+            h1: encoder1 output dim; inferred from sentence_encoder.h1 when None
+            h2: encoder2 output dim; inferred from sentence_encoder.h2 when None
         """
         super().__init__()
         self.sentence_encoder = sentence_encoder
-        self.h1 = sentence_encoder.h1
-        self.h2 = sentence_encoder.h2
+        self.h1 = h1 if h1 is not None else sentence_encoder.h1
+        self.h2 = h2 if h2 is not None else sentence_encoder.h2
         self.num_class = num_class
         self.act = activation_function
         self.softmax = nn.Softmax(-1)
@@ -65,6 +68,14 @@ class CombineREClassifier(SentenceRE):
         pred = pred.item()
         return self.id2rel[pred], score
     
+    def forward_from_emb(self, emb):
+        """Forward from a pre-computed embedding tensor, bypassing sentence_encoder."""
+        rep1 = emb[..., :self.h1]
+        rep2 = emb[..., self.h1:]
+        hidden1 = self.model_bert(rep1)
+        hidden2 = self.model_qwen(rep2)
+        return self.model_final(torch.cat([hidden1, hidden2], dim=1))
+
     def forward(self, **args):
         """
         Args:
@@ -73,10 +84,4 @@ class CombineREClassifier(SentenceRE):
             logits, (B, N)
         """
         rep = self.sentence_encoder(**args) # (B, H)
-        rep1 = rep[..., :self.h1]
-        rep2 = rep[..., self.h1:]
-        hidden1 = self.model_bert(rep1) # (B, H)
-        hidden2 = self.model_qwen(rep2) # (B, H)
-        hidden = torch.cat([hidden1, hidden2], dim=1)
-        logits = self.model_final(hidden) # (B, N)
-        return logits
+        return self.forward_from_emb(rep)

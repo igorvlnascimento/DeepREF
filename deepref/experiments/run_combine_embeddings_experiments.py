@@ -277,6 +277,8 @@ def build_model(
     num_class: int,
     rel2id: dict,
     hidden_size: int | None = None,
+    h1: int | None = None,
+    h2: int | None = None,
 ) -> nn.Module:
     """Instantiate the classifier from ``cfg.training.model_type``.
 
@@ -311,6 +313,8 @@ def build_model(
             sentence_encoder=sentence_encoder,
             num_class=num_class,
             rel2id=rel2id,
+            h1=h1,
+            h2=h2,
         )
 
     if model_type in ("xgboost", "lightgbm"):
@@ -606,6 +610,8 @@ def main(cfg: DictConfig) -> None:
                 model = build_model(
                     cfg, None, num_class, train_dataset.rel2id,
                     hidden_size=combined_hidden,
+                    h1=enc1_hidden,
+                    h2=train_enc2_vdb.dim,
                 )
                 logger.info("Classifier: %s", model_type)
 

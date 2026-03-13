@@ -51,6 +51,10 @@ class SoftmaxMLP(SentenceRE):
         pred = pred.item()
         return self.id2rel[pred], score
     
+    def forward_from_emb(self, emb):
+        """Forward from a pre-computed embedding tensor, bypassing sentence_encoder."""
+        return self.fc(self.model(emb))
+
     def forward(self, **args):
         """
         Args:
