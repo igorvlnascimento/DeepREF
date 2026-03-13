@@ -501,6 +501,7 @@ def main(cfg: DictConfig) -> None:
                 "weight_decay": cfg.training.get("weight_decay", 0.0),
                 "warmup_step": cfg.training.get("warmup_step", 0),
                 "patience": cfg.training.get("patience", 0),
+                "no_validation": cfg.training.get("no_validation", False),
                 "encoder1_lr": enc1_lr,
                 "encoder1_weight_decay": enc1_wd,
                 "encoder1_warmup_step": enc1_warmup,

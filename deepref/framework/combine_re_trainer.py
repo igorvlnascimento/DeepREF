@@ -67,23 +67,34 @@ class CombineRETrainer(SentenceRETrainer):
         self.lr = training_parameters["lr"]
         batch_size = training_parameters["batch_size"]
 
+        # Store rel2id for metric computation (e.g. to exclude "Other" in SemEval2010).
+        self.rel2id: dict[str, int] = train_dataset.rel2id
+
         # Detect whether this is a sklearn-based model (XGBoost / LightGBM).
         # When True, the gradient-based optimizer and scheduler are skipped.
         self._is_sklearn: bool = getattr(model, "IS_SKLEARN", False)
 
-        if self._is_sklearn:
-            # Sklearn models fit on all training data at once — no val split needed.
+        no_validation: bool = training_parameters.get("no_validation", False)
+
+        if self._is_sklearn or no_validation:
+            # Sklearn models and no_validation mode use all training data — no val split.
             self.train_loader = DataLoader(
                 train_dataset,
                 batch_size=batch_size,
-                shuffle=False,
+                shuffle=not self._is_sklearn,
                 collate_fn=combine_collate_fn,
             )
             self.val_loader = None
-            logger.info(
-                "Sklearn model — no val split. train: %d  test: %d",
-                len(train_dataset), len(test_dataset),
-            )
+            if self._is_sklearn:
+                logger.info(
+                    "Sklearn model — no val split. train: %d  test: %d",
+                    len(train_dataset), len(test_dataset),
+                )
+            else:
+                logger.info(
+                    "No-validation mode — using 100%% of train data. train: %d  test: %d",
+                    len(train_dataset), len(test_dataset),
+                )
         else:
             # Split train_dataset: 90 % train / 10 % validation (minimum 1 val sample).
             val_size = max(1, round(len(train_dataset) * 0.1))
@@ -291,14 +302,22 @@ class CombineRETrainer(SentenceRETrainer):
                 pred_result.extend(pred.tolist())
                 all_labels.extend(labels.tolist())
 
+        # Exclude "Other" from metrics if present (e.g. SemEval2010 evaluation protocol).
+        other_id = self.rel2id.get("Other")
+        eval_labels = (
+            [i for i in sorted(set(self.rel2id.values())) if i != other_id]
+            if other_id is not None
+            else None
+        )
+
         result = {
             "acc": accuracy_score(all_labels, pred_result),
-            "micro_p": precision_score(all_labels, pred_result, average="micro", zero_division=0),
-            "micro_r": recall_score(all_labels, pred_result, average="micro", zero_division=0),
-            "micro_f1": f1_score(all_labels, pred_result, average="micro", zero_division=0),
-            "macro_p": precision_score(all_labels, pred_result, average="macro", zero_division=0),
-            "macro_r": recall_score(all_labels, pred_result, average="macro", zero_division=0),
-            "macro_f1": f1_score(all_labels, pred_result, average="macro", zero_division=0),
+            "micro_p": precision_score(all_labels, pred_result, average="micro", zero_division=0, labels=eval_labels),
+            "micro_r": recall_score(all_labels, pred_result, average="micro", zero_division=0, labels=eval_labels),
+            "micro_f1": f1_score(all_labels, pred_result, average="micro", zero_division=0, labels=eval_labels),
+            "macro_p": precision_score(all_labels, pred_result, average="macro", zero_division=0, labels=eval_labels),
+            "macro_r": recall_score(all_labels, pred_result, average="macro", zero_division=0, labels=eval_labels),
+            "macro_f1": f1_score(all_labels, pred_result, average="macro", zero_division=0, labels=eval_labels),
         }
         logger.info("Eval result: %s", result)
         return result, pred_result, all_labels
@@ -395,6 +414,30 @@ class CombineRETrainer(SentenceRETrainer):
         """
         if self._is_sklearn:
             return self._train_sklearn(metric)
+
+        no_validation: bool = self.training_parameters.get("no_validation", False)
+
+        if no_validation:
+            # Train on 100 % of train data; no early stopping; save checkpoint after last epoch.
+            for epoch in range(self.max_epoch):
+                logger.info("=== Epoch %d / %d — train ===", epoch + 1, self.max_epoch)
+                self.train()
+                self.iterate_loader(self.train_loader, warmup=warmup, training=True)
+
+            logger.info("Saving final checkpoint to %s", self.ckpt)
+            folder = os.path.dirname(self.ckpt)
+            if folder:
+                os.makedirs(folder, exist_ok=True)
+            torch.save({"state_dict": self.model.state_dict()}, self.ckpt)
+
+            logger.info("=== Final evaluation on test set ===")
+            result, _, _ = self.eval_model(self.test_loader)
+            mlflow.log_metrics(
+                {f"test_{k}": v for k, v in result.items() if isinstance(v, float)},
+                step=self.max_epoch - 1,
+            )
+            logger.info("Test %s: %.4f", metric, result[metric])
+            return result[metric]
 
         best_metric = 0.0
         patience = self.training_parameters.get("patience", 0)

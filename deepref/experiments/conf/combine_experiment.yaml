@@ -24,6 +24,7 @@ training:
   warmup_step: 0
   seed: 42
   patience: 3
+  no_validation: false  # true → use 100% of train data; test set used only for final metrics
 
 device: cuda
 
