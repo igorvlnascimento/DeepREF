@@ -72,6 +72,7 @@ CONFIG_COLS = [
     "weight_decay",
     "warmup_step",
     "patience",
+    "no_validation",
     "seed",
     # Vector DB
     "use_vector_db",
