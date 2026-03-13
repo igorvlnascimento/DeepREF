@@ -28,7 +28,10 @@ training:
 device: cuda
 
 vector_db:
-  enabled: true      # true → pre-compute embeddings once, train MLP head on tensors
+  enabled: true       # true → pre-compute embeddings once, train MLP head on tensors
+  hybrid_mode: false  # true → pre-compute only encoder2; encoder1 runs on-the-fly (trainable)
+  enc2_train_stem: null  # hybrid only: path stem to existing enc2 train VDB (skips generation)
+  enc2_test_stem: null   # hybrid only: path stem to existing enc2 test VDB (skips generation)
   batch_size: null    # generation batch size; falls back to training.batch_size if null
   save_dir: embeddings      # if set, VectorDatabases are saved to this directory
   fit_pipeline: false # if true, fit StandardScaler → PCA(0.95) → L2 Norm on train embeddings

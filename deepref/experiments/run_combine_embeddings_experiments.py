@@ -95,7 +95,9 @@ from deepref.encoder.llm_encoder import LLMEncoder
 from deepref.encoder.relation_encoder import RelationEncoder
 from deepref.encoder.sdp_encoder import BoWSDPEncoder, VerbalizedSDPEncoder
 from deepref.encoder.single_encoder_wrapper import SingleEncoderWrapper
+from deepref.dataset.hybrid_dataset import HybridDataset
 from deepref.framework.combine_re_trainer import CombineRETrainer
+from deepref.framework.hybrid_re_trainer import HybridRETrainer
 from deepref.framework.vector_db_re_trainer import VectorDBRETrainer
 from deepref.model.combine_re_classifier import CombineREClassifier
 from deepref.model.sklearn_re_classifier import SklearnREClassifier
@@ -434,10 +436,12 @@ def main(cfg: DictConfig) -> None:
 
         model_type: str = cfg.training.get("model_type", "softmax_mlp")
         use_vector_db: bool = cfg.vector_db.enabled
+        use_hybrid: bool = use_vector_db and cfg.vector_db.get("hybrid_mode", False)
 
         mlflow.log_params({
             "dataset": cfg.dataset.name,
             "model_type": model_type,
+            "hybrid_mode": use_hybrid,
             "encoder1_type": cfg.encoder1.type,
             "encoder1_model": cfg.encoder1.get("model_name", "n/a"),
             "encoder1_trainable": cfg.encoder1.get("trainable", False),
@@ -501,7 +505,120 @@ def main(cfg: DictConfig) -> None:
                 "encoder2_warmup_step": enc2_warmup,
             }
 
-            if use_vector_db:
+            if use_hybrid:
+                # ── Hybrid path: pre-compute encoder2 only; encoder1 trainable ──
+                from deepref.framework.combine_re_trainer import combine_collate_fn as _ccfn
+                vdb_batch_size = cfg.vector_db.get("batch_size", None) or cfg.training.batch_size
+                vdb_save_dir   = cfg.vector_db.get("save_dir", None)
+                faiss_device: str = cfg.vector_db.get("faiss_device", device)
+
+                # Allow pointing directly at an existing VDB (e.g. one generated
+                # by a previous run with encoder1=verbalized_sdp encoder2=none).
+                enc2_train_stem_override = cfg.vector_db.get("enc2_train_stem", None)
+                enc2_test_stem_override  = cfg.vector_db.get("enc2_test_stem",  None)
+
+                def _resolve_stem(stem: str) -> str:
+                    p = Path(stem)
+                    return str(p if p.is_absolute() else Path(cwd) / p)
+
+                if enc2_train_stem_override and enc2_test_stem_override:
+                    logger.info(
+                        "Loading enc2 VDBs from explicit stems: train=%s  test=%s",
+                        enc2_train_stem_override, enc2_test_stem_override,
+                    )
+                    train_enc2_vdb = VectorDatabase.load(
+                        _resolve_stem(enc2_train_stem_override), device=faiss_device
+                    )
+                    test_enc2_vdb = VectorDatabase.load(
+                        _resolve_stem(enc2_test_stem_override), device=faiss_device
+                    )
+                else:
+                    enc2_tag = cfg.encoder2.type + ("_cls" if cfg.encoder2.get("has_cls_embedding", False) else "")
+                    enc1_model_name_h = cfg.encoder1.get("model_name", cfg.encoder1.type)
+                    vdb_stem_h = f"{cfg.dataset.name}_{enc2_tag}_hybrid"
+
+                    save_dir_h = None
+                    train_stem_h = test_stem_h = None
+                    train_exists_h = test_exists_h = False
+
+                    if vdb_save_dir:
+                        save_dir_h = (
+                            Path(vdb_save_dir)
+                            if Path(vdb_save_dir).is_absolute()
+                            else Path(cwd) / vdb_save_dir
+                        ) / enc1_model_name_h.replace("/", "_")
+                        train_stem_h = str(save_dir_h / f"{vdb_stem_h}_train")
+                        test_stem_h  = str(save_dir_h / f"{vdb_stem_h}_test")
+                        train_exists_h = Path(train_stem_h + VectorDatabase._INDEX_SUFFIX).exists()
+                        test_exists_h  = Path(test_stem_h  + VectorDatabase._INDEX_SUFFIX).exists()
+
+                    enc2_for_vdb = None
+                    enc2_wrapper = None
+                    if not (train_exists_h and test_exists_h):
+                        logger.info("Building encoder2 (%s) for VDB generation …", cfg.encoder2.type)
+                        enc2_for_vdb = build_encoder2(cfg, device)
+                        enc2_wrapper = SingleEncoderWrapper(enc2_for_vdb)
+
+                    if train_exists_h:
+                        logger.info("Loading hybrid train enc2 VDB from %s.*", train_stem_h)
+                        train_enc2_vdb = VectorDatabase.load(train_stem_h, device=faiss_device)
+                    else:
+                        logger.info("Generating hybrid train enc2 VDB (batch_size=%d) …", vdb_batch_size)
+                        train_enc2_vdb = EmbeddingGenerator(
+                            enc2_wrapper, train_dataset, batch_size=vdb_batch_size,
+                            device=device, faiss_device=faiss_device, collate_fn=_ccfn,
+                        ).generate()
+                        if save_dir_h:
+                            save_dir_h.mkdir(parents=True, exist_ok=True)
+                            train_enc2_vdb.save(train_stem_h)
+                            logger.info("Saved hybrid train enc2 VDB → %s.*", train_stem_h)
+
+                    if test_exists_h:
+                        logger.info("Loading hybrid test enc2 VDB from %s.*", test_stem_h)
+                        test_enc2_vdb = VectorDatabase.load(test_stem_h, device=faiss_device)
+                    else:
+                        logger.info("Generating hybrid test enc2 VDB …")
+                        test_enc2_vdb = EmbeddingGenerator(
+                            enc2_wrapper, test_dataset, batch_size=vdb_batch_size,
+                            device=device, faiss_device=faiss_device, collate_fn=_ccfn,
+                        ).generate()
+                        if save_dir_h:
+                            save_dir_h.mkdir(parents=True, exist_ok=True)
+                            test_enc2_vdb.save(test_stem_h)
+                            logger.info("Saved hybrid test enc2 VDB → %s.*", test_stem_h)
+
+                    # encoder2 is no longer needed — free memory before loading encoder1
+                    del enc2_for_vdb, enc2_wrapper
+
+                logger.info("Building encoder1 (%s) (trainable) …", cfg.encoder1.type)
+                encoder1 = build_encoder1(cfg, device)
+
+                enc1_hidden = CombineEmbeddings._get_hidden_size(encoder1)
+                combined_hidden = enc1_hidden + train_enc2_vdb.dim
+                logger.info(
+                    "Hybrid hidden sizes — encoder1: %d  enc2_vdb: %d  combined: %d",
+                    enc1_hidden, train_enc2_vdb.dim, combined_hidden,
+                )
+
+                train_hybrid = HybridDataset(train_dataset, train_enc2_vdb)
+                test_hybrid  = HybridDataset(test_dataset,  test_enc2_vdb)
+
+                model = build_model(
+                    cfg, None, num_class, train_dataset.rel2id,
+                    hidden_size=combined_hidden,
+                )
+                logger.info("Classifier: %s", model_type)
+
+                trainer = HybridRETrainer(
+                    encoder1=encoder1,
+                    model=model,
+                    train_dataset=train_hybrid,
+                    test_dataset=test_hybrid,
+                    ckpt=ckpt_path,
+                    training_parameters=training_parameters,
+                )
+
+            elif use_vector_db:
                 # ── VectorDB path: load from disk or generate then save ──────
                 fit_pipeline: bool = cfg.vector_db.get("fit_pipeline", False)
                 vdb_batch_size = cfg.vector_db.get("batch_size", None) or cfg.training.batch_size
