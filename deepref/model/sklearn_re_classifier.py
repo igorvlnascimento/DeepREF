@@ -70,6 +70,21 @@ class SklearnREClassifier(nn.Module):
         """Fit the sklearn classifier on precomputed embeddings."""
         self._clf.fit(X, y)
 
+    def forward_from_emb(self, emb: torch.Tensor) -> torch.Tensor:
+        """Classify pre-computed embeddings — compatible with HybridRETrainer.
+
+        Args:
+            emb: float tensor of shape ``(B, H)``.
+
+        Returns:
+            Class-probability tensor of shape ``(B, C)``.
+        """
+        import numpy as np
+
+        X = emb.cpu().numpy()
+        proba = self._clf.predict_proba(X)
+        return torch.from_numpy(np.array(proba, dtype=np.float32))
+
     def forward(self, items: list[dict]) -> torch.Tensor:
         """Encode *items* and return class probabilities as a ``(B, C)`` tensor.
 

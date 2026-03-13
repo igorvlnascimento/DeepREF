@@ -67,6 +67,7 @@ class HybridRETrainer(nn.Module):
         # self.named_parameters() and are covered by the optimizer.
         self.encoder1 = encoder1
         self.model = model
+        self._is_sklearn: bool = getattr(model, "IS_SKLEARN", False)
         self.training_parameters = training_parameters
         self.max_epoch = training_parameters["max_epoch"]
         self.criterion = training_parameters["criterion"]
@@ -94,68 +95,71 @@ class HybridRETrainer(nn.Module):
             collate_fn=hybrid_collate_fn,
         )
 
-        # Optimizer — encoder1 backbone params get their own LR/WD/warmup;
-        # the MLP head uses the global training LR.
-        opt = training_parameters["opt"]
-        lr = training_parameters["lr"]
-        weight_decay = training_parameters.get("weight_decay", 0.0)
-        enc1_lr     = training_parameters.get("encoder1_lr", lr)
-        enc1_wd     = training_parameters.get("encoder1_weight_decay", weight_decay)
-        enc1_warmup = training_parameters.get("encoder1_warmup_step", 0)
+        self.device = "cuda" if torch.cuda.is_available() else "cpu"
 
-        if opt in ("adam", "adamw"):
-            no_decay = ["bias", "LayerNorm.bias", "LayerNorm.weight"]
-            all_named = list(self.named_parameters())
+        if not self._is_sklearn:
+            # Optimizer — encoder1 backbone params get their own LR/WD/warmup;
+            # the MLP head uses the global training LR.
+            opt = training_parameters["opt"]
+            lr = training_parameters["lr"]
+            weight_decay = training_parameters.get("weight_decay", 0.0)
+            enc1_lr     = training_parameters.get("encoder1_lr", lr)
+            enc1_wd     = training_parameters.get("encoder1_weight_decay", weight_decay)
+            enc1_warmup = training_parameters.get("encoder1_warmup_step", 0)
 
-            # encoder1 backbone params — registered under "encoder1._backbone_*"
-            enc1_named = [
-                (n, p) for n, p in all_named if "encoder1._backbone_" in n
-            ]
-            backbone_names = {n for n, _ in enc1_named}
-            cls_named = [(n, p) for n, p in all_named if n not in backbone_names]
+            if opt in ("adam", "adamw"):
+                no_decay = ["bias", "LayerNorm.bias", "LayerNorm.weight"]
+                all_named = list(self.named_parameters())
 
-            def _make_groups(named_params, param_lr, param_wd, warmup_steps=0):
-                decay  = [p for n, p in named_params if not any(nd in n for nd in no_decay)]
-                no_dec = [p for n, p in named_params if     any(nd in n for nd in no_decay)]
-                groups = []
-                if decay:
-                    groups.append({
-                        "params": decay, "lr": param_lr, "weight_decay": param_wd,
-                        "initial_lr": param_lr, "warmup_steps": warmup_steps,
-                    })
-                if no_dec:
-                    groups.append({
-                        "params": no_dec, "lr": param_lr, "weight_decay": 0.0,
-                        "initial_lr": param_lr, "warmup_steps": warmup_steps,
-                    })
-                return groups
+                # encoder1 backbone params — registered under "encoder1._backbone_*"
+                enc1_named = [
+                    (n, p) for n, p in all_named if "encoder1._backbone_" in n
+                ]
+                backbone_names = {n for n, _ in enc1_named}
+                cls_named = [(n, p) for n, p in all_named if n not in backbone_names]
 
-            param_groups = (
-                _make_groups(enc1_named, enc1_lr, enc1_wd, enc1_warmup)
-                + _make_groups(cls_named, lr, weight_decay)
-            )
-            Opt = torch.optim.AdamW if opt == "adamw" else torch.optim.Adam
-            self.optimizer = Opt(param_groups)
-        elif opt == "sgd":
-            self.optimizer = optim.SGD(self.parameters(), lr, weight_decay=weight_decay)
-        else:
-            raise ValueError(f"Invalid optimizer: {opt!r}. Choose sgd, adam, or adamw.")
+                def _make_groups(named_params, param_lr, param_wd, warmup_steps=0):
+                    decay  = [p for n, p in named_params if not any(nd in n for nd in no_decay)]
+                    no_dec = [p for n, p in named_params if     any(nd in n for nd in no_decay)]
+                    groups = []
+                    if decay:
+                        groups.append({
+                            "params": decay, "lr": param_lr, "weight_decay": param_wd,
+                            "initial_lr": param_lr, "warmup_steps": warmup_steps,
+                        })
+                    if no_dec:
+                        groups.append({
+                            "params": no_dec, "lr": param_lr, "weight_decay": 0.0,
+                            "initial_lr": param_lr, "warmup_steps": warmup_steps,
+                        })
+                    return groups
 
-        warmup_step = training_parameters.get("warmup_step", 0)
-        if warmup_step > 0:
-            from transformers import get_linear_schedule_with_warmup
-            training_steps = train_size // batch_size * self.max_epoch
-            warmup_steps = int(warmup_step * training_steps)
-            self.scheduler = get_linear_schedule_with_warmup(
-                self.optimizer,
-                num_warmup_steps=warmup_steps,
-                num_training_steps=training_steps,
-            )
-        else:
-            self.scheduler = None
+                param_groups = (
+                    _make_groups(enc1_named, enc1_lr, enc1_wd, enc1_warmup)
+                    + _make_groups(cls_named, lr, weight_decay)
+                )
+                Opt = torch.optim.AdamW if opt == "adamw" else torch.optim.Adam
+                self.optimizer = Opt(param_groups)
+            elif opt == "sgd":
+                self.optimizer = optim.SGD(self.parameters(), lr, weight_decay=weight_decay)
+            else:
+                raise ValueError(f"Invalid optimizer: {opt!r}. Choose sgd, adam, or adamw.")
 
-        if torch.cuda.is_available():
-            self.cuda()
+            warmup_step = training_parameters.get("warmup_step", 0)
+            if warmup_step > 0:
+                from transformers import get_linear_schedule_with_warmup
+                training_steps = train_size // batch_size * self.max_epoch
+                warmup_steps = int(warmup_step * training_steps)
+                self.scheduler = get_linear_schedule_with_warmup(
+                    self.optimizer,
+                    num_warmup_steps=warmup_steps,
+                    num_training_steps=training_steps,
+                )
+            else:
+                self.scheduler = None
+
+            if torch.cuda.is_available():
+                self.cuda()
 
         self.ckpt = ckpt
         self.global_step = 0
@@ -172,7 +176,7 @@ class HybridRETrainer(nn.Module):
         training: bool = True,
     ) -> float | None:
         """One pass: run encoder1 on-the-fly, concat with cached enc2_embs, train MLP."""
-        device = next(self.model.parameters()).device
+        device = self.device
         avg_loss = AverageMeter()
         avg_acc  = AverageMeter()
 
@@ -229,7 +233,7 @@ class HybridRETrainer(nn.Module):
         self.eval()
         pred_result: list[int] = []
         all_labels:  list[int] = []
-        device = next(self.model.parameters()).device
+        device = self.device
 
         with torch.no_grad():
             for data in tqdm(eval_loader):
@@ -261,12 +265,83 @@ class HybridRETrainer(nn.Module):
     # Training loop with MLflow logging
     # ------------------------------------------------------------------
 
+    def _collect_hybrid_embeddings(
+        self,
+        loader: DataLoader,
+    ) -> "tuple[np.ndarray, np.ndarray]":
+        """Collect combined (encoder1 + enc2_vdb) embeddings without gradients.
+
+        Returns:
+            ``(X, y)`` where ``X`` has shape ``(N, H1+H2)`` and ``y`` shape ``(N,)``.
+        """
+        import numpy as np
+
+        self.eval()
+        all_X: list = []
+        all_y: list = []
+        device = self.device
+
+        with torch.no_grad():
+            for data in tqdm(loader, desc="Collecting embeddings"):
+                labels    = data["labels"]
+                items     = data["items"]
+                enc2_embs = F.normalize(data["enc2_embs"].to(device), dim=-1)
+                enc1_embs = CombineEmbeddings._encode_batch(self.encoder1, items).to(device)
+                emb = torch.cat([enc1_embs, enc2_embs], dim=-1)
+                all_X.append(emb.cpu().numpy())
+                all_y.append(labels.numpy())
+
+        return (
+            np.concatenate(all_X, axis=0),
+            np.concatenate(all_y, axis=0),
+        )
+
+    def _train_sklearn(self, metric: str) -> float:
+        """Fit the sklearn classifier on hybrid embeddings and return best *metric*.
+
+        Steps:
+        1. Run encoder1 on-the-fly (no gradient) to get enc1 embeddings.
+        2. Concatenate with pre-computed enc2_vdb embeddings.
+        3. Fit the sklearn model (``XGBClassifier`` / ``LGBMClassifier``).
+        4. Persist with :mod:`joblib`.
+        5. Evaluate on the test set and log metrics to MLflow.
+        """
+        import joblib
+
+        logger.info("=== Collecting hybrid train embeddings for sklearn fitting ===")
+        X_train, y_train = self._collect_hybrid_embeddings(self.train_loader)
+
+        logger.info(
+            "Fitting %s on %d samples (dim=%d) …",
+            self.model._model_type, len(X_train), X_train.shape[1],
+        )
+        self.model.fit(X_train, y_train)
+
+        folder = os.path.dirname(self.ckpt)
+        if folder:
+            os.makedirs(folder, exist_ok=True)
+        ckpt_sklearn = self.ckpt.replace(".pth", ".joblib")
+        joblib.dump(self.model._clf, ckpt_sklearn)
+        logger.info("Sklearn model saved to %s", ckpt_sklearn)
+
+        logger.info("=== Test evaluation (sklearn, no val split) ===")
+        result, _, _ = self.eval_model(self.test_loader)
+        mlflow.log_metrics(
+            {f"val_{k}": v for k, v in result.items() if isinstance(v, float)},
+            step=0,
+        )
+        logger.info("Val result: %s", result)
+        return result.get(metric, 0.0)
+
     def train_model(self, warmup: bool = True, metric: str = "macro_f1") -> float:
         """Epoch loop with validation and early stopping.
 
         Returns:
             Best value of *metric* achieved on the validation split.
         """
+        if self._is_sklearn:
+            return self._train_sklearn(metric)
+
         best_metric = 0.0
         patience = self.training_parameters.get("patience", 0)
         early_stopper = EarlyStopping(patience=patience)
