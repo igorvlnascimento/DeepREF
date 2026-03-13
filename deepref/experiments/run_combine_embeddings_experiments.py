@@ -537,7 +537,7 @@ def main(cfg: DictConfig) -> None:
                         _resolve_stem(enc2_test_stem_override), device=faiss_device
                     )
                 else:
-                    enc2_tag = cfg.encoder2.type + ("_cls" if cfg.encoder2.get("has_cls_embedding", False) else "")
+                    enc2_tag = cfg.encoder2.type + (f"_{cfg.encoder2.nlp_tool}" if cfg.encoder2.get("nlp_tool", None) else "") + ("_cls" if cfg.encoder2.get("has_cls_embedding", False) else "")
                     enc1_model_name_h = cfg.encoder1.get("model_name", cfg.encoder1.type)
                     vdb_stem_h = f"{cfg.dataset.name}_{enc2_tag}_hybrid"
 
@@ -630,8 +630,8 @@ def main(cfg: DictConfig) -> None:
                 vdb_batch_size = cfg.vector_db.get("batch_size", None) or cfg.training.batch_size
                 vdb_save_dir   = cfg.vector_db.get("save_dir", None)
 
-                enc1_tag = cfg.encoder1.type + ("_cls" if cfg.encoder1.get("has_cls_embedding", False) else "")
-                enc2_tag = cfg.encoder2.type + ("_cls" if cfg.encoder2.get("has_cls_embedding", False) else "")
+                enc1_tag = cfg.encoder1.type + (f"_{cfg.encoder1.nlp_tool}" if cfg.encoder1.get("nlp_tool", None) else "") + ("_cls" if cfg.encoder1.get("has_cls_embedding", False) else "")
+                enc2_tag = cfg.encoder2.type + (f"_{cfg.encoder2.nlp_tool}" if cfg.encoder2.get("nlp_tool", None) else "") + ("_cls" if cfg.encoder2.get("has_cls_embedding", False) else "")
                 vdb_stem = f"{cfg.dataset.name}_{enc1_tag}_{enc2_tag}"
                 enc1_model_name = cfg.encoder1.get("model_name", cfg.encoder1.type)
 

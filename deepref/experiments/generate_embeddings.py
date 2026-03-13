@@ -115,8 +115,8 @@ def main(cfg: DictConfig) -> None:
     # File-name stem shared by both splits: <dataset>_<enc1>_<enc2>
     # Include _cls suffix when has_cls_embedding is active so runs with and
     # without CLS don't collide (mirrors run_combine_embeddings_experiments.py).
-    enc1_tag = cfg.encoder1.type + ("_cls" if cfg.encoder1.get("has_cls_embedding", False) else "")
-    enc2_tag = cfg.encoder2.type + ("_cls" if cfg.encoder2.get("has_cls_embedding", False) else "")
+    enc1_tag = cfg.encoder1.type + (f"_{cfg.encoder1.nlp_tool}" if cfg.encoder1.get("nlp_tool", None) else "") + ("_cls" if cfg.encoder1.get("has_cls_embedding", False) else "")
+    enc2_tag = cfg.encoder2.type + (f"_{cfg.encoder2.nlp_tool}" if cfg.encoder2.get("nlp_tool", None) else "") + ("_cls" if cfg.encoder2.get("has_cls_embedding", False) else "")
     stem = f"{cfg.dataset.name}_{enc1_tag}_{enc2_tag}"
     train_stem = str(output_dir / f"{stem}_train")
     test_stem  = str(output_dir / f"{stem}_test")
