@@ -24,19 +24,21 @@ class CombineREClassifier(SentenceRE):
         """
         super().__init__()
         self.sentence_encoder = sentence_encoder
+        h1 = sentence_encoder.h1
+        h2 = sentence_encoder.h2
         self.num_class = num_class
         self.act = activation_function
         self.softmax = nn.Softmax(-1)
         self.model_bert = nn.Sequential(
-            nn.LayerNorm(2034, elementwise_affine=True),
-            nn.Linear(2034, 1152),
+            nn.LayerNorm(h1, elementwise_affine=True),
+            nn.Linear(h1, 1152),
             self.act,
             nn.Dropout(0.2),
         )
 
         self.model_qwen = nn.Sequential(
-            nn.LayerNorm(4096, elementwise_affine=False),
-            nn.Linear(4096, 128),
+            nn.LayerNorm(h2, elementwise_affine=False),
+            nn.Linear(h2, 128),
             self.act,
             nn.Dropout(0.4),
         )

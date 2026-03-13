@@ -45,9 +45,9 @@ class CombineEmbeddings(nn.Module):
         self.encoder1 = encoder1
         self.encoder2 = encoder2
 
-        h1 = self._get_hidden_size(encoder1)
-        h2 = self._get_hidden_size(encoder2)
-        combined = h1 + h2
+        self.h1 = self._get_hidden_size(encoder1)
+        self.h2 = self._get_hidden_size(encoder2)
+        combined = self.h1 + self.h2
 
         # Expose model.config.hidden_size for SoftmaxMLP / MLP compatibility.
         self.model = SimpleNamespace(
@@ -55,7 +55,7 @@ class CombineEmbeddings(nn.Module):
         )
         logger.info(
             "CombineEmbeddings — encoder1: %d  encoder2: %d  combined: %d",
-            h1, h2, combined,
+            self.h1, self.h2, combined,
         )
 
     # ------------------------------------------------------------------
