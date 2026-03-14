@@ -861,6 +861,14 @@ def main(cfg: DictConfig) -> None:
 
             mlflow.log_metric("best_micro_f1", best_micro_f1)
 
+            # ── Reload best checkpoint before test evaluation ────────────────
+            # train_model() saves the best checkpoint but leaves the model in
+            # its final-epoch state; reload so test metrics reflect best weights.
+            if os.path.isfile(ckpt_path):
+                ckpt_data = torch.load(ckpt_path, map_location=device)
+                trainer.model.load_state_dict(ckpt_data["state_dict"])
+                logger.info("Loaded best checkpoint from %s for test evaluation", ckpt_path)
+
             # ── Test evaluation ─────────────────────────────────────────────
             logger.info("=== Test evaluation ===")
             test_result, test_preds, test_labels = trainer.eval_model(trainer.test_loader)

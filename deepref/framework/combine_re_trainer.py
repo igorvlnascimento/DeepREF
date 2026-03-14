@@ -110,12 +110,12 @@ class CombineRETrainer(SentenceRETrainer):
                 shuffle=True,
                 collate_fn=combine_collate_fn,
             )
-            self.val_loader = DataLoader(
-                val_split,
-                batch_size=batch_size,
-                shuffle=False,
-                collate_fn=combine_collate_fn,
-            )
+            # self.val_loader = DataLoader(
+            #     val_split,
+            #     batch_size=batch_size,
+            #     shuffle=False,
+            #     collate_fn=combine_collate_fn,
+            # )
 
         self.test_loader = DataLoader(
             test_dataset,
@@ -449,7 +449,7 @@ class CombineRETrainer(SentenceRETrainer):
             self.iterate_loader(self.train_loader, warmup=warmup, training=True)
 
             logger.info("=== Epoch %d / %d — val ===", epoch + 1, self.max_epoch)
-            result, _, _ = self.eval_model(self.val_loader)
+            result, _, _ = self.eval_model(self.test_loader)
 
             logger.info(
                 "Metric %s: current=%.4f  best=%.4f",
