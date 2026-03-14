@@ -14,26 +14,23 @@ class StanzaNLPTool(NLPTool):
         self.resources_dir = os.getenv("STANZA_RESOURCES_DIR", None)
         self.processors = "tokenize,mwt,pos,lemma,depparse,ner"
 
+        pipeline_kwargs = dict(
+            lang=self.lang,
+            processors=self.processors,
+            tokenize_no_ssplit=True,
+            download_method=DownloadMethod.REUSE_RESOURCES,
+        )
+        if self.resources_dir is not None:
+            pipeline_kwargs["dir"] = self.resources_dir
+
         try:
-            self.nlp = stanza.Pipeline(
-                lang=self.lang,
-                dir=self.resources_dir,
-                processors=self.processors,
-                tokenize_no_ssplit=True,
-                download_method=DownloadMethod.REUSE_RESOURCES,
-            )
+            self.nlp = stanza.Pipeline(**pipeline_kwargs)
         except Exception:
             download_kwargs = dict(package=self.model, processors=self.processors)
             if self.resources_dir is not None:
                 download_kwargs["model_dir"] = self.resources_dir
             stanza.download(self.lang, **download_kwargs)
-            self.nlp = stanza.Pipeline(
-                lang=self.lang,
-                dir=self.resources_dir,
-                processors=self.processors,
-                tokenize_no_ssplit=True,
-                download_method=DownloadMethod.REUSE_RESOURCES,
-            )
+            self.nlp = stanza.Pipeline(**pipeline_kwargs)
 
     @staticmethod
     def _norm_ner(tag: str) -> str:
