@@ -27,7 +27,7 @@ class StanzaNLPTool(NLPTool):
                 self.lang,
                 package=self.model,
                 processors=self.processors,
-                dir=self.resources_dir,
+                model_dir=self.resources_dir,
             )
             self.nlp = stanza.Pipeline(
                 lang=self.lang,
