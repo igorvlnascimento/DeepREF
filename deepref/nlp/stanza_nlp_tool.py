@@ -23,12 +23,10 @@ class StanzaNLPTool(NLPTool):
                 download_method=DownloadMethod.REUSE_RESOURCES,
             )
         except Exception:
-            stanza.download(
-                self.lang,
-                package=self.model,
-                processors=self.processors,
-                model_dir=self.resources_dir,
-            )
+            download_kwargs = dict(package=self.model, processors=self.processors)
+            if self.resources_dir is not None:
+                download_kwargs["model_dir"] = self.resources_dir
+            stanza.download(self.lang, **download_kwargs)
             self.nlp = stanza.Pipeline(
                 lang=self.lang,
                 dir=self.resources_dir,
