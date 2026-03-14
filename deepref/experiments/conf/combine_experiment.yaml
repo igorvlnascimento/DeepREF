@@ -25,6 +25,11 @@ training:
   seed: 42
   patience: 3
   no_validation: false  # true → use 100% of train data; test set used only for final metrics
+  # Loss function: "focal_loss" (FocalLossLabelSmoothing) or "cross_entropy" (nn.CrossEntropyLoss)
+  criterion: focal_loss
+  focal_loss:
+    gamma: 2.0
+    smoothing: 0.1
 
 device: cuda
 

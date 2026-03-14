@@ -268,6 +268,32 @@ def build_combined_encoder(
 
 
 # ---------------------------------------------------------------------------
+# Criterion factory
+# ---------------------------------------------------------------------------
+
+def build_criterion(cfg: DictConfig) -> nn.Module:
+    """Instantiate the loss function from ``cfg.training.criterion``.
+
+    Supported values:
+    * ``"focal_loss"``   — :class:`~deepref.utils.focal_loss.FocalLossLabelSmoothing`
+      (configurable via ``training.focal_loss.gamma`` and ``training.focal_loss.smoothing``).
+    * ``"cross_entropy"`` — :class:`torch.nn.CrossEntropyLoss`.
+    """
+    criterion_type: str = cfg.training.get("criterion", "focal_loss")
+    if criterion_type == "focal_loss":
+        fl_cfg = cfg.training.get("focal_loss", {})
+        return FocalLossLabelSmoothing(
+            gamma=fl_cfg.get("gamma", 2.0),
+            smoothing=fl_cfg.get("smoothing", 0.1),
+        )
+    if criterion_type == "cross_entropy":
+        return nn.CrossEntropyLoss()
+    raise ValueError(
+        f"Unknown criterion: {criterion_type!r}. Choose 'focal_loss' or 'cross_entropy'."
+    )
+
+
+# ---------------------------------------------------------------------------
 # Model factory
 # ---------------------------------------------------------------------------
 
@@ -525,6 +551,9 @@ def main(cfg: DictConfig) -> None:
             "opt": cfg.training.opt,
             "seed": cfg.training.seed,
             "patience": cfg.training.get("patience", 0),
+            "criterion": cfg.training.get("criterion", "focal_loss"),
+            "focal_loss_gamma": cfg.training.get("focal_loss", {}).get("gamma", 2.0) if cfg.training.get("criterion", "focal_loss") == "focal_loss" else "n/a",
+            "focal_loss_smoothing": cfg.training.get("focal_loss", {}).get("smoothing", 0.1) if cfg.training.get("criterion", "focal_loss") == "focal_loss" else "n/a",
             "use_vector_db": use_vector_db,
             "fit_pipeline": cfg.vector_db.get("fit_pipeline", False),
             "faiss_device": cfg.vector_db.get("faiss_device", None) or device,
@@ -550,7 +579,7 @@ def main(cfg: DictConfig) -> None:
 
             training_parameters = {
                 "max_epoch": cfg.training.max_epoch,
-                "criterion": FocalLossLabelSmoothing(),
+                "criterion": build_criterion(cfg),
                 "lr": cfg.training.lr,
                 "batch_size": cfg.training.batch_size,
                 "opt": cfg.training.opt,
