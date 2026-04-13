@@ -72,7 +72,10 @@ class REDataset(Dataset):
             path = path.with_suffix('.csv')
         if not path.is_file():
             return None
-        return pd.read_csv(path, sep="\t")
+        df = pd.read_csv(path, sep="\t")
+        # Clean column names to remove hidden whitespace
+        df.columns.str.strip()
+        return df
             
     def get_labels_dict(self):
         if self.df is None:
