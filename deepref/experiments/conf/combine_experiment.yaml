@@ -26,7 +26,7 @@ training:
   patience: 3
   no_validation: false  # true → use 100% of train data; test set used only for final metrics
   # Loss function: "focal_loss" (FocalLossLabelSmoothing) or "cross_entropy" (nn.CrossEntropyLoss)
-  criterion: focal_loss
+  criterion: cross_entropy
   focal_loss:
     gamma: 2.0
     smoothing: 0.1
@@ -34,7 +34,7 @@ training:
 device: cuda
 
 vector_db:
-  enabled: true       # true → pre-compute embeddings once, train MLP head on tensors
+  enabled: false       # true → pre-compute embeddings once, train MLP head on tensors
   hybrid_mode: false  # true → pre-compute only encoder2; encoder1 runs on-the-fly (trainable)
   enc2_train_stem: null  # hybrid only: path stem to existing enc2 train VDB (skips generation)
   enc2_test_stem: null   # hybrid only: path stem to existing enc2 test VDB (skips generation)
