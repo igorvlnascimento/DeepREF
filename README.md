@@ -66,6 +66,138 @@ This is the best model architecture available in the framework:
 
 The POS and Deps encoding are optional and you can turn it off in `pos_embed` and `deps_embed` variables, respectively. This variables can be found in `deepref/data/hyperparams_<dataset>.json` file. 
 
+## Combine-Embeddings Experiments
+
+The combine-embeddings experiment trains a classifier on top of one or two encoders. When two encoders are used, their embeddings are concatenated via `CombineEmbeddings`. The experiment is driven by [Hydra](https://hydra.cc/) and logs all metrics and parameters to [MLflow](https://mlflow.org/).
+
+### Supported Classifiers
+
+| `training.model_type` | Description |
+|---|---|
+| `softmax_mlp` | MLP with softmax head (default, gradient-based) |
+| `combine_re_classifier` | Dual-branch MLP (BERT→1152, Qwen→128, merged→N) |
+| `xgboost` | XGBoost multi-class classifier (sklearn API) |
+| `lightgbm` | LightGBM multi-class classifier (sklearn API) |
+
+Sklearn classifiers (`xgboost`, `lightgbm`) skip the epoch loop and fit directly on encoder embeddings — `max_epoch`, `opt`, and `lr` are ignored.
+
+### Encoder Options
+
+**encoder1** (primary encoder):
+
+| Value | Type | Model |
+|---|---|---|
+| `bert_entity` | BERT entity marker (`[E1]+[E2]`) | `bert-base-cased` |
+| `bert_entity_cls` | BERT entity marker + CLS (`[CLS]+[E1]+[E2]`) | `bert-base-cased` |
+| `relation` | Relation encoder with `[MASK]` token | `bert-base-cased` |
+| `llm` | Large language model (avg-pool) | `Qwen/Qwen3-Embedding-8B` |
+
+**encoder2** (secondary encoder, optional):
+
+| Value | Type |
+|---|---|
+| `bow_sdp` | Bag-of-Words over shortest dependency path |
+| `verbalized_sdp` | Verbalized SDP encoded via `Qwen/Qwen3-Embedding-8B` |
+| `none` | Single-encoder mode (only encoder1 is used) |
+
+### Basic Usage
+
+```bash
+# Single run (defaults: bert_entity encoder, no encoder2, semeval2010)
+python deepref/experiments/run_combine_embeddings_experiments.py
+
+# Dual-encoder run: relation + bow_sdp
+python deepref/experiments/run_combine_embeddings_experiments.py \
+    encoder1=relation encoder2=bow_sdp
+
+# Single-encoder run (encoder1 only)
+python deepref/experiments/run_combine_embeddings_experiments.py \
+    encoder2=none
+```
+
+### Multirun (Grid Search)
+
+```bash
+# All 4 dual-encoder combinations
+python deepref/experiments/run_combine_embeddings_experiments.py \
+    --multirun encoder1=relation,llm encoder2=bow_sdp,verbalized_sdp
+
+# All single + dual combinations
+python deepref/experiments/run_combine_embeddings_experiments.py \
+    --multirun encoder1=relation,llm encoder2=bow_sdp,verbalized_sdp,none
+
+# Cross dataset × encoder grid
+python deepref/experiments/run_combine_embeddings_experiments.py \
+    --multirun \
+    dataset=semeval2010,ddi \
+    encoder1=relation,llm \
+    encoder2=bow_sdp,verbalized_sdp,none
+```
+
+### Alternative Classifiers
+
+```bash
+# XGBoost
+python deepref/experiments/run_combine_embeddings_experiments.py \
+    training.model_type=xgboost
+
+# LightGBM
+python deepref/experiments/run_combine_embeddings_experiments.py \
+    training.model_type=lightgbm
+```
+
+### VectorDatabase Mode
+
+Pre-computes embeddings once and then trains the MLP head on the cached tensors — much faster for frozen encoders.
+
+```bash
+# Enable vector DB (default in combine_experiment.yaml)
+python deepref/experiments/run_combine_embeddings_experiments.py \
+    vector_db.enabled=true
+
+# Save generated VectorDatabases to disk for reuse
+python deepref/experiments/run_combine_embeddings_experiments.py \
+    vector_db.enabled=true vector_db.save_dir=embeddings/
+
+# With PCA preprocessing (StandardScaler → PCA(0.95) → L2 Norm)
+python deepref/experiments/run_combine_embeddings_experiments.py \
+    vector_db.enabled=true vector_db.fit_pipeline=true
+```
+
+PCA-transformed VDBs are saved alongside raw ones with a `_pca` infix in the filename stem when `vector_db.save_dir` is also set.
+
+### Key Training Parameters
+
+| Parameter | Default | Description |
+|---|---|---|
+| `training.max_epoch` | `100` | Maximum training epochs |
+| `training.batch_size` | `64` | Batch size |
+| `training.lr` | `2e-5` | Learning rate |
+| `training.patience` | `3` | Early stopping patience (0 = disabled) |
+| `training.criterion` | `focal_loss` | Loss: `focal_loss` or `cross_entropy` |
+| `training.dropout` | `0.1` | Dropout rate |
+| `training.num_mlp_layers` | `3` | Number of MLP layers |
+| `device` | `cuda` | Device: `cuda` or `cpu` |
+
+Override any parameter directly on the command line:
+
+```bash
+python deepref/experiments/run_combine_embeddings_experiments.py \
+    training.patience=5 training.max_epoch=50 training.lr=1e-4
+```
+
+### Viewing Results with MLflow
+
+MLflow tracking URI and experiment name are configured in `deepref/experiments/conf/combine_experiment.yaml`. After running experiments, launch the UI to inspect results:
+
+```bash
+mlflow ui
+```
+
+Then open `http://localhost:5000` in your browser.
+
+---
+
 ## Optimization
 
 ### Hyperparameters/Model optimization
