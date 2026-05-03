@@ -218,6 +218,21 @@ class VectorDBRETrainer(CombineRETrainer):
         """
         if self._is_sklearn:
             return self._train_sklearn(metric)
+        
+        no_validation: bool = self.training_parameters.get("no_validation", False)
+
+        if no_validation:
+            for epoch in range(self.max_epoch):
+                logger.info("=== Epoch %d / %d — train ===", epoch + 1, self.max_epoch)
+                self.train()
+                self.iterate_loader(self.train_loader, warmup=warmup, training=True)
+
+            logger.info("No-validation mode — saving final checkpoint to %s", self.ckpt)
+            folder = os.path.dirname(self.ckpt)
+            if folder:
+                os.makedirs(folder, exist_ok=True)
+            torch.save({"state_dict": self.model.state_dict()}, self.ckpt)
+            return 0.0
 
         best_metric = 0.0
         patience = self.training_parameters.get("patience", 0)
